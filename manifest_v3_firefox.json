@@ -1,0 +1,43 @@
+{
+  "name": "browser-rpass",
+  "version": "1.0",
+  "description": "browser extension for rpass",
+  "background": {
+    "scripts": ["background.js"],
+    "type": "module"
+  },
+  "permissions": ["tabs", "activeTab", "scripting"],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.example.com/*",
+        "*://*.google.com/*",
+        "*://*.mozilla.org/*"
+      ],
+      "js": ["content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "browser_rpass.js",
+        "browser_rpass_bg.wasm",
+        "run_wasm_content.js",
+        "run_wasm_content.js"
+      ],
+      "matches": [
+        "*://*.example.com/*",
+        "*://*.google.com/*",
+        "*://*.mozilla.org/*"
+      ]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "rpass"
+  }
+}
