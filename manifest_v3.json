@@ -3,7 +3,7 @@
   "version": "1.0",
   "description": "browser extension for rpass",
   "background": {
-    "service_worker": "background.js",
+    "service_worker": "run_service_worker.js",
     "type": "module"
   },
   "permissions": ["tabs", "activeTab", "scripting"],
@@ -14,16 +14,16 @@
         "*://*.google.com/*",
         "*://*.mozilla.org/*"
       ],
-      "js": ["content.js"]
+      "js": ["run_content.js"]
     }
   ],
   "web_accessible_resources": [
     {
       "resources": [
-        "browser_rpass.js",
-        "browser_rpass_bg.wasm",
         "run_wasm_content.js",
-        "run_wasm_content.js"
+        "run_wasm_content_bg.wasm",
+        "run_wasm_service_worker.js",
+        "run_wasm_service_worker_bg.wasm"
       ],
       "matches": [
         "*://*.example.com/*",

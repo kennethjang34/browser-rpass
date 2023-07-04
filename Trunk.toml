@@ -1,0 +1,5 @@
+[build]
+pattern_preload = "<link rel=\"preload\" href=\"/popup_bg.wasm\" as=\"fetch\" type=\"application/wasm\" crossorigin=\"\"><link rel=\"modulepreload\" href=\"/popup.js\">"
+pattern_script = "<script type=\"module\" src=\"/init.js\"></script>"
+filehash = false
+
