@@ -16,3 +16,16 @@ console_error_panic_hook = "0.1.6"
 reqwest-wasm = "0.11.16"
 serde = { version = "1.0.164", features = ["derive"] }
 serde_json = "1.0.96"
+
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+    "console",
+    "Window",
+	"Document",
+	"HtmlElement",
+	"HtmlDocument",
+	"HtmlInputElement",
+	"HtmlTextAreaElement",
+]
