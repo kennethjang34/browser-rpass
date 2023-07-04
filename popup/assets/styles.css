@@ -1,0 +1,14 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+  font-family: Arial, Helvetica, sans-serif;
+  min-width: 250px;
+}
+div {
+  display: block;
+}
+.pressable {
+  cursor: pointer;
+}
