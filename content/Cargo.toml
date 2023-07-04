@@ -1,0 +1,30 @@
+[package]
+name = "content"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+[dependencies]
+wasm-bindgen = "^0.2.87"
+js-sys = "0.3"
+wasm-bindgen-futures = "0.4"
+console_error_panic_hook = "0.1.6"
+reqwest-wasm = "0.11.16"
+serde = { version = "1.0.164", features = ["derive"] }
+serde_json = "1.0.96"
+yew = {version="^0.20", features=["csr"]}
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+    "console",
+    "Window",
+	"Document",
+	"HtmlElement",
+	"HtmlDocument",
+	"HtmlInputElement",
+	"HtmlTextAreaElement",
+]
