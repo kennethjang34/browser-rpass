@@ -1,3 +1,4 @@
+use wasm_bindgen::prelude::*;
 #[macro_use]
 mod util;
 
