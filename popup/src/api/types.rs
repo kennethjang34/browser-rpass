@@ -12,9 +12,10 @@ pub struct User {
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq, Clone)]
 pub struct Account {
     pub id: usize,
-    pub username: String,
+    pub username: Option<String>,
     pub email: String,
-    pub password: String,
+    pub password: Option<String>,
+    pub organization: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
 }

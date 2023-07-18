@@ -27,7 +27,7 @@ yewdux = "^0.9"
 
 
 [dependencies.web-sys]
-version = "0.3"
+version = "^0.3"
 features = [
     "console",
     "Window",
@@ -36,4 +36,6 @@ features = [
 	"HtmlDocument",
 	"HtmlInputElement",
 	"HtmlTextAreaElement",
+	"Navigator",
+	"Clipboard",
 ]

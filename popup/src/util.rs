@@ -1,7 +1,14 @@
 use js_sys::Promise;
 use std::time::Duration;
+use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::window;
+use web_sys::Navigator;
+macro_rules! log {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into());
+    }
+}
 
 pub async fn sleep(duration: Duration) {
     JsFuture::from(Promise::new(&mut |yes, _| {
@@ -17,8 +24,10 @@ pub async fn sleep(duration: Duration) {
     .unwrap();
 }
 
-macro_rules! log {
-    ( $( $t:tt )* ) => {
-        web_sys::console::log_1(&format!( $( $t )* ).into());
-    }
+pub async fn clipboard_copy(text: &str) -> Result<JsValue, JsValue> {
+    let window = web_sys::window().expect("Missing Window");
+    let navigator = window.navigator();
+    let clipboard = navigator.clipboard().expect("Missing Clipboard");
+    let result = wasm_bindgen_futures::JsFuture::from(clipboard.write_text(text)).await?;
+    Ok(result)
 }
