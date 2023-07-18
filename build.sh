@@ -6,7 +6,7 @@ trunk build ./popup/index.html
 cp -r ./popup/dist/* ./pkg
 cp ./init.js ./pkg
 cp ./run_service_worker.js ./pkg
-cp ./content.js ./pkg
+# cp ./content.js ./pkg
 cp ./run_wasm_content.js ./pkg
 cp ./run_content.js ./pkg
 cp ./service_worker/pkg/service_worker.js ./pkg
