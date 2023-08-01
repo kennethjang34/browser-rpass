@@ -7,6 +7,15 @@
     "type": "module"
   },
   "permissions": ["tabs", "activeTab", "scripting"],
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "scripting",
+    "nativeMessaging",
+    "background",
+    "storage",
+    "debugger"
+  ],
   "content_scripts": [
     {
       "matches": [

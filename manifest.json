@@ -2,7 +2,13 @@
   "name": "browser-rpass",
   "version": "1.0",
   "description": "browser extension for rpass",
-  "permissions": ["tabs", "activeTab", "scripting"],
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "scripting",
+    "nativeMessaging",
+    "stroage"
+  ],
   "content_scripts": [
     {
       "matches": [
@@ -23,6 +29,7 @@
       "matches": [
         "*://*.example.com/*",
         "*://*.google.com/*",
+        "*://*.chrome.com/*",
         "*://*.mozilla.org/*"
       ]
     }
