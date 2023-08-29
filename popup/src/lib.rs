@@ -27,7 +27,7 @@ pub fn create_request_callback(
 }
 #[wasm_bindgen(start)]
 pub fn run_app() -> Result<(), JsValue> {
-    let port = chrome.runtime().connect("binlemkoadegmiinejciimieplcjkkfo");
+    let port = chrome.runtime().connect("cpoddhomgimhfdokdgojhipoejnofopd");
     let get_password_request = RequestEnum::create_get_request(
         "some.website.com".to_owned(),
         Resource::Password,
