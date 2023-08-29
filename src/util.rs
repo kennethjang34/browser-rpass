@@ -89,7 +89,9 @@ extern "C" {
     #[wasm_bindgen(method,structural,js_name=connectNative)]
     pub fn connect_native(this: &Runtime, s: &str) -> Port;
     #[wasm_bindgen(method,structural,js_name=connect)]
-    pub fn connect(this: &Runtime, s: &str) -> Port;
+    pub fn connect_exteranl(this: &Runtime, s: &str) -> Port;
+    #[wasm_bindgen(method,structural,js_name=connect)]
+    pub fn connect(this: &Runtime) -> Port;
     #[wasm_bindgen(method, js_class = "Port", js_name = "postMessage")]
     pub fn post_message(this: &Port, message: JsValue);
     #[wasm_bindgen(method,structural,js_name=sendNativeMessage)]
