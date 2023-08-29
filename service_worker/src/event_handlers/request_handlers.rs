@@ -1,6 +1,7 @@
 use browser_rpass::request::{GetRequest, Queryable, RequestEnum, SearchRequest};
 use browser_rpass::response::{GetResponse, ResponseEnum, SearchResponse};
 use browser_rpass::store::{DATA_STORAGE, MESSAGE_ACKNOWLEDGEMENTS_NATIVE};
+use browser_rpass::util::*;
 use gloo_utils::format::JsValueSerdeExt;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
@@ -10,7 +11,9 @@ use std::error::Error;
 use std::sync::Mutex;
 use wasm_bindgen::prelude::*;
 
+use browser_rpass::log;
 use browser_rpass::request::*;
+use browser_rpass::util::*;
 pub fn create_request_callback(
     request: RequestEnum,
     ctx: Option<HashMap<String, String>>,

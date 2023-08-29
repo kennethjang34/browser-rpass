@@ -1,10 +1,12 @@
 use wasm_bindgen_futures::spawn_local;
 // use web_sys::Navigator;
-use util::*;
+use browser_rpass::log;
+use browser_rpass::util::*;
+
 use yew::prelude::*;
 use yewdux::prelude::use_store;
 
-use crate::{api::types::Account, store::Store, util};
+use crate::{api::types::Account, store::Store};
 
 #[derive(Debug, PartialEq, Properties)]
 pub struct AccountEntryProps {

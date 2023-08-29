@@ -1,9 +1,20 @@
 use js_sys::Promise;
+use rand::distributions::Alphanumeric;
+use rand::thread_rng;
+use rand::Rng;
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::window;
+pub fn create_request_acknowledgement() -> String {
+    thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(30)
+        .map(char::from)
+        .collect()
+}
+#[macro_export]
 macro_rules! log {
     ( $( $t:tt )* ) => {
         web_sys::console::log_1(&format!( $( $t )* ).into());
@@ -34,7 +45,7 @@ pub async fn clipboard_copy(text: &str) -> Result<JsValue, JsValue> {
 
 #[wasm_bindgen]
 extern "C" {
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     pub type Port;
     #[derive(Debug)]
     pub type Runtime;
@@ -53,8 +64,8 @@ extern "C" {
     #[wasm_bindgen(method, getter=runtime,structural,js_name=runtime)]
     pub fn runtime(this: &Chrome) -> Runtime;
 
-    #[wasm_bindgen(js_namespace=console,js_name=log)]
-    pub fn log(object: &JsValue);
+    // #[wasm_bindgen(js_namespace=console,js_name=log)]
+    // pub fn log(object: &JsValue);
 
     #[wasm_bindgen(method,getter=onConnect)]
     pub fn on_connect(this: &Runtime) -> EventTarget;
@@ -95,3 +106,5 @@ extern "C" {
         callback: Option<&Closure<dyn Fn(String)>>,
     );
 }
+unsafe impl Send for Port {}
+unsafe impl Sync for Port {}

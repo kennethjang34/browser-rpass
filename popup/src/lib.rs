@@ -1,19 +1,18 @@
 use browser_rpass::request::*;
 use browser_rpass::response::{GetResponse, ResponseEnum, ResponseEnumTrait};
+use browser_rpass::util::*;
+use browser_rpass::util::*;
 use gloo_utils::format::JsValueSerdeExt;
 use std::collections::HashMap;
-use util::*;
 use std::sync::Mutex;
 use wasm_bindgen::convert::IntoWasmAbi;
 use wasm_bindgen::prelude::*;
-
-#[macro_use]
-mod util;
 
 mod api;
 mod app;
 mod components;
 mod store;
+use browser_rpass::log;
 use browser_rpass::store::MESSAGE_ACKNOWLEDGEMENTS_POP_UP;
 
 pub fn create_request_callback(

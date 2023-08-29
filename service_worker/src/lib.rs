@@ -2,12 +2,13 @@ use event_handlers::request_handlers::*;
 use gloo_utils::format::JsValueSerdeExt;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
-#[macro_use]
-mod util;
 
-use util::*;
+use browser_rpass::log;
 use browser_rpass::request::*;
+use browser_rpass::util::*;
 
+#[cfg(test)]
+mod tests;
 
 mod event_handlers;
 
