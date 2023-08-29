@@ -5,9 +5,41 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[dependencies]
+serde = { version = "1.0.174", features = ["derive"] }
+serde_json = "1.0.96"
+serde-wasm-bindgen = "^0.5.0"
+gloo = "0.8.0"
+gloo-utils = { version = "^0.1.2", features = ["serde"] }
+wasm-bindgen = "0.2.87"
+rand = "0.8.4"
+getrandom={ version = "0.2.3", features = ["js"] }
+typetag = "0.2"
+enum_dispatch="0.3.12"
+wasm-bindgen-futures = "0.4"
+js-sys = "^0.3"
+console_error_panic_hook = "0.1.6"
+reqwest-wasm = "0.11.16"
+lazy_static = "1.4.0"
+
+
+
 [workspace]
 members=[
 	"service_worker",
 	"popup",
 	"content",
+]
+[dependencies.web-sys]
+version = "0.3"
+features = [
+    "console",
+    "Window",
+	"Document",
+	"HtmlElement",
+	"HtmlDocument",
+	"HtmlInputElement",
+	"HtmlTextAreaElement",
+	"Navigator",
+	"Clipboard",
 ]

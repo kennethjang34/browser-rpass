@@ -25,6 +25,10 @@ validator = { version = "0.16.0", features = ["derive"] }
 yew-router = "^0.17.0"
 yewdux = "^0.9"
 serde-wasm-bindgen = "^0.5.0"
+browser-rpass = { path = "../"}
+rand = "0.8.4"
+getrandom={ version = "0.2.3", features = ["js"] }
+typetag = "0.2"
 
 
 
