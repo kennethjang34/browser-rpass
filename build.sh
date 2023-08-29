@@ -1,3 +1,4 @@
+cargo build -p native-client
 rm -rf ./pkg
 mkdir pkg
 wasm-pack build ./service-worker --target web --out-dir ./pkg

@@ -26,6 +26,7 @@ lazy_static = "1.4.0"
 
 [workspace]
 members=[
+	"native-client",
 	"service-worker",
 	"popup",
 	"content",
