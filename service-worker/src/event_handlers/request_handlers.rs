@@ -14,11 +14,13 @@ use wasm_bindgen::prelude::*;
 use browser_rpass::log;
 use browser_rpass::request::*;
 use browser_rpass::util::*;
+
+use crate::store::NATIVE_PORT;
 pub fn create_request_callback(
     request: RequestEnum,
     ctx: Option<HashMap<String, String>>,
     extension_port: Port,
-) -> Box<impl FnOnce(&[u8], Port)> {
+) -> Box<impl FnOnce(&[u8], Port) -> Result<(), String>> {
     let native_messaging_cb = create_native_message_callback(request.clone(), ctx);
 
     let on_message_cb = move |msg: &[u8], native_port: Port| {
@@ -26,6 +28,12 @@ pub fn create_request_callback(
         if let Ok(parsed_response) = parsed {
             let serialized = serde_json::to_string(&parsed_response).unwrap();
             extension_port.post_message(JsValue::from_str(&serialized));
+            Ok(())
+        } else {
+            Err(
+                "error happened while parsing message from native host into search response"
+                    .to_owned(),
+            )
         }
     };
     Box::new(on_message_cb)
@@ -49,8 +57,8 @@ pub fn create_native_message_callback(
 
 pub fn handle_request_from_popup(
     mut request: RequestEnum,
-    port: &Port,
-    native_port: &Port,
+    port: Port,
+    native_port: Port,
 ) -> Result<(), ()> {
     if let Some(passphrase) = DATA_STORAGE.lock().unwrap().get("passphrase") {
         let header_map = {
@@ -154,4 +162,18 @@ pub fn handle_request_from_popup(
     } else {
         return Err(());
     }
+}
+pub fn create_request_listener() -> Closure<dyn Fn(Port)> {
+    let on_connect_with_popup_cb = Closure::<dyn Fn(Port)>::new(move |port: Port| {
+        // let native_port = native_port.clone();
+        let cb = Closure::<dyn Fn(JsValue, Port)>::new({
+            move |msg: JsValue, port: Port| {
+                let request: RequestEnum = <JsValue as JsValueSerdeExt>::into_serde(&msg).unwrap();
+                handle_request_from_popup(request, port, NATIVE_PORT.clone()).unwrap();
+            }
+        });
+        port.on_message().add_listener(cb.into_js_value());
+    });
+    return on_connect_with_popup_cb;
+    // on_connect_with_popup_cb(extension_port, native_port)
 }

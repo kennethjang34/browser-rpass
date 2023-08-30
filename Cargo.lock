@@ -2775,6 +2775,7 @@ dependencies = [
  "gloo",
  "gloo-utils",
  "js-sys",
+ "lazy_static",
  "rand 0.8.5",
  "reqwest-wasm",
  "serde",

@@ -4,11 +4,11 @@ use crate::{response::ResponseEnum, util::Port};
 use lazy_static::lazy_static;
 
 lazy_static! {
-    pub static ref MESSAGE_ACKNOWLEDGEMENTS_NATIVE: Mutex<HashMap<String, Box<dyn FnOnce(&[u8], Port) + Send>>> =
+    pub static ref MESSAGE_ACKNOWLEDGEMENTS_NATIVE: Mutex<HashMap<String, Box<dyn FnOnce(&[u8], Port) -> Result<(), String> + Send>>> =
         Mutex::new(HashMap::new());
 }
 lazy_static! {
-    pub static ref MESSAGE_ACKNOWLEDGEMENTS_POP_UP: Mutex<HashMap<String, Box<dyn FnOnce(ResponseEnum, Port) + Send>>> =
+    pub static ref MESSAGE_ACKNOWLEDGEMENTS_POP_UP: Mutex<HashMap<String, Box<dyn FnOnce(ResponseEnum, Port) -> Result<(), String> + Send>>> =
         Mutex::new(HashMap::new());
 }
 lazy_static! {
