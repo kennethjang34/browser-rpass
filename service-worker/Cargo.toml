@@ -25,6 +25,8 @@ gloo-utils = { version = "^0.1.2", features = ["serde"] }
 browser-rpass = { path = "../"}
 typetag = "0.2"
 lazy_static = "1.4.0"
+serde_repr = "0.1"
+
 
 [dependencies.web-sys]
 version = "0.3"

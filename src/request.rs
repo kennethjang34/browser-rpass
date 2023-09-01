@@ -88,6 +88,21 @@ impl RequestEnumTrait for InitRequest {
         "init".to_owned()
     }
 }
+impl Into<JsValue> for GetRequest {
+    fn into(self) -> JsValue {
+        <JsValue as JsValueSerdeExt>::from_serde(&self).unwrap()
+    }
+}
+impl Into<JsValue> for SearchRequest {
+    fn into(self) -> JsValue {
+        <JsValue as JsValueSerdeExt>::from_serde(&self).unwrap()
+    }
+}
+impl Into<JsValue> for InitRequest {
+    fn into(self) -> JsValue {
+        <JsValue as JsValueSerdeExt>::from_serde(&self).unwrap()
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]

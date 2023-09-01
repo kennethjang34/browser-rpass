@@ -1,7 +1,9 @@
+use gloo_utils::format::JsValueSerdeExt;
 use js_sys::Promise;
 use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
+use std::collections::HashMap;
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
@@ -42,7 +44,6 @@ pub async fn clipboard_copy(text: &str) -> Result<JsValue, JsValue> {
     let result = wasm_bindgen_futures::JsFuture::from(clipboard.write_text(text)).await?;
     Ok(result)
 }
-
 #[wasm_bindgen]
 extern "C" {
     #[derive(Debug, Clone)]
@@ -57,18 +58,30 @@ extern "C" {
     pub type MessageSender;
     #[derive(Debug)]
     pub type Event;
+    #[derive(Debug)]
+    pub type Storage;
+    #[derive(Debug)]
+    pub type StorageArea;
 
     #[wasm_bindgen(js_name = "chrome")]
     pub static chrome: Chrome;
 
     #[wasm_bindgen(method, getter=runtime,structural,js_name=runtime)]
     pub fn runtime(this: &Chrome) -> Runtime;
+    #[wasm_bindgen(method, getter=storage,structural,js_name=storage)]
+    pub fn storage(this: &Chrome) -> Storage;
 
     // #[wasm_bindgen(js_namespace=console,js_name=log)]
     // pub fn log(object: &JsValue);
 
     #[wasm_bindgen(method,getter=onConnect)]
     pub fn on_connect(this: &Runtime) -> EventTarget;
+    #[wasm_bindgen(method,getter=session)]
+    pub fn session(this: &Storage) -> StorageArea;
+    #[wasm_bindgen(method,getter=local)]
+    pub fn local(this: &Storage) -> StorageArea;
+    #[wasm_bindgen(method,getter=sync)]
+    pub fn sync(this: &Storage) -> StorageArea;
     #[wasm_bindgen(method,getter=onDisconnect)]
     pub fn on_disconnect(this: &Runtime) -> EventTarget;
     #[wasm_bindgen(method,getter=onDisconnect,structural)]
@@ -107,6 +120,27 @@ extern "C" {
         message: JsValue,
         callback: Option<&Closure<dyn Fn(String)>>,
     );
+    #[wasm_bindgen(method,structural,js_name=get)]
+    pub async fn get(this: &StorageArea, key: JsValue) -> JsValue;
+    #[wasm_bindgen(method, structural, js_name = "set")]
+    pub async fn set(this: &StorageArea, items: JsValue);
+    #[wasm_bindgen(method, structural, js_name = "remove")]
+    pub async fn remove(this: &StorageArea, key: &str) -> JsValue;
+    #[wasm_bindgen(method, structural, js_name = "remove")]
+    pub async fn remove_bulk(this: &StorageArea, key: JsValue) -> JsValue;
 }
 unsafe impl Send for Port {}
 unsafe impl Sync for Port {}
+impl StorageArea {
+    pub async fn get_value(&self, key: &str) -> Result<JsValue, JsValue> {
+        let key: JsValue = key.into();
+        let entry = chrome.storage().session().get(key.clone()).await;
+        js_sys::Reflect::get(&entry, &key)
+    }
+    pub async fn set_value(&self, key: String, value: String) {
+        let mut entry = HashMap::new();
+        entry.insert(key, value);
+        let js_val = <JsValue as JsValueSerdeExt>::from_serde(&entry).unwrap();
+        chrome.storage().session().set(js_val).await;
+    }
+}
