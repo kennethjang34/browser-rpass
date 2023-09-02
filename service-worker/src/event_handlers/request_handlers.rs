@@ -67,11 +67,13 @@ pub fn handle_request_from_popup(mut request: RequestEnum, port: Port, native_po
         let mut request = request2;
         let port = port2;
         let native_port = native_port2;
-        log!("request: {:?}", request);
-        let passphrase_entry = chrome.storage().session().get("passphrase".into()).await;
-        log!("passphrase_entry: {:?}", passphrase_entry);
-        if let Ok(passphrase) = chrome.storage().session().get_value("passphrase").await {
-            if let Some(passphrase) = passphrase.as_string() {
+        if let Ok(passphrase) = chrome
+            .storage()
+            .session()
+            .get_string_value("passphrase")
+            .await
+        {
+            if let Some(passphrase) = passphrase {
                 let header_map = {
                     let mut map = HashMap::new();
                     map.insert("passphrase".to_owned(), passphrase.clone());

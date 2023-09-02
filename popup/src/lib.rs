@@ -22,11 +22,14 @@ use browser_rpass::store::{DATA_STORAGE, MESSAGE_ACKNOWLEDGEMENTS_POP_UP};
 #[wasm_bindgen(start)]
 pub async fn run_app() -> Result<(), JsValue> {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
-    let mut passphrase_entry = HashMap::new();
-
-    passphrase_entry.insert("passphrase".to_owned(), "abcd".to_owned());
-    let json = JsValue::from_serde(&passphrase_entry).unwrap();
-    // chrome.storage().session().set(json.clone()).await;
+    if let Ok(passphrase) = chrome
+        .storage()
+        .session()
+        .get_string_value("passphrase")
+        .await
+    {
+        if let Some(passphrase) = passphrase {
+            // chrome.storage().session().set(json.clone()).await;
 
             let port = chrome.runtime().connect();
             let get_password_request = RequestEnum::create_get_request(
@@ -63,6 +66,10 @@ pub async fn run_app() -> Result<(), JsValue> {
             port.post_message(
                 <JsValue as JsValueSerdeExt>::from_serde(&get_username_request).unwrap(),
             );
+        } else {
+            log!("passphrase is not set");
+        }
+    }
     yew::Renderer::<app::App>::new().render();
     Ok(())
 }

@@ -1,8 +1,10 @@
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::Promise;
+use js_sys::JSON;
 use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
+use serde_json::json;
 use std::collections::HashMap;
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
@@ -137,10 +139,30 @@ impl StorageArea {
         let entry = chrome.storage().session().get(key.clone()).await;
         js_sys::Reflect::get(&entry, &key)
     }
-    pub async fn set_value(&self, key: String, value: String) {
+    pub async fn get_string_value(&self, key: &str) -> Result<Option<String>, ()> {
+        let key: JsValue = key.into();
+        let entry = chrome.storage().session().get(key.clone()).await;
+        log!("entry: {:?}", entry);
+        js_sys::Reflect::get(&entry, &key)
+            .map(|v| {
+                if let Some(v) = v.as_string() {
+                    log!("v: {:?}", v);
+                    Some(v)
+                } else {
+                    None
+                }
+            })
+            .or_else(|_| Err(()))
+    }
+    pub async fn set_string_item(&self, key: String, value: String) {
         let mut entry = HashMap::new();
         entry.insert(key, value);
         let js_val = <JsValue as JsValueSerdeExt>::from_serde(&entry).unwrap();
         chrome.storage().session().set(js_val).await;
+    }
+    pub async fn set_item(&self, key: String, value: JsValue) {
+        let mut entry = js_sys::Map::new();
+        entry.set(&JsValue::from_str(&key), &value);
+        chrome.storage().session().set(entry.into()).await;
     }
 }
