@@ -28,39 +28,41 @@ pub async fn run_app() -> Result<(), JsValue> {
     let json = JsValue::from_serde(&passphrase_entry).unwrap();
     // chrome.storage().session().set(json.clone()).await;
 
-    let port = chrome.runtime().connect();
-    // let mut header = HashMap::new();
-    // header.insert("passphrase".to_owned(), passphrase);
-    let get_password_request = RequestEnum::create_get_request(
-        "some.website.com".to_owned(),
-        Resource::Password,
-        Some(create_request_acknowledgement()),
-        None,
-        // Some(header.clone()),
-    );
-    let get_username_request = RequestEnum::create_search_request(
-        "some.website.com".to_owned(),
-        Resource::Username,
-        Some(create_request_acknowledgement()),
-        None,
-        // Some(header.clone()),
-    );
-    let on_message_cb = create_response_listener(port.clone());
-    port.on_message()
-        .add_listener(on_message_cb.as_ref().clone());
-    on_message_cb.forget();
-    let ctx = HashMap::new();
-    MESSAGE_ACKNOWLEDGEMENTS_POP_UP.lock().unwrap().insert(
-        get_password_request.get_acknowledgement().clone().unwrap(),
-        create_response_process_cb(get_password_request.clone(), ctx),
-    );
-    let ctx = HashMap::new();
-    MESSAGE_ACKNOWLEDGEMENTS_POP_UP.lock().unwrap().insert(
-        get_username_request.get_acknowledgement().clone().unwrap(),
-        create_response_process_cb(get_username_request.clone(), ctx),
-    );
-    port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&get_password_request).unwrap());
-    port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&get_username_request).unwrap());
+            let port = chrome.runtime().connect();
+            let get_password_request = RequestEnum::create_get_request(
+                "some.website.com".to_owned(),
+                Resource::Password,
+                Some(create_request_acknowledgement()),
+                None,
+                // Some(header.clone()),
+            );
+            let get_username_request = RequestEnum::create_search_request(
+                "some.website.com".to_owned(),
+                Resource::Username,
+                Some(create_request_acknowledgement()),
+                None,
+                // Some(header.clone()),
+            );
+            let on_message_cb = create_response_listener(port.clone());
+            port.on_message()
+                .add_listener(on_message_cb.as_ref().clone());
+            on_message_cb.forget();
+            let ctx = HashMap::new();
+            MESSAGE_ACKNOWLEDGEMENTS_POP_UP.lock().unwrap().insert(
+                get_password_request.get_acknowledgement().clone().unwrap(),
+                create_response_process_cb(get_password_request.clone(), ctx),
+            );
+            let ctx = HashMap::new();
+            MESSAGE_ACKNOWLEDGEMENTS_POP_UP.lock().unwrap().insert(
+                get_username_request.get_acknowledgement().clone().unwrap(),
+                create_response_process_cb(get_username_request.clone(), ctx),
+            );
+            port.post_message(
+                <JsValue as JsValueSerdeExt>::from_serde(&get_password_request).unwrap(),
+            );
+            port.post_message(
+                <JsValue as JsValueSerdeExt>::from_serde(&get_username_request).unwrap(),
+            );
     yew::Renderer::<app::App>::new().render();
     Ok(())
 }
