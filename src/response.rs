@@ -17,12 +17,28 @@ pub struct SearchResponse {
     pub data: Option<Vec<Data>>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct LoginResponse {
+    pub acknowledgement: Option<String>,
+    pub verified: Result<bool, ()>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InitResponse {
+    pub acknowledgement: Option<String>,
+    pub data: Option<Data>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ErrorResponse {
     pub acknowledgement: Option<String>,
     pub message: Option<String>,
     pub code: Option<ErrorCode>,
 }
 impl Into<JsValue> for ErrorResponse {
+    fn into(self) -> JsValue {
+        <JsValue as JsValueSerdeExt>::from_serde(&self).unwrap()
+    }
+}
+impl Into<JsValue> for InitResponse {
     fn into(self) -> JsValue {
         <JsValue as JsValueSerdeExt>::from_serde(&self).unwrap()
     }
@@ -43,6 +59,18 @@ impl ResponseEnumTrait for GetResponse {
     }
     fn get_data(&self) -> Option<serde_json::Value> {
         return self.data.clone().map(|v| serde_json::to_value(v).unwrap());
+    }
+}
+impl ResponseEnumTrait for LoginResponse {
+    fn get_acknowledgement(&self) -> Option<String> {
+        return self.acknowledgement.clone();
+    }
+    fn get_data(&self) -> Option<serde_json::Value> {
+        if let Ok(verified) = &self.verified {
+            return Some(serde_json::to_value(verified).unwrap());
+        } else {
+            return None;
+        }
     }
 }
 impl ResponseEnumTrait for SearchResponse {
@@ -71,6 +99,14 @@ impl ResponseEnumTrait for ErrorResponse {
         Some(data.into())
     }
 }
+impl ResponseEnumTrait for InitResponse {
+    fn get_acknowledgement(&self) -> Option<String> {
+        return self.acknowledgement.clone();
+    }
+    fn get_data(&self) -> Option<serde_json::Value> {
+        return self.data.clone().map(|v| serde_json::to_value(v).unwrap());
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[enum_dispatch(ResponseEnumTrait,Into<JsValue>)]
@@ -79,8 +115,12 @@ pub enum ResponseEnum {
     GetResponse(GetResponse),
     #[serde(rename = "search_response")]
     SearchResponse(SearchResponse),
+    #[serde(rename = "login_response")]
+    LoginResponse(LoginResponse),
     #[serde(rename = "error_response")]
     ErrorResponse(ErrorResponse),
+    #[serde(rename = "init_response")]
+    InitResponse(InitResponse),
 }
 
 #[enum_dispatch]
@@ -105,4 +145,6 @@ pub enum ErrorCode {
     Unknown = 3,
     NotSupported = 4,
     Generic = 5,
+    LoginFailed = 6,
+    NativeAppConnectionError = 7,
 }

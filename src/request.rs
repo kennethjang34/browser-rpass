@@ -27,6 +27,17 @@ pub struct SearchRequest {
     #[serde(flatten)]
     pub header: Option<HashMap<String, String>>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type")]
+#[serde(rename = "login")]
+pub struct LoginRequest {
+    pub username: Option<String>,
+    pub passphrase: String,
+    pub acknowledgement: Option<String>,
+    #[serde(flatten)]
+    pub header: Option<HashMap<String, String>>,
+}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 #[serde(rename = "init")]
@@ -88,6 +99,23 @@ impl RequestEnumTrait for InitRequest {
         "init".to_owned()
     }
 }
+impl RequestEnumTrait for LoginRequest {
+    fn get_acknowledgement(&self) -> Option<String> {
+        self.acknowledgement.clone()
+    }
+    fn get_payload(&self) -> String {
+        serde_json::to_string(&self).unwrap()
+    }
+    fn get_header(&self) -> Option<HashMap<String, String>> {
+        self.header.clone()
+    }
+    fn set_header(&mut self, header: HashMap<String, String>) {
+        self.header = Some(header);
+    }
+    fn get_type(&self) -> String {
+        "login".to_owned()
+    }
+}
 impl Into<JsValue> for GetRequest {
     fn into(self) -> JsValue {
         <JsValue as JsValueSerdeExt>::from_serde(&self).unwrap()
@@ -103,6 +131,11 @@ impl Into<JsValue> for InitRequest {
         <JsValue as JsValueSerdeExt>::from_serde(&self).unwrap()
     }
 }
+impl Into<JsValue> for LoginRequest {
+    fn into(self) -> JsValue {
+        <JsValue as JsValueSerdeExt>::from_serde(&self).unwrap()
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
@@ -112,6 +145,8 @@ pub enum RequestEnum {
     Get(GetRequest),
     #[serde(rename = "search")]
     Search(SearchRequest),
+    #[serde(rename = "login")]
+    Login(LoginRequest),
     #[serde(rename = "init")]
     Init(InitRequest),
 }
@@ -152,6 +187,24 @@ impl RequestEnum {
                 }
             },
             header,
+        })
+    }
+    pub fn create_login_request(
+        acknowledgement: Option<String>,
+        username: Option<String>,
+        passphrase: String,
+    ) -> RequestEnum {
+        RequestEnum::Login(LoginRequest {
+            username,
+            passphrase,
+            acknowledgement: {
+                if acknowledgement.is_some() {
+                    acknowledgement
+                } else {
+                    Some(create_request_acknowledgement())
+                }
+            },
+            header: None,
         })
     }
     pub fn create_init_request(

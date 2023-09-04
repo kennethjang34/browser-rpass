@@ -48,7 +48,7 @@ pub async fn clipboard_copy(text: &str) -> Result<JsValue, JsValue> {
 }
 #[wasm_bindgen]
 extern "C" {
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq)]
     pub type Port;
     #[derive(Debug)]
     pub type Runtime;
@@ -142,11 +142,9 @@ impl StorageArea {
     pub async fn get_string_value(&self, key: &str) -> Result<Option<String>, ()> {
         let key: JsValue = key.into();
         let entry = chrome.storage().session().get(key.clone()).await;
-        log!("entry: {:?}", entry);
         js_sys::Reflect::get(&entry, &key)
             .map(|v| {
                 if let Some(v) = v.as_string() {
-                    log!("v: {:?}", v);
                     Some(v)
                 } else {
                     None

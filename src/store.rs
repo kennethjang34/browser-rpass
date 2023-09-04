@@ -1,14 +1,20 @@
-use std::{collections::HashMap, sync::Mutex};
+use std::{collections::HashMap, future::Future, pin::Pin, sync::Mutex};
 
-use crate::{response::ResponseEnum, util::Port};
+use crate::{request::RequestEnum, response::ResponseEnum, util::Port};
 use lazy_static::lazy_static;
+pub type AsyncCallback =
+    Box<dyn Send + FnOnce(ResponseEnum, Port) -> Pin<Box<dyn Future<Output = ()>>>>;
 
 lazy_static! {
     pub static ref MESSAGE_ACKNOWLEDGEMENTS_NATIVE: Mutex<HashMap<String, Box<dyn FnOnce(&[u8], Port) -> Result<(), String> + Send>>> =
         Mutex::new(HashMap::new());
 }
 lazy_static! {
-    pub static ref MESSAGE_ACKNOWLEDGEMENTS_POP_UP: Mutex<HashMap<String, Box<dyn FnOnce(ResponseEnum, Port) -> Result<(), String> + Send>>> =
+    pub static ref MESSAGE_ACKNOWLEDGEMENTS_POP_UP: Mutex<HashMap<String,AsyncCallback>>
+    // Box<dyn Send+FnOnce<Fut>(ResponseEnum, Port)->Fut where Fut:Future<Output=()>>>>
+        =
+        // impl Future<Output=()> + Send>>> =
+        // Result<(), String> + Send>>> =
         Mutex::new(HashMap::new());
 }
 lazy_static! {
