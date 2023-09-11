@@ -1,10 +1,6 @@
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Mutex};
 
-use crate::{
-    request::RequestEnum,
-    response::ResponseEnum,
-    util::{chrome, Port},
-};
+use crate::{response::ResponseEnum, util::Port};
 use lazy_static::lazy_static;
 pub type AsyncCallback =
     Box<dyn Send + FnOnce(ResponseEnum, Port) -> Pin<Box<dyn Future<Output = ()>>>>;
