@@ -154,21 +154,6 @@ pub fn create_response_listener(port: Port) -> Closure<dyn Fn(JsValue)> {
                     }
                 }
                 MessageEnum::Request(request) => match request.clone() {
-                    RequestEnum::StorageUpdate(storage_update_request) => {
-                        let data = storage_update_request.payload;
-                        let dispatch = Dispatch::<PopupStore>::new();
-                        if let Ok(event) = serde_json::from_value(data) {
-                            match event {
-                                SessionEvent::LoginSucceeded => {
-                                    dispatch.apply(LoginAction::LoginSucceeded);
-                                }
-                                SessionEvent::LogoutSucceeded => {
-                                    dispatch.apply(LoginAction::LogoutSucceeded);
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
                     _ => {}
                 },
             },
