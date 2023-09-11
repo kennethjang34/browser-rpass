@@ -234,10 +234,13 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
+ "serde_repr",
  "typetag",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "yew",
+ "yewdux",
 ]
 
 [[package]]
@@ -2191,9 +2194,9 @@ dependencies = [
  "gloo",
  "gloo-utils",
  "js-sys",
+ "lazy_static",
  "rand 0.8.5",
  "reqwasm",
- "reqwest-wasm",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
@@ -2552,6 +2555,7 @@ dependencies = [
  "reqwest",
  "sequoia-ipc",
  "sequoia-openpgp",
+ "serde",
  "sha1",
  "sha2",
  "toml 0.7.6",
@@ -2745,6 +2749,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_repr"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8725e1dfadb3a50f7e5ce0b1a540466f6ed3fe7a0fca2ac2b8b831d31316bd00"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.29",
+]
+
+[[package]]
 name = "serde_spanned"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2776,6 +2791,7 @@ dependencies = [
  "gloo-utils",
  "js-sys",
  "lazy_static",
+ "once_cell",
  "rand 0.8.5",
  "reqwest-wasm",
  "serde",
@@ -2785,6 +2801,8 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "yew",
+ "yewdux",
 ]
 
 [[package]]

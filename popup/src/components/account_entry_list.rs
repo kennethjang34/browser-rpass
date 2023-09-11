@@ -1,7 +1,7 @@
 use yew::prelude::*;
 use yewdux::prelude::use_store;
 
-use crate::{api::types::Account, store::Store};
+use crate::{api::types::Account, store::PopupStore};
 
 use super::account_entry::AccountEntry;
 
@@ -12,7 +12,7 @@ pub struct AccountEntryListProps {
 
 #[function_component(AccountEntryList)]
 pub fn account_entry_list_component(props: &AccountEntryListProps) -> Html {
-    let (store, dispatch) = use_store::<Store>();
+    let (store, dispatch) = use_store::<PopupStore>();
     let accounts = &props.accounts;
     accounts
         .iter()
