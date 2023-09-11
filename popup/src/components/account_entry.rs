@@ -6,7 +6,7 @@ use browser_rpass::util::*;
 use yew::prelude::*;
 use yewdux::prelude::use_store;
 
-use crate::{api::types::Account, store::Store};
+use crate::{api::types::Account, store::PopupStore};
 
 #[derive(Debug, PartialEq, Properties)]
 pub struct AccountEntryProps {
@@ -16,7 +16,7 @@ pub struct AccountEntryProps {
 
 #[function_component(AccountEntry)]
 pub fn account_entry_component(props: &AccountEntryProps) -> Html {
-    let (store, dispatch) = use_store::<Store>();
+    let (store, dispatch) = use_store::<PopupStore>();
     let account = props.account.clone();
     let email = account.email.clone();
     let password = account.password.clone();
