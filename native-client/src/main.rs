@@ -647,12 +647,13 @@ fn execute_command(command: Request, store: &PasswordStoreType) -> pass::Result<
             passphrase,
         } => {
             let value = value.unwrap();
-            create_password_entry(
+            let status;
+            if let Ok(password_entry) = create_password_entry_with_passphrase(
                 Some(value),
                 Some(path + "/" + &username),
                 store.clone(),
                 None,
-            )?;
+                passphrase,
             ) {
                 status = Status::Success;
             } else {
@@ -779,6 +780,42 @@ fn create_password_entry(
     }
     new_password_save(path.as_ref(), password.as_ref(), store)
 }
+fn create_password_entry_with_passphrase(
+    password: Option<String>,
+    path: Option<String>,
+    store: PasswordStoreType,
+    note: Option<String>,
+    passphrase: Option<String>,
+) -> pass::Result<PasswordEntry> {
+    if password.is_none() {
+        return Err(pass::Error::Generic(
+            "No password is given. Password must be passed to create_password_entry",
+        ));
+    }
+    let mut password = password.unwrap();
+    if password.is_empty() {
+        return Err(pass::Error::Generic(
+            "Password is empty, not saving anything",
+        ));
+    }
+    if path.is_none() {
+        return Err(pass::Error::Generic(
+            "No path given. Path must be passed to create_password_entry",
+        ));
+    }
+    let path = path.unwrap();
+    if path.is_empty() {
+        return Err(pass::Error::Generic("Path is empty, not saving anything"));
+    }
+
+    if let Some(note) = note {
+        password = format!("{password}\n{note}");
+    }
+    if password.contains("otpauth://") {
+        eprint!("It seems like you are trying to save a TOTP code to the password store. This will reduce your 2FA solution to just 1FA, do you want to proceed?");
+    }
+    new_password_save_with_passphrase(path.as_ref(), password.as_ref(), store, passphrase)
+}
 fn new_password_save(
     path: &str,
     password: &str,
@@ -788,6 +825,19 @@ fn new_password_save(
         .lock()?
         .lock()?
         .new_password_file(path.as_ref(), password.as_ref());
+    entry
+}
+fn new_password_save_with_passphrase(
+    path: &str,
+    password: &str,
+    store: PasswordStoreType,
+    passphrase: Option<String>,
+) -> pass::Result<PasswordEntry> {
+    let entry = store.lock()?.lock()?.new_password_file_with_passphrase(
+        path.as_ref(),
+        password.as_ref(),
+        passphrase,
+    );
     entry
 }
 
