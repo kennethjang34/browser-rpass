@@ -1,3 +1,4 @@
+#![allow(warnings, unused, unused_mut)]
 use event_handlers::request_handlers::*;
 use gloo_utils::format::JsValueSerdeExt;
 use std::collections::HashMap;
@@ -61,7 +62,6 @@ pub async fn main() {
     init_config.insert("home_dir".to_owned(), "/Users/JANG".to_owned());
     let init_request = RequestEnum::create_init_request(init_config, None, None);
     NATIVE_PORT.post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
-
     chrome
         .runtime()
         .on_connect()
