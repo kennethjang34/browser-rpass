@@ -15,7 +15,7 @@ lazy_static! {
 }
 lazy_static! {
     pub static ref DATA_STORAGE: Mutex<HashMap<String, String>> = {
-        let mut map = HashMap::new();
+        let map = HashMap::new();
         Mutex::new(map)
     };
 }
