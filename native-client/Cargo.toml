@@ -5,6 +5,8 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[profile.release]
+debug = true
 [dependencies]
 serde = { version = "1.0.174", features = ["derive"] }
 serde_json = "1.0.96"
@@ -22,12 +24,12 @@ console_error_panic_hook = "0.1.6"
 reqwest-wasm = "0.11.16"
 lazy_static = "1.4.0"
 rpass={ path = "../.." }
-browser-rpass={ path = "../"}
 hex = "0.4.3"
 strum = "0.18.0"
 strum_macros = "0.18.0"
 git2 = "0.17.1"
 locale_config = "0.3.0"
+browser-rpass = { path = "../"}
 [dependencies.web-sys]
 version = "0.3"
 features = [

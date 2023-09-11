@@ -1,3 +1,5 @@
+use browser_rpass::response::Status;
+#[allow(warnings)]
 use hex::FromHex;
 use std::str::FromStr;
 use strum_macros::{Display, EnumString};
@@ -5,7 +7,7 @@ use strum_macros::{Display, EnumString};
 use rpass::{
     crypto::{self, CryptoImpl},
     git::{pull, push},
-    pass::{self, Error, PasswordEntry},
+    pass::{self, Error, PasswordEntry, Result},
     pass::{
         all_recipients_from_stores, OwnerTrustLevel, PasswordStore, Recipient, SignatureStatus,
     },
@@ -179,6 +181,7 @@ fn main() -> pass::Result<()> {
         serde_json::to_string(&received_message).unwrap()
     )
     .unwrap();
+    eprintln!("received_message.l......: {:?}", received_message);
     let command = parse_message(received_message.clone()).unwrap();
     if let Request::Init {
         remote,
@@ -310,7 +313,7 @@ fn main() -> pass::Result<()> {
         ))
     }
 }
-fn get_message() -> Result<serde_json::Value, ()> {
+fn get_message() -> Result<serde_json::Value> {
     let mut f = std::fs::OpenOptions::new()
         .append(true)
         .create(true)
@@ -319,7 +322,7 @@ fn get_message() -> Result<serde_json::Value, ()> {
     let mut raw_length = [0; 4];
     // io::stdin().read_exact(&mut raw_length)?;
     if let Err(read_length_res) = io::stdin().read_exact(&mut raw_length) {
-        return Err(());
+        return Err(Error::Io(read_length_res));
     }
     let message_length = u32::from_le_bytes(raw_length);
     let mut message = vec![0; message_length as usize];
@@ -334,7 +337,9 @@ fn get_message() -> Result<serde_json::Value, ()> {
     .unwrap();
     let parsed = serde_json::from_slice(message.as_slice());
     if let Err(err) = parsed {
-        return Err(());
+        let error_message = format!("Failed to parse JSON: {:?}", err);
+        return Err(Error::GenericDyn(error_message));
+        // return Err(());
     } else {
         return Ok(parsed.unwrap());
     }
@@ -382,6 +387,13 @@ enum Request {
         resource: Option<String>,
         acknowledgement: Option<String>,
     },
+    #[serde(rename = "login")]
+    #[strum(serialize = "login")]
+    Login {
+        username: Option<String>,
+        passphrase: String,
+        acknowledgement: Option<String>,
+    },
     #[serde(rename = "search")]
     #[strum(serialize = "search")]
     Search {
@@ -414,6 +426,8 @@ enum Request {
         // passphrase: Option<String>,
         path: String,
         value: Option<String>,
+        acknowledgement: Option<String>,
+        passphrase: Option<String>,
     },
     //generate a new password(no saving)
     #[serde(rename = "generate")]
@@ -450,6 +464,19 @@ fn parse_message(message: serde_json::Value) -> pass::Result<Request> {
     ));
     Ok(command)
 }
+fn check_passphrase(
+    store: &PasswordStoreType,
+    username: Option<String>,
+    passphrase: &str,
+) -> Result<bool> {
+    store
+        .lock()
+        .unwrap()
+        .lock()
+        .unwrap()
+        .verify_passphrase(username, passphrase)
+}
+// fn search(store: &PasswordStoreType, query: &str) -> pass::Result<Vec<PasswordEntry>> {
 fn execute_command(command: Request, store: &PasswordStoreType) -> pass::Result<()> {
     let mut f = {
         if let Ok(f) = std::fs::OpenOptions::new()
@@ -469,6 +496,29 @@ fn execute_command(command: Request, store: &PasswordStoreType) -> pass::Result<
         }
     }
     match command {
+        Request::Login {
+            username,
+            passphrase,
+            acknowledgement,
+        } => {
+            let verified = check_passphrase(&store.clone(), username.clone(), &passphrase);
+            let status = {
+                if let Ok(verified) = verified {
+                    if verified {
+                        Status::Success
+                    } else {
+                        Status::Failure
+                    }
+                } else {
+                    Status::Error
+                }
+            };
+            let json = serde_json::json!({"status": status,"acknowledgement": acknowledgement.clone().unwrap_or("".to_string()),});
+            let json = serde_json::to_string(&json).unwrap();
+            let encoded = encode_message(&json.to_string());
+            send_message(&encoded);
+            Ok(())
+        }
         Request::Get {
             // username,
             passphrase,
@@ -593,6 +643,8 @@ fn execute_command(command: Request, store: &PasswordStoreType) -> pass::Result<
             username,
             path,
             value,
+            acknowledgement,
+            passphrase,
         } => {
             let value = value.unwrap();
             create_password_entry(
@@ -601,6 +653,15 @@ fn execute_command(command: Request, store: &PasswordStoreType) -> pass::Result<
                 store.clone(),
                 None,
             )?;
+            ) {
+                status = Status::Success;
+            } else {
+                status = Status::Failure;
+            }
+            let json = serde_json::json!({"status": status,"acknowledgement": acknowledgement.clone().unwrap_or("".to_string()),});
+            let json = serde_json::to_string(&json).unwrap();
+            let encoded = encode_message(&json.to_string());
+            send_message(&encoded);
             return Ok(());
         }
         Request::Edit {
