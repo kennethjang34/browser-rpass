@@ -44,10 +44,18 @@ pub async fn main() {
             }
         }
     });
+    let on_native_port_disconnect_cb = Closure::<dyn Fn(Port)>::new(move |port| {
+        log!("native port disconnected");
+        log!("port: {:?}", port);
+    });
+    NATIVE_PORT
+        .on_disconnect()
+        .add_listener(on_native_port_disconnect_cb.as_ref().clone());
     NATIVE_PORT
         .on_message()
         .add_listener(on_native_message_cb.as_ref().clone());
     on_native_message_cb.forget();
+    on_native_port_disconnect_cb.forget();
 
     let mut init_config = HashMap::new();
     init_config.insert("home_dir".to_owned(), "/Users/JANG".to_owned());
