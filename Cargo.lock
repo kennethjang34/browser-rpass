@@ -239,6 +239,8 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "yew",
+ "yewdux",
 ]
 
 [[package]]
@@ -2192,9 +2194,9 @@ dependencies = [
  "gloo",
  "gloo-utils",
  "js-sys",
+ "lazy_static",
  "rand 0.8.5",
  "reqwasm",
- "reqwest-wasm",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
@@ -2553,6 +2555,7 @@ dependencies = [
  "reqwest",
  "sequoia-ipc",
  "sequoia-openpgp",
+ "serde",
  "sha1",
  "sha2",
  "toml 0.7.6",
@@ -2788,16 +2791,18 @@ dependencies = [
  "gloo-utils",
  "js-sys",
  "lazy_static",
+ "once_cell",
  "rand 0.8.5",
  "reqwest-wasm",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
- "serde_repr",
  "typetag",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "yew",
+ "yewdux",
 ]
 
 [[package]]
