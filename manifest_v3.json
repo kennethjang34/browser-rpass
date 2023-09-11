@@ -6,7 +6,6 @@
     "service_worker": "run_service_worker.js",
     "type": "module"
   },
-  "permissions": ["tabs", "activeTab", "scripting"],
   "permissions": [
     "tabs",
     "activeTab",

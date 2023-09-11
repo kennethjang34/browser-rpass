@@ -5,7 +5,7 @@ use std::rc::Rc;
 // use crate::api::user_api::api_register_user;
 use crate::components::{form_input::FormInput, loading_button::LoadingButton};
 use crate::router::{self, Route};
-use crate::store::{set_page_loading, set_show_alert, Store};
+use crate::store::PopupStore;
 
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationErrors};
@@ -55,7 +55,7 @@ fn get_input_callback(
 
 #[function_component(RegisterPage)]
 pub fn register_page() -> Html {
-    let (store, dispatch) = use_store::<Store>();
+    let (store, dispatch) = use_store::<PopupStore>();
     let form = use_state(|| RegisterUserSchema::default());
     let validation_errors = use_state(|| Rc::new(RefCell::new(ValidationErrors::new())));
 
@@ -133,7 +133,7 @@ pub fn register_page() -> Html {
                         let form_data = (*form).clone();
                         // let form_data = form.deref().clone();
                         let form_json = serde_json::to_string(&form_data).unwrap();
-                        set_page_loading(true, dispatch.clone());
+                        // set_page_loading(true, dispatch.clone());
 
                         let name_input = name_input_ref.cast::<HtmlInputElement>().unwrap();
                         let email_input = email_input_ref.cast::<HtmlInputElement>().unwrap();
@@ -200,7 +200,8 @@ pub fn register_page() -> Html {
             <Link<Route> to={Route::LoginPage} classes="text-ct-blue-600">{"Login Here"}</Link<Route>>
             </span>
             <LoadingButton
-              loading={store.page_loading}
+              // loading={store.page_loading}
+              loading={false}
               text_color={Some("text-ct-blue-600".to_string())}
             >
              {" Sign Up"}

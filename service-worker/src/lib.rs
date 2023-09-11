@@ -1,9 +1,13 @@
+#![allow(warnings, unused, unused_mut)]
+use crate::store::SessionStore;
 use event_handlers::request_handlers::*;
 use gloo_utils::format::JsValueSerdeExt;
 use std::collections::HashMap;
 use std::panic;
 use store::NATIVE_PORT;
 use wasm_bindgen::prelude::*;
+use yewdux::prelude::Dispatch;
+use yewdux::store::Store;
 
 use browser_rpass::log;
 use browser_rpass::request::*;
@@ -66,4 +70,10 @@ pub async fn main() {
         .runtime()
         .on_connect()
         .add_listener(create_request_listener().into_js_value());
+    if let Ok(loaded) = SessionStore::load() {
+        if let Some(loaded) = loaded {
+            Dispatch::<SessionStore>::new().set(loaded);
+        }
+    }
+    // Dispatch::<SessionStore>::new().set(loaded);
 }

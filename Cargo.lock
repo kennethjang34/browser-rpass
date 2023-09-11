@@ -239,6 +239,8 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "yew",
+ "yewdux",
 ]
 
 [[package]]
@@ -2789,6 +2791,7 @@ dependencies = [
  "gloo-utils",
  "js-sys",
  "lazy_static",
+ "once_cell",
  "rand 0.8.5",
  "reqwest-wasm",
  "serde",
@@ -2798,6 +2801,8 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "yew",
+ "yewdux",
 ]
 
 [[package]]

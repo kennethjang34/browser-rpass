@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 use std::future::Future;
+use std::rc::Rc;
 
 use crate::log;
-use browser_rpass::response::ResponseEnumTrait;
-use browser_rpass::store::{AsyncCallback, MESSAGE_ACKNOWLEDGEMENTS_POP_UP};
+use crate::store::{LoginAction, PopupStore};
+use browser_rpass::request::{self, InitRequest, LoginRequest, LogoutRequest};
+use browser_rpass::response::{self, Data, MessageEnum, ResponseEnumTrait};
+use browser_rpass::store::*;
 use browser_rpass::util::chrome;
 use browser_rpass::StringOrCallback;
 use browser_rpass::{request::RequestEnum, response::ResponseEnum, util::Port};
@@ -11,39 +14,89 @@ use gloo_utils::format::JsValueSerdeExt;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
+use yew::prelude::*;
+use yewdux::{dispatch, prelude::*};
 
 //return value will be used as a callback for message that matches the acknowledgement(checked by the caller)
-async fn handle_login_response(response: ResponseEnum, extension_port: Port) -> () {
-    log!("handle_login_response");
-    api_login_user(response, extension_port).await;
-}
-pub async fn api_login_user(response: ResponseEnum, extension_port: Port) -> Result<(), String> {
-    log!(
-        "api_login_user function called with response: {:?}",
-        response
-    );
+async fn handle_login_response(
+    request: LoginRequest,
+    response: ResponseEnum,
+    extension_port: Port,
+) {
     match response.clone() {
         ResponseEnum::LoginResponse(login_response) => {
-            log!("login_response: {:?}", login_response);
-            if let Ok(verified) = login_response.verified {
-                chrome
-                    .storage()
-                    .session()
-                    .set_string_item("verified".to_string(), verified.to_string())
-                    .await;
+            let dispatch = Dispatch::<PopupStore>::new();
+            match login_response.status {
+                response::Status::Success => {
+                    dispatch.apply(LoginAction::LoginSucceeded);
+                }
+                response::Status::Failure => {
+                    dispatch.apply(LoginAction::LoginFailed);
+                }
+                response::Status::Error => {
+                    dispatch.apply(LoginAction::LoginError);
+                }
+                _ => {
+                    log!(
+                        "wrong response for request: {:?}. received response: format: {:?}",
+                        request,
+                        response
+                    );
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+async fn handle_init_response(request: InitRequest, response: ResponseEnum, extension_port: Port) {
+    match response.clone() {
+        ResponseEnum::InitResponse(init_response) => {
+            let dispatch = Dispatch::<PopupStore>::new();
+            if let Some(data) = init_response.data {
+                match data {
+                    Data::JSON(map_data) => {
+                        log!("map_data from service worker: {:?}", map_data);
+                        let new_store_state = PopupStore {
+                            verified: map_data.get("verified").unwrap().as_bool().unwrap(),
+                            ..Default::default()
+                        };
+                        dispatch.set(new_store_state);
+                    }
+                    _ => {}
+                }
             } else {
-                return Err(format!(
-                    "Error happened while performing login: {:?}",
-                    login_response.verified
-                )
-                .to_owned());
+            }
+        }
+        _ => {}
+    }
+}
+async fn handle_logout_response(
+    request: LogoutRequest,
+    response: ResponseEnum,
+    extension_port: Port,
+) {
+    match response.clone() {
+        ResponseEnum::LogoutResponse(logout_response) => {
+            let dispatch = Dispatch::<PopupStore>::new();
+            match logout_response.status {
+                response::Status::Success => {
+                    dispatch.apply(LoginAction::LogoutSucceeded);
+                }
+                response::Status::Failure => {
+                    dispatch.apply(LoginAction::LogoutFailed);
+                }
+                _ => {}
             }
         }
         _ => {
-            return Err("response type is not LoginResponse".to_owned());
+            log!(
+                "wrong response for request: {:?}. received response: format: {:?}",
+                request,
+                response
+            );
         }
     }
-    return Ok(());
 }
 pub fn create_response_process_cb(
     request: RequestEnum,
@@ -59,8 +112,21 @@ pub fn create_response_process_cb(
     }
     match request {
         RequestEnum::Login(login_request) => Box::new(move |response, extension_port| {
-            log!("login_response: {:?}", response.clone());
-            Box::pin(handle_login_response(response, extension_port))
+            Box::pin(handle_login_response(
+                login_request,
+                response,
+                extension_port,
+            ))
+        }),
+        RequestEnum::Init(init_request) => Box::new(move |response, extension_port| {
+            Box::pin(handle_init_response(init_request, response, extension_port))
+        }),
+        RequestEnum::Logout(logout_request) => Box::new(move |response, extension_port| {
+            Box::pin(handle_logout_response(
+                logout_request,
+                response,
+                extension_port,
+            ))
         }),
         _ => Box::new(|_, _| {
             Box::pin(async {
@@ -71,25 +137,41 @@ pub fn create_response_process_cb(
 }
 pub fn create_response_listener(port: Port) -> Closure<dyn Fn(JsValue)> {
     Closure::<dyn Fn(JsValue)>::new(move |msg: JsValue| {
-        // let val = <JsValue as JsValueSerdeExt>::from_serde(&msg).unwrap();
-        match <JsValue as JsValueSerdeExt>::into_serde::<ResponseEnum>(&msg) {
-            // match serde_json::from_str::<ResponseEnum>(&msg) {
-            Ok(parsed_response) => {
-                log!("parsed_response: {:?}", parsed_response);
-                let acknowledgement = parsed_response.get_acknowledgement().unwrap();
-                let request_cb = MESSAGE_ACKNOWLEDGEMENTS_POP_UP
-                    .lock()
-                    .unwrap()
-                    .remove(&acknowledgement)
-                    .unwrap();
-                //this calls the callback that was registered in the popup (created by create_response_process_cb)
-                let port2 = port.clone();
-                spawn_local(async move {
-                    log!("parsed_response: {:?}", parsed_response);
-                    request_cb(parsed_response, port2.clone()).await;
-                });
-                // request_cb(parsed_response, port.clone()).await;
-            }
+        match <JsValue as JsValueSerdeExt>::into_serde::<MessageEnum>(&msg) {
+            Ok(parsed_message) => match parsed_message {
+                MessageEnum::Response(response) => {
+                    let acknowledgement = response.get_acknowledgement().unwrap();
+
+                    if let Some(request_cb) = MESSAGE_ACKNOWLEDGEMENTS_POP_UP
+                        .lock()
+                        .unwrap()
+                        .remove(&acknowledgement)
+                    {
+                        let port2 = port.clone();
+                        spawn_local(async move {
+                            request_cb(response, port2.clone()).await;
+                        });
+                    }
+                }
+                MessageEnum::Request(request) => match request.clone() {
+                    RequestEnum::StorageUpdate(storage_update_request) => {
+                        let data = storage_update_request.payload;
+                        let dispatch = Dispatch::<PopupStore>::new();
+                        if let Ok(event) = serde_json::from_value(data) {
+                            match event {
+                                SessionEvent::LoginSucceeded => {
+                                    dispatch.apply(LoginAction::LoginSucceeded);
+                                }
+                                SessionEvent::LogoutSucceeded => {
+                                    dispatch.apply(LoginAction::LogoutSucceeded);
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    _ => {}
+                },
+            },
             Err(e) => {
                 log!(
                     "error happend while parsing:{:?}. Error message: {:?}",

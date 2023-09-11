@@ -2,7 +2,7 @@
 use crate::components::{form_input::FormInput, header::Header, loading_button::LoadingButton};
 use crate::event_handlers::request_handlers::create_response_process_cb;
 // use crate::router::{self, Route};
-use crate::store::{set_page_loading, set_show_alert, Store, EXTENSION_PORT};
+use crate::store::{LoginAction, PopupStore, EXTENSION_PORT};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -19,7 +19,6 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
-// use yew_router::prelude::*;
 use yewdux::prelude::*;
 
 #[derive(Validate, Debug, Default, Clone, Serialize, Deserialize)]
@@ -58,13 +57,12 @@ fn get_input_callback(
 
 #[function_component(LoginPage)]
 pub fn login_page(props: &Props) -> Html {
-    let (store, dispatch) = use_store::<Store>();
+    log!("LoginPage");
     let form = use_state(|| LoginUserSchema::default());
     let validation_errors = use_state(|| Rc::new(RefCell::new(ValidationErrors::new())));
 
     let email_input_ref = NodeRef::default();
     let passphrase_input_ref = NodeRef::default();
-
     let validate_input_on_blur = {
         let cloned_form = form.clone();
         let cloned_validation_errors = validation_errors.clone();
@@ -104,11 +102,13 @@ pub fn login_page(props: &Props) -> Html {
 
     let handle_email_input = get_input_callback("email", form.clone());
     let handle_passphrase_input = get_input_callback("passphrase", form.clone());
-
+    // let popup_store = use_reducer(init_fn);
+    // let popup_store_reducer = use_reducer_eq(PopupStore::new);
+    let is_loading = use_selector(|state: &PopupStore| state.page_loading);
+    let (popup_store, popup_store_dispatch) = use_store::<PopupStore>();
     let on_submit = {
         let cloned_form = form.clone();
         let cloned_validation_errors = validation_errors.clone();
-        let store_dispatch = dispatch.clone();
 
         let cloned_email_input_ref = email_input_ref.clone();
         let cloned_passphrase_input_ref = passphrase_input_ref.clone();
@@ -116,63 +116,51 @@ pub fn login_page(props: &Props) -> Html {
         Callback::from(move |event: SubmitEvent| {
             event.prevent_default();
 
-            let dispatch = store_dispatch.clone();
+            // let popup_store_dispatch = Dispatch::<PopupStore>::new();
             let form = cloned_form.clone();
             let validation_errors = cloned_validation_errors.clone();
 
             let email_input_ref = cloned_email_input_ref.clone();
             let passphrase_input_ref = cloned_passphrase_input_ref.clone();
+            match form.validate() {
+                Ok(_) => {
+                    let form_data = form.deref().clone();
+                    popup_store_dispatch.apply(LoginAction::LoginStarted);
+                    let email_input = email_input_ref.cast::<HtmlInputElement>().unwrap();
+                    let passphrase_input = passphrase_input_ref.cast::<HtmlInputElement>().unwrap();
 
-            spawn_local(async move {
-                match form.validate() {
-                    Ok(_) => {
-                        let form_data = form.deref().clone();
-                        set_page_loading(true, dispatch.clone());
-                        // let email_input = email_input_ref.cast::<HtmlInputElement>().unwrap();
-                        let passphrase_input =
-                            passphrase_input_ref.cast::<HtmlInputElement>().unwrap();
-
-                        let login_request = RequestEnum::create_login_request(
-                            Some(create_request_acknowledgement()),
-                            None,
-                            passphrase_input.value(),
-                        );
-                        // email_input.set_value("");
-                        passphrase_input.set_value("");
-
-                        let mut ctx = HashMap::new();
-                        ctx.insert(
-                            "callback".to_owned(),
-                            StringOrCallback::Callback(Box::new(move || {
-                                set_page_loading(false, dispatch.clone());
-                            })),
-                        );
-                        MESSAGE_ACKNOWLEDGEMENTS_POP_UP.lock().unwrap().insert(
-                            login_request.get_acknowledgement().clone().unwrap(),
-                            create_response_process_cb(login_request.clone(), ctx),
-                        );
-                        // let port = port.clone();
-                        EXTENSION_PORT.post_message(
-                            <JsValue as JsValueSerdeExt>::from_serde(&login_request).unwrap(),
-                        );
-
-                        // let form_json = serde_json::to_string(&form_data).unwrap();
-                        // let res = api_login_user(&form_json).await;
-                        // match res {
-                        //     Ok(_) => {
-                        //         set_page_loading(false, dispatch);
-                        //     }
-                        //     Err(e) => {
-                        //         set_page_loading(false, dispatch.clone());
-                        //         set_show_alert(e.to_string(), dispatch);
-                        //     }
-                        // };
-                    }
-                    Err(e) => {
-                        validation_errors.set(Rc::new(RefCell::new(e)));
-                    }
+                    let login_request = RequestEnum::create_login_request(
+                        Some(create_request_acknowledgement()),
+                        None,
+                        passphrase_input.value(),
+                    );
+                    let mut ctx = HashMap::new();
+                    let passphrase_input2 = passphrase_input.clone();
+                    // let ctx = HashMap::new();
+                    // let acknowledgement = create_request_acknowledgement();
+                    // let mut init_config = HashMap::new();
+                    // let init_request =
+                    //     RequestEnum::create_init_request(init_config, Some(acknowledgement.clone()), None);
+                    // MESSAGE_ACKNOWLEDGEMENTS_POP_UP.lock().unwrap().insert(
+                    //     acknowledgement.clone(),
+                    //     create_response_process_cb(init_request.clone(), ctx),
+                    // );
+                    // EXTENSION_PORT
+                    //     .post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
+                    MESSAGE_ACKNOWLEDGEMENTS_POP_UP.lock().unwrap().insert(
+                        login_request.get_acknowledgement().clone().unwrap(),
+                        create_response_process_cb(login_request.clone(), ctx),
+                    );
+                    email_input.set_value("");
+                    passphrase_input2.set_value("");
+                    EXTENSION_PORT.post_message(
+                        <JsValue as JsValueSerdeExt>::from_serde(&login_request).unwrap(),
+                    );
                 }
-            });
+                Err(e) => {
+                    validation_errors.set(Rc::new(RefCell::new(e)));
+                }
+            };
         })
     };
 
@@ -190,11 +178,13 @@ pub fn login_page(props: &Props) -> Html {
             onsubmit={on_submit}
             class="max-w-md w-full mx-auto overflow-hidden shadow-lg bg-ct-dark-200 rounded-2xl p-8 space-y-5"
           >
-            // <FormInput label="Email"  name="email" input_type="email" input_ref={email_input_ref} handle_onchange={handle_email_input} errors={&*validation_errors} handle_on_input_blur={validate_input_on_blur.clone()} disabled={true}/>
+            <FormInput label="Email"  name="email" input_type="email" input_ref={email_input_ref} handle_onchange={handle_email_input} errors={&*validation_errors} handle_on_input_blur={validate_input_on_blur.clone()} disabled={true}/>
             <FormInput label="Passphrase" name="passphrase" input_type="password" input_ref={passphrase_input_ref} handle_onchange={handle_passphrase_input} errors={&*validation_errors} handle_on_input_blur={validate_input_on_blur.clone()}/>
 
             <LoadingButton
-              loading={store.page_loading}
+              // loading={*is_loading}
+              // loading={popup_store.page_loading}
+              loading={popup_store.page_loading}
               text_color={Some("text-ct-blue-600".to_string())}
             >
               {"Login"}

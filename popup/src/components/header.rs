@@ -1,12 +1,13 @@
-use crate::store::{set_page_loading, set_show_alert, Store};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 // use yew_router::prelude::*;
 use yewdux::prelude::*;
 
+use crate::store::PopupStore;
+
 #[function_component(Header)]
 pub fn header_component() -> Html {
-    let (store, dispatch) = use_store::<Store>();
+    let (store, dispatch) = use_store::<PopupStore>();
     // let user = store.auth_user.clone();
 
     let handle_logout = {
@@ -15,7 +16,7 @@ pub fn header_component() -> Html {
         Callback::from(move |_: MouseEvent| {
             let dispatch = store_dispatch.clone();
             spawn_local(async move {
-                set_page_loading(true, dispatch.clone());
+                // set_page_loading(true, dispatch.clone());
                 // let res = api_logout_user().await;
                 // match res {
                 //     Ok(_) => {

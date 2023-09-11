@@ -1,5 +1,8 @@
+use crate::store::PopupStore;
+#[allow(warnings)]
 pub(crate) use browser_rpass::request::*;
 pub(crate) use browser_rpass::response::{GetResponse, ResponseEnum, ResponseEnumTrait};
+use browser_rpass::use_store;
 pub(crate) use browser_rpass::util::*;
 pub(crate) use browser_rpass::util::*;
 pub(crate) use event_handlers::request_handlers::{

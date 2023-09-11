@@ -1,14 +1,14 @@
 use crate::{
     components::header::Header,
     // router,
-    store::{set_page_loading, set_show_alert, Store},
+    store::PopupStore,
 };
 use yew::prelude::*;
 use yewdux::prelude::*;
 
 #[function_component(ProfilePage)]
 pub fn profile_page() -> Html {
-    let (store, dispatch) = use_store::<Store>();
+    let (store, dispatch) = use_store::<PopupStore>();
     // let user = store.auth_user.clone();
     // let navigator = use_navigator().unwrap();
 
@@ -16,7 +16,7 @@ pub fn profile_page() -> Html {
         move |_| {
             let dispatch = dispatch.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                set_page_loading(true, dispatch.clone());
+                // set_page_loading(true, dispatch.clone());
                 // let response = api_user_info().await;
                 // match response {
                 //     Ok(user) => {

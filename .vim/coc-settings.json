@@ -1,0 +1,20 @@
+{
+  "coc.preferences.formatOnSave": true,
+  "json.format.enable": true,
+  "Lua.format.enable": true,
+  "html.format.enable": true,
+  "coc.preferences.enableMessageDialog": true,
+  "coc.preferences.bracketEnterImprove": true,
+  "eslint.format.enable": true,
+  "python.pythonPath": "$HOME/miniconda3/bin/python3",
+  "python.venvPath": "$HOME/miniconda3/envs",
+  "python.linting.enabled": true,
+  "python.formatting.provider": "black",
+  "python.formatting.blackPath": "/Users/JANG/miniconda3/bin/black",
+  "snippets.ultisnips.pythonPrompt": false,
+  "diagnostic.virtualText": true,
+  "diagnostic.virtualTextCurrentLineOnly": false,
+  "diagnostic.enableMessage": "jump",
+  "rust-analyzer.diagnostics.disabled": ["unresolved-proc-macro"],
+  "rust-analyzer.cargo.target": "wasm32-unknown-unknown"
+}
