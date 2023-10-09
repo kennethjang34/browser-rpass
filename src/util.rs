@@ -1,11 +1,10 @@
+#![allow(non_upper_case_globals)]
 use gloo::storage::errors::StorageError;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::Promise;
-use js_sys::JSON;
 use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
-use serde_json::json;
 use std::collections::HashMap;
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
@@ -57,6 +56,10 @@ extern "C" {
     pub type Chrome;
     #[derive(Debug)]
     pub type EventTarget;
+    #[derive(Debug, Clone, PartialEq)]
+    pub type Tabs;
+    #[derive(Debug, Clone, PartialEq)]
+    pub type Tab;
     #[derive(Debug)]
     pub type MessageSender;
     #[derive(Debug)]
@@ -71,12 +74,26 @@ extern "C" {
 
     #[wasm_bindgen(method, getter=runtime,structural,js_name=runtime)]
     pub fn runtime(this: &Chrome) -> Runtime;
+    #[wasm_bindgen(method, getter=tabs,structural,js_name=tabs)]
+    pub fn tabs(this: &Chrome) -> Tabs;
     #[wasm_bindgen(method, getter=storage,structural,js_name=storage)]
     pub fn storage(this: &Chrome) -> Storage;
-
-    // #[wasm_bindgen(js_namespace=console,js_name=log)]
-    // pub fn log(object: &JsValue);
-
+    #[wasm_bindgen(method,js_name=query)]
+    pub fn query(this: &Tabs, query_info: JsValue) -> Promise;
+    #[wasm_bindgen(method,getter=active)]
+    pub fn active(this: &Tab) -> bool;
+    #[wasm_bindgen(method,getter=discarded)]
+    pub fn discarded(this: &Tab) -> bool;
+    #[wasm_bindgen(method,getter=groupId)]
+    pub fn group_id(this: &Tab) -> i32;
+    #[wasm_bindgen(method,getter=id)]
+    pub fn id(this: &Tab) -> i32;
+    #[wasm_bindgen(method,getter=index)]
+    pub fn index(this: &Tab) -> i32;
+    #[wasm_bindgen(method,getter=url)]
+    pub fn url(this: &Tab) -> Option<String>;
+    #[wasm_bindgen(method,getter=windowId)]
+    pub fn window_id(this: &Tab) -> i32;
     #[wasm_bindgen(method,getter=onConnect)]
     pub fn on_connect(this: &Runtime) -> EventTarget;
     #[wasm_bindgen(method,getter=session)]
@@ -89,6 +106,10 @@ extern "C" {
     pub fn on_disconnect(this: &Runtime) -> EventTarget;
     #[wasm_bindgen(method,getter=onDisconnect,structural)]
     pub fn on_disconnect(this: &Port) -> EventTarget;
+    #[wasm_bindgen(method,getter=name)]
+    pub fn name(this: &Port) -> String;
+    #[wasm_bindgen(method,setter=name)]
+    pub fn set_name(this: &Port, val: String) -> String;
     #[wasm_bindgen(method, getter=onMessage)]
     pub fn on_message(this: &Port) -> EventTarget;
     #[wasm_bindgen(method,js_name=disconnect)]
@@ -187,7 +208,7 @@ impl StorageArea {
         chrome.storage().session().set(js_val).await;
     }
     pub async fn set_item(&self, key: String, value: JsValue) {
-        let mut entry = js_sys::Map::new();
+        let entry = js_sys::Map::new();
         entry.set(&JsValue::from_str(&key), &value);
         chrome.storage().session().set(entry.into()).await;
     }

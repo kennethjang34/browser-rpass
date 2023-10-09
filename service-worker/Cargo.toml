@@ -9,34 +9,31 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-wasm-bindgen = "^0.2.87"
-js-sys = "^0.3"
-wasm-bindgen-futures = "0.4"
-console_error_panic_hook = "0.1.6"
-reqwest-wasm = "0.11.16"
-serde = { version = "1.0.174", features = ["derive"] }
-serde_json = "1.0.96"
-rand = "0.8.4"
-getrandom={ version = "0.2.3", features = ["js"] }
-
-serde-wasm-bindgen = "^0.5.0"
-gloo = "0.8.0"
-gloo-utils = { version = "^0.1.2", features = ["serde"] }
 browser-rpass = { path = "../"}
-typetag = "0.2"
-lazy_static = "1.4.0"
-yewdux = "0.9.3"
-yew = { version = "0.20", features = ["csr"] }
-once_cell = "1.8.0"
-
-[profile.release]
-debug = true
-
-[dependencies.web-sys]
-version = "0.3"
-features = [
-    "console",
-    "Window",
+serde = {workspace=true}
+serde_json = {workspace=true}
+serde-wasm-bindgen = {workspace=true}
+gloo = {workspace=true}
+gloo-utils = {workspace=true, features = ["serde"]}
+wasm-bindgen= {workspace=true}
+rand = {workspace=true}
+getrandom={workspace=true}
+typetag = {workspace=true}
+enum_dispatch={workspace=true}
+wasm-bindgen-futures = {workspace=true}
+js-sys = {workspace=true}
+console_error_panic_hook = {workspace=true}
+lazy_static = {workspace=true}
+serde_repr = {workspace=true}
+yewdux = {workspace=true}
+yew = {workspace=true}
+serde_variant = {workspace=true}
+url = {workspace=true}
+strum = {workspace=true}
+strum_macros = {workspace=true}
+yew-router = {workspace=true}
+once_cell = {workspace=true}
+web-sys = {workspace=true, features = ["console","Window",
 	"Document",
 	"HtmlElement",
 	"HtmlDocument",
@@ -44,4 +41,13 @@ features = [
 	"HtmlTextAreaElement",
 	"Navigator",
 	"Clipboard",
-]
+]}
+console_log = {workspace=true, features = ["color"],optional = true}
+cfg-if = {workspace=true}
+log = {workspace=true}
+parking_lot = {workspace=true}
+
+[features]
+default = ["console_log"]
+
+

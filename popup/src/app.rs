@@ -1,92 +1,72 @@
-use std::{collections::HashMap, ops::Deref};
-
+use crate::dbg;
 use crate::{
-    api::types::Account,
-    components::{account_entry_list::AccountEntryList, *},
-    event_handlers::request_handlers::{create_response_listener, create_response_process_cb},
     pages::home_page::HomePage,
-    pages::login_page::LoginPage,
-    store::{PopupStore, EXTENSION_PORT},
+    store::{PopupAction, PopupStore},
 };
-use account_entry::AccountEntry;
 use browser_rpass::{
     log,
-    request::{RequestEnum, RequestEnumTrait, Resource},
-    store::MESSAGE_ACKNOWLEDGEMENTS_POP_UP,
-    util::{chrome, create_request_acknowledgement},
+    util::{chrome, Tab},
 };
 use gloo_utils::format::JsValueSerdeExt;
+use serde_json::{json, Value};
+use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
+use wasm_bindgen_futures;
+use yew;
 use yew::prelude::*;
-use yewdux::prelude::{use_store, Dispatch};
+use yewdux::prelude::Dispatch;
 
 #[function_component]
 pub fn App() -> Html {
-    let mock_accounts = vec![
-        Account {
-            id: 1,
-            username: Some("mu1".to_owned()),
-            email: "mu1@gmail.com".to_owned(),
-            password: Some("abc".to_owned()),
-            created_at: Some(chrono::Utc::now()),
-            updated_at: Some(chrono::Utc::now()),
-            organization: Some("apple company".to_owned()),
-        },
-        Account {
-            id: 2,
-            username: None,
-            email: "mu2@gmail.com".to_owned(),
-            password: Some("def".to_owned()),
-            created_at: Some(chrono::Utc::now()),
-            updated_at: Some(chrono::Utc::now()),
-            organization: Some("banana company".to_owned()),
-        },
-    ];
-    log!("App");
-    let (popup_store, popup_store_dispatch) = use_store::<PopupStore>();
+    let state = Dispatch::<PopupStore>::new().get();
+    dbg!(&state);
     use_effect_with_deps(
-        move |_| {
-            let on_message_cb = create_response_listener(EXTENSION_PORT.clone());
-            let port = EXTENSION_PORT.clone();
-            port.on_message()
-                .add_listener(on_message_cb.into_js_value());
-            wasm_bindgen_futures::spawn_local(async move {
-                if popup_store.verified {
-                    let get_password_request = RequestEnum::create_get_request(
-                        "some.website.com".to_owned(),
-                        Resource::Password,
-                        Some(create_request_acknowledgement()),
-                        None,
-                    );
-                    let get_username_request = RequestEnum::create_search_request(
-                        "some.website.com".to_owned(),
-                        Resource::Username,
-                        Some(create_request_acknowledgement()),
-                        None,
-                    );
-                    let ctx = HashMap::new();
-                    MESSAGE_ACKNOWLEDGEMENTS_POP_UP.lock().unwrap().insert(
-                        get_password_request.get_acknowledgement().clone().unwrap(),
-                        create_response_process_cb(get_password_request.clone(), ctx),
-                    );
-                    let ctx = HashMap::new();
-                    MESSAGE_ACKNOWLEDGEMENTS_POP_UP.lock().unwrap().insert(
-                        get_username_request.get_acknowledgement().clone().unwrap(),
-                        create_response_process_cb(get_username_request.clone(), ctx),
-                    );
-                    port.post_message(
-                        <JsValue as JsValueSerdeExt>::from_serde(&get_password_request).unwrap(),
-                    );
-                    port.post_message(
-                        <JsValue as JsValueSerdeExt>::from_serde(&get_username_request).unwrap(),
-                    );
-                } else {
-                    log!("not verified");
-                    // }
-                }
-            });
+        {
+            let state = state.clone();
+            move |_| {
+                wasm_bindgen_futures::spawn_local(async move {
+                    let cb: Closure<dyn FnMut(JsValue)> = Closure::new(move |tabs: JsValue| {
+                        let tabs: Value = <JsValue as JsValueSerdeExt>::into_serde(&tabs).unwrap();
+                        let tabs = tabs.as_array().unwrap();
+                        let tabs = tabs
+                            .into_iter()
+                            .map(|tab| {
+                                <JsValue as JsValueSerdeExt>::from_serde(tab)
+                                    .unwrap()
+                                    .into()
+                            })
+                            .collect::<Vec<Tab>>();
+                        assert_eq!(tabs.len(), 1);
+                        let tab = tabs.get(0).unwrap();
+                        let _tab_id = tab.id();
+                        let host_name = url::Url::parse(&tab.url().unwrap())
+                            .unwrap()
+                            .host_str()
+                            .unwrap()
+                            .to_owned();
+                        let dispatch = Dispatch::<PopupStore>::new();
+                        dispatch.apply(PopupAction::PathSet(Some(host_name)));
+                    });
+                    let _ = chrome
+                        .tabs()
+                        .query(
+                            <JsValue as JsValueSerdeExt>::from_serde(
+                                &json!({"active":true,"currentWindow":true}),
+                            )
+                            .unwrap(),
+                        )
+                        .then(&cb);
+                    cb.forget()
+                });
+                wasm_bindgen_futures::spawn_local(async move {
+                    if state.verified {
+                    } else {
+                        log!("not verified");
+                    }
+                });
+            }
         },
-        (),
+        state.verified,
     );
 
     html! {

@@ -2,17 +2,19 @@ use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
 
-// use crate::api::user_api::api_register_user;
 use crate::components::{form_input::FormInput, loading_button::LoadingButton};
-use crate::router::{self, Route};
+use crate::router::Route;
 use crate::store::PopupStore;
+use yew_router::prelude::*;
 
+use serde;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use validator::{Validate, ValidationErrors};
 use wasm_bindgen_futures::spawn_local;
 use web_sys::HtmlInputElement;
+use yew;
 use yew::prelude::*;
-use yew_router::prelude::*;
 use yewdux::prelude::*;
 
 #[derive(Validate, Debug, Default, Clone, Serialize, Deserialize)]
@@ -55,7 +57,7 @@ fn get_input_callback(
 
 #[function_component(RegisterPage)]
 pub fn register_page() -> Html {
-    let (store, dispatch) = use_store::<PopupStore>();
+    let (_store, dispatch) = use_store::<PopupStore>();
     let form = use_state(|| RegisterUserSchema::default());
     let validation_errors = use_state(|| Rc::new(RefCell::new(ValidationErrors::new())));
 
@@ -93,7 +95,7 @@ pub fn register_page() -> Html {
                             cloned_validation_errors
                                 .borrow_mut()
                                 .errors_mut()
-                                .insert(field_name.clone(), error.clone());
+                                .insert(field_name, error.clone());
                         }
                     }
                 }
@@ -119,7 +121,7 @@ pub fn register_page() -> Html {
         Callback::from(move |event: SubmitEvent| {
             let form = cloned_form.clone();
             let validation_errors = cloned_validation_errors.clone();
-            let dispatch = cloned_dispatch.clone();
+            let _dispatch = cloned_dispatch.clone();
 
             let name_input_ref = cloned_name_input_ref.clone();
             let email_input_ref = cloned_email_input_ref.clone();
@@ -132,7 +134,7 @@ pub fn register_page() -> Html {
                     Ok(_) => {
                         let form_data = (*form).clone();
                         // let form_data = form.deref().clone();
-                        let form_json = serde_json::to_string(&form_data).unwrap();
+                        let _form_json = serde_json::to_string(&form_data).unwrap();
                         // set_page_loading(true, dispatch.clone());
 
                         let name_input = name_input_ref.cast::<HtmlInputElement>().unwrap();
@@ -200,7 +202,6 @@ pub fn register_page() -> Html {
             <Link<Route> to={Route::LoginPage} classes="text-ct-blue-600">{"Login Here"}</Link<Route>>
             </span>
             <LoadingButton
-              // loading={store.page_loading}
               loading={false}
               text_color={Some("text-ct-blue-600".to_string())}
             >

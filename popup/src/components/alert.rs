@@ -1,4 +1,5 @@
-use gloo::timers::callback::Timeout;
+// use gloo::timers::callback::Timeout;
+use yew;
 use yew::prelude::*;
 use yewdux::prelude::use_store;
 
@@ -12,7 +13,7 @@ pub struct Props {
 
 #[function_component(AlertComponent)]
 pub fn alert_component(props: &Props) -> Html {
-    let (store, dispatch) = use_store::<PopupStore>();
+    let (store, _dispatch) = use_store::<PopupStore>();
     let show_alert = store.alert_input.show_alert;
 
     // use_effect_with_deps(

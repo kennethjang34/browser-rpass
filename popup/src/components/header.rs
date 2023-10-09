@@ -1,4 +1,5 @@
 use wasm_bindgen_futures::spawn_local;
+use yew;
 use yew::prelude::*;
 // use yew_router::prelude::*;
 use yewdux::prelude::*;
@@ -7,14 +8,14 @@ use crate::store::PopupStore;
 
 #[function_component(Header)]
 pub fn header_component() -> Html {
-    let (store, dispatch) = use_store::<PopupStore>();
+    let (_store, dispatch) = use_store::<PopupStore>();
     // let user = store.auth_user.clone();
 
-    let handle_logout = {
+    let _handle_logout = {
         let store_dispatch = dispatch.clone();
 
         Callback::from(move |_: MouseEvent| {
-            let dispatch = store_dispatch.clone();
+            let _dispatch = store_dispatch.clone();
             spawn_local(async move {
                 // set_page_loading(true, dispatch.clone());
                 // let res = api_logout_user().await;

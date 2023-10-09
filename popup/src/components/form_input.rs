@@ -3,6 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use validator::ValidationErrors;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
+use yew;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]

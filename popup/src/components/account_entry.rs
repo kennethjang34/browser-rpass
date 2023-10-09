@@ -1,25 +1,22 @@
-use wasm_bindgen_futures::spawn_local;
-// use web_sys::Navigator;
-use browser_rpass::log;
+use std::rc::Rc;
+
+use crate::Account;
 use browser_rpass::util::*;
+use wasm_bindgen_futures;
+use yew;
 
 use yew::prelude::*;
-use yewdux::prelude::use_store;
-
-use crate::{api::types::Account, store::PopupStore};
 
 #[derive(Debug, PartialEq, Properties)]
 pub struct AccountEntryProps {
     pub id: usize,
-    pub account: Account,
+    pub account: Rc<Account>,
 }
 
 #[function_component(AccountEntry)]
 pub fn account_entry_component(props: &AccountEntryProps) -> Html {
-    let (store, dispatch) = use_store::<PopupStore>();
     let account = props.account.clone();
-    let email = account.email.clone();
-    let password = account.password.clone();
+    let password = &account.password;
     let reveal_password = use_state(|| false);
     let on_reveal = {
         let reveal_password = reveal_password.clone();
@@ -28,40 +25,41 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
             reveal_password.set(value);
         })
     };
-    let username = {
-        if let Some(username) = account.username.as_ref() {
-            username.clone()
-        } else {
-            account.email.clone()
-        }
+    let username = &account.username;
+    let domain = &account.domain;
+    let copy_domain = {
+        let domain = domain.clone();
+        Callback::from({
+            move |_: MouseEvent| {
+                let domain = domain.clone();
+                if let Some(domain) = domain {
+                    wasm_bindgen_futures::spawn_local(async move {
+                        let _ = clipboard_copy(&domain).await;
+                    });
+                }
+            }
+        })
     };
-
     let copy_username = {
-        let store_dispatch = dispatch.clone();
         let username = username.clone();
         Callback::from({
             move |_: MouseEvent| {
-                let window = web_sys::window().expect("Missing Window");
-                let navigator = window.navigator();
                 let username = username.clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    clipboard_copy(&username).await;
+                    let _ = clipboard_copy(&username).await;
                 });
             }
         })
     };
 
     let copy_pw = {
-        let store_dispatch = dispatch.clone();
         let password = password.clone();
         Callback::from({
             move |_: MouseEvent| {
-                let window = web_sys::window().expect("Missing Window");
-                let navigator = window.navigator();
                 if let Some(password) = password.as_ref() {
                     let password = password.clone();
                     wasm_bindgen_futures::spawn_local(async move {
-                        clipboard_copy(&password).await;
+                        _ = clipboard_copy(&password).await;
                     });
                 }
             }
@@ -69,13 +67,20 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
     };
     html! {
         <>
+                    <td>
+                        <div >
+                                <p>
+                                    {domain.clone()}
+                                </p>
+                            </div>
+                        <button onclick={copy_domain.clone()}>{"copy domain"}</button>
+                    </td>
                     <td class="email">
-                        <div class="pressable" onclick={copy_username.clone()}>
-                        <p class="pressable" >
-                        {username.clone()}
-        </p>
-
-            </div>
+                            <div class="pressable" onclick={copy_username.clone()}>
+                                <p class="pressable" >
+                                    {username.clone()}
+                                </p>
+                            </div>
                         <button onclick={copy_username.clone()}>{"copy username"}</button>
                     </td>
                     <td>

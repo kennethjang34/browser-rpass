@@ -1,43 +1,139 @@
+use crate::event_handlers::native_message_handler::process_native_message;
+pub use crate::Resource;
+use crate::{api, StorageStatus};
+use browser_rpass::dbg;
+use browser_rpass::request::{RequestEnumTrait, SessionEventType};
+use browser_rpass::response::{CreateResponse, FetchResponse};
+use browser_rpass::types::Account;
 use gloo_utils::format::JsValueSerdeExt;
-use once_cell::sync::OnceCell;
+use log::info;
+use parking_lot::ReentrantMutex;
+use serde::{Deserialize, Serialize};
+use serde_json;
+use serde_json::{json, Value};
+use std::cell::RefCell;
+use std::collections::HashSet;
 use std::{any::type_name, collections::HashMap, ops::Deref, rc::Rc, sync::Mutex};
+use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
-use yewdux::prelude::{AsyncReducer, Reducer};
+use yewdux::mrc::Mrc;
+
+use yewdux::prelude::Reducer;
 
 pub use browser_rpass::{
-    request::{RequestEnum, StorageUpdate},
+    request::{RequestEnum, SessionEvent, SessionEventWrapper},
     store::AsyncCallback,
     store::MESSAGE_ACKNOWLEDGEMENTS_NATIVE,
     store::MESSAGE_ACKNOWLEDGEMENTS_POP_UP,
     util::{chrome, Port},
 };
-use gloo::{console::log, net::http::Request, storage::errors::StorageError};
+use gloo::storage::errors::StorageError;
 use lazy_static::lazy_static;
-use serde::{Deserialize, Serialize};
+pub enum StorageArea {
+    Session,
+}
 use yewdux::{
     prelude::{init_listener, Dispatch, Listener},
-    storage::Area,
     store::Store,
 };
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SessionAction {
-    Login(bool),
+    Login,
     LoginError,
     Logout,
+    DataFetched(FetchResponse),
+    DataLoading(Option<String>),
+    DataCreated(CreateResponse),
+    DataDeleted(Resource, Value),
+    DataDeletionFailed(Resource, String),
+    DataCreationFailed(Resource, Value, Option<RequestEnum>),
+    DataEditFailed(Resource, Value, Option<RequestEnum>),
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SessionActionWrapper {
+    pub meta: Option<Value>,
+    pub action: SessionAction,
 }
 
-lazy_static! {
-    pub static ref NATIVE_PORT: Port = chrome.runtime().connect_native("com.rpass");
+fn native_port_disconnect_handler(_port: Port) {
+    info!("native port disconnected: {:?}", _port);
+    let new_port = chrome.runtime().connect_native("com.rpass");
+    new_port
+        .on_disconnect()
+        .add_listener(Closure::<dyn Fn(Port)>::new(native_port_disconnect_handler).into_js_value());
+    new_port
+        .on_message()
+        .add_listener(Closure::<dyn Fn(String)>::new(native_port_message_handler).into_js_value());
+    let mut init_config = HashMap::new();
+    init_config.insert("home_dir".to_owned(), "/Users/JANG".to_owned());
+    let init_request = RequestEnum::create_init_request(init_config, None, None);
+    new_port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
+    if let Ok(mut borrowed) = NATIVE_PORT.lock().try_borrow_mut() {
+        *borrowed = new_port;
+    }
 }
-// pub static EXTENSION_PORT: OnceCell<Port> = OnceCell::new();
+fn native_port_message_handler(msg: String) {
+    info!("native msg received in service worker: {:?}", msg);
+    match serde_json::from_slice::<serde_json::Value>(&msg.as_bytes()) {
+        Ok(parsed_response) => {
+            let acknowledgement = parsed_response.get("acknowledgement").cloned().unwrap();
+            let acknowledgement = acknowledgement.as_str().unwrap();
+            dbg!(&parsed_response);
+            let _ = process_native_message(
+                parsed_response,
+                NATIVE_PORT.lock().borrow().clone(),
+                REQUEST_MAP.lock().unwrap().get(acknowledgement),
+                Some(json!({"acknowledgement":acknowledgement})),
+            );
+        }
+        Err(e) => {
+            info!(
+                "error happend while parsing:{:?}. Error message: {:?}",
+                msg, e
+            );
+        }
+    }
+}
 lazy_static! {
-    pub static ref EXTENSION_PORT: Mutex<Option<Port>> = Mutex::new(None);
+    pub static ref NATIVE_PORT: ReentrantMutex<RefCell<Port>> = {
+        let port = chrome.runtime().connect_native("com.rpass");
+        port.on_disconnect().add_listener(
+            Closure::<dyn Fn(Port)>::new(native_port_disconnect_handler).into_js_value(),
+        );
+        port.on_message().add_listener(
+            Closure::<dyn Fn(String)>::new(native_port_message_handler).into_js_value(),
+        );
+        let mut init_config = HashMap::new();
+        init_config.insert("home_dir".to_owned(), "/Users/JANG".to_owned());
+        let init_request = RequestEnum::create_init_request(init_config, None, None);
+        port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
+        ReentrantMutex::new(RefCell::new(port))
+    };
+}
+lazy_static! {
+    pub static ref EXTENSION_PORT: Mutex<HashMap<String, Port>> = Mutex::new(HashMap::new());
+}
+lazy_static! {
+    pub static ref LISTENER_PORT: Mutex<HashMap<Resource, HashSet<String>>> =
+        Mutex::new(HashMap::new());
+}
+lazy_static! {
+    pub static ref REQUEST_MAP: Mutex<HashMap<String, RequestEnum>> = Mutex::new(HashMap::new());
+}
+lazy_static! {
+    pub static ref PORT_ID_MAP: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
+pub struct StoreData {
+    pub accounts: Mrc<Vec<Rc<Account>>>,
+    pub storage_status: StorageStatus,
 }
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct SessionStore {
     pub passphrase: Option<String>,
     pub verified: bool,
-    // pub event: Option<SessionEvent>,
+    pub data: StoreData,
 }
 
 impl Store for SessionStore {
@@ -51,18 +147,6 @@ impl Store for SessionStore {
     }
 }
 impl SessionStore {
-    fn to_hashmap(&self) -> HashMap<String, String> {
-        let mut map = HashMap::new();
-        map.insert(
-            "passphrase".to_owned(),
-            self.passphrase.clone().unwrap_or_default(),
-        );
-        map.insert("verified".to_owned(), self.verified.to_string());
-        map
-    }
-    // pub fn get_current_event(&self) -> Option<SessionEvent> {
-    //     self.event.clone()
-    // }
     pub fn load() -> Result<Option<SessionStore>, StorageError> {
         let storage = chrome.storage().session();
         let value = storage.get_string_value_sync(type_name::<SessionStore>());
@@ -82,8 +166,7 @@ impl SessionStore {
             Err(err) => Err(err),
         }
     }
-    pub fn save<T: Serialize>(state: &T, area: Area) -> Result<(), StorageError> {
-        let storage = chrome.storage().session();
+    pub fn save<T: Serialize>(state: &T, _area: StorageArea) -> Result<(), StorageError> {
         let value = serde_json::to_string(state)
             .map_err(|serde_error| StorageError::SerdeError(serde_error))?;
         chrome
@@ -93,17 +176,38 @@ impl SessionStore {
         Ok(())
     }
 }
-impl Reducer<SessionStore> for SessionAction {
+
+impl Reducer<SessionStore> for SessionActionWrapper {
     fn apply(self, store: Rc<SessionStore>) -> Rc<SessionStore> {
-        log!("SessionAction::apply in reducer called");
-        let (session_store, session_event) = match self {
-            SessionAction::Login(verified) => (
+        let meta = self.meta;
+        let mut extension_port_name: Option<String> = None;
+        let session_action = self.action;
+        let mut clear_ports = false;
+        let (session_store, session_event) = match session_action {
+            SessionAction::Login => (
                 SessionStore {
-                    verified,
+                    verified: true,
+                    passphrase: {
+                        if let Some(ref meta) = meta {
+                            if let Some(passphrase) = meta.get("passphrase") {
+                                Some(passphrase.as_str().unwrap().to_owned())
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    },
                     ..store.deref().clone()
                 }
                 .into(),
-                Some(SessionAction::Login(true)),
+                Some(SessionEvent {
+                    event_type: SessionEventType::Login,
+                    data: Some(json!({"verified":true})),
+                    meta,
+                    resource: Some(vec![Resource::Auth]),
+                    is_global: true,
+                }),
             ),
             SessionAction::LoginError => (
                 SessionStore {
@@ -112,17 +216,226 @@ impl Reducer<SessionStore> for SessionAction {
                     ..store.deref().clone()
                 }
                 .into(),
-                Some(SessionAction::LoginError),
+                Some(SessionEvent {
+                    event_type: SessionEventType::LoginError,
+                    data: None,
+                    meta,
+                    resource: Some(vec![Resource::Auth]),
+                    is_global: true,
+                }),
             ),
-            SessionAction::Logout => (
+            SessionAction::Logout => {
+                if (*store).verified {
+                    clear_ports = true;
+                    (
+                        SessionStore {
+                            verified: false,
+                            data: StoreData::default(),
+                            ..SessionStore::default().clone()
+                        }
+                        .into(),
+                        Some(SessionEvent {
+                            event_type: SessionEventType::Logout,
+                            data: Some(json!({"verified":false})),
+                            meta,
+                            resource: Some(vec![Resource::Auth]),
+                            is_global: true,
+                        }),
+                    )
+                } else {
+                    (store, None)
+                }
+            }
+            SessionAction::DataDeleted(resource, data) => match resource.clone() {
+                Resource::Account => {
+                    let account_deleted = serde_json::from_value::<Account>(data.clone()).unwrap();
+                    let mut account_vec = store.data.accounts.borrow_mut();
+                    let index = account_vec
+                        .iter()
+                        .position(|ac| account_deleted.id == ac.id);
+                    if let Some(index) = index {
+                        account_vec.remove(index);
+                    } else {
+                        dbg!("account not found");
+                    }
+                    (
+                        SessionStore {
+                            data: StoreData {
+                                accounts: store.data.accounts.clone(),
+                                storage_status: store.data.storage_status.clone(),
+                            },
+                            ..store.deref().clone()
+                        }
+                        .into(),
+                        Some(SessionEvent {
+                            event_type: SessionEventType::Delete,
+                            data: Some(data),
+                            meta,
+                            resource: Some(vec![resource]),
+                            is_global: true,
+                        }),
+                    )
+                }
+                _ => (
+                    SessionStore {
+                        ..store.deref().clone()
+                    }
+                    .into(),
+                    Some(SessionEvent {
+                        event_type: SessionEventType::Delete,
+                        data: None,
+                        meta,
+                        resource: Some(vec![resource]),
+                        is_global: true,
+                    }),
+                ),
+            },
+            SessionAction::DataCreated(create_response) => {
+                let resource = create_response.resource.clone();
+                match resource {
+                    Resource::Account => {
+                        let data_payload = create_response.data.clone();
+                        let account: Rc<Account> =
+                            Rc::new(serde_json::from_value(data_payload).unwrap());
+                        let current_state_data = &store.data;
+                        let mut account_vec = current_state_data.accounts.borrow_mut();
+                        account_vec.push(account.clone());
+                        (
+                            SessionStore {
+                                data: StoreData {
+                                    accounts: current_state_data.accounts.clone(),
+                                    storage_status: current_state_data.storage_status.clone(),
+                                },
+                                ..store.deref().clone()
+                            }
+                            .into(),
+                            Some(SessionEvent {
+                                event_type: SessionEventType::Create,
+                                data: Some(serde_json::to_value(account).unwrap()),
+                                meta,
+                                resource: Some(vec![resource]),
+                                is_global: true,
+                            }),
+                        )
+                    }
+                    _ => (
+                        SessionStore {
+                            ..store.deref().clone()
+                        }
+                        .into(),
+                        Some(SessionEvent {
+                            event_type: SessionEventType::Create,
+                            data: None,
+                            meta,
+                            resource: Some(vec![resource]),
+                            is_global: true,
+                        }),
+                    ),
+                }
+            }
+            SessionAction::DataFetched(fetch_response) => {
+                let session_data = store.data.clone();
+                let data = fetch_response.data;
+                let mut meta = meta.unwrap_or(json!({}));
+                let meta_obj = meta.as_object_mut().unwrap();
+                let response_meta = fetch_response.meta.clone().unwrap_or(json!({}));
+                let path = response_meta.get("path");
+                let path = path.and_then(|v| v.as_str());
+                if path.is_some() {
+                    meta_obj.insert("path".to_owned(), path.unwrap().into());
+                }
+                let resource = fetch_response.resource.clone();
+                if resource == Resource::Account {
+                    let data_payload: Vec<Rc<Account>> = data
+                        .as_array()
+                        .unwrap_or(&vec![])
+                        .into_iter()
+                        .cloned()
+                        .map(|val| Rc::new(serde_json::from_value(val).unwrap()))
+                        .collect();
+                    let session_event = {
+                        match session_data.storage_status {
+                            _ => Some(SessionEvent {
+                                event_type: SessionEventType::Refreshed,
+                                data: Some(data),
+                                meta: Some(meta),
+                                resource: Some(vec![resource]),
+                                is_global: true,
+                            }),
+                        }
+                    };
+                    let current_state_data = store.data.clone();
+                    let mut account_section = current_state_data.accounts.borrow_mut();
+                    *account_section = data_payload;
+                    (
+                        SessionStore {
+                            data: StoreData {
+                                accounts: current_state_data.accounts.clone(),
+                                storage_status: StorageStatus::Loaded,
+                            },
+                            ..store.deref().clone()
+                        }
+                        .into(),
+                        session_event,
+                    )
+                } else {
+                    (
+                        SessionStore {
+                            ..store.deref().clone()
+                        }
+                        .into(),
+                        None,
+                    )
+                }
+            }
+            SessionAction::DataLoading(acknowledgement) => (
                 SessionStore {
-                    verified: false,
-                    passphrase: None,
+                    data: StoreData {
+                        storage_status: StorageStatus::Loading(acknowledgement),
+                        ..store.data.clone()
+                    },
                     ..store.deref().clone()
                 }
                 .into(),
-                Some(SessionAction::Logout),
+                None,
             ),
+            SessionAction::DataCreationFailed(resource, _data, request) => {
+                dbg!(&resource);
+                dbg!(&_data);
+                dbg!(&meta);
+                let session_event = {
+                    if let Some(request) = request {
+                        let request_acknowledgement = request.get_acknowledgement();
+                        if let Some(request_acknowledgement) = request_acknowledgement {
+                            extension_port_name =
+                                PORT_ID_MAP.lock().unwrap().remove(&request_acknowledgement)
+                        }
+                        let session_event = match resource {
+                            Resource::Account => Some(SessionEvent {
+                                event_type: SessionEventType::CreationFailed,
+                                data: Some(_data),
+                                meta,
+                                resource: Some(vec![resource]),
+                                is_global: false,
+                            }),
+                            _ => None,
+                        };
+                        session_event
+                    } else {
+                        None
+                    }
+                };
+                (
+                    SessionStore {
+                        data: StoreData {
+                            ..store.data.clone()
+                        },
+                        ..store.deref().clone()
+                    }
+                    .into(),
+                    session_event,
+                )
+            }
             _ => (
                 SessionStore {
                     ..store.deref().clone()
@@ -131,21 +444,31 @@ impl Reducer<SessionStore> for SessionAction {
                 None,
             ),
         };
-        //no broadcasting session event for now
-        // broadcast_session_event(session_event);
+        dbg!(&session_event);
+        if let Some(session_event) = session_event {
+            if session_event.is_global {
+                api::extension_api::broadcast_session_event(session_event.clone());
+                if clear_ports {
+                    let locked = EXTENSION_PORT.lock();
+                    let mut extension_ports = locked.unwrap();
+                    extension_ports.iter().for_each(|(_, port)| {
+                        port.disconnect();
+                    });
+                    extension_ports.clear();
+                    LISTENER_PORT.lock().unwrap().clear();
+                    info!("cleared all ports in service worker");
+                }
+            } else {
+                if let Some(extension_port_name) = extension_port_name {
+                    if let Some(extension_port) =
+                        EXTENSION_PORT.lock().unwrap().get(&extension_port_name)
+                    {
+                        api::extension_api::whisper_session_event(session_event, extension_port);
+                    }
+                }
+            }
+        }
         session_store
-    }
-}
-
-fn broadcast_session_action(session_action: SessionAction) {
-    if let Some(port) = EXTENSION_PORT.lock().unwrap().as_ref() {
-        let storage_update = RequestEnum::create_storage_update_request(
-            None,
-            serde_json::to_value(session_action).unwrap(),
-            None,
-            None,
-        );
-        port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&storage_update).unwrap());
     }
 }
 struct StorageListener;
@@ -153,11 +476,9 @@ impl Listener for StorageListener {
     type Store = SessionStore;
 
     fn on_change(&mut self, state: Rc<Self::Store>) {
-        log!("StorageListener::on_change called");
-        if let Err(err) = Self::Store::save(state.as_ref(), Area::Session) {
+        if let Err(err) = Self::Store::save(state.as_ref(), StorageArea::Session) {
             println!("Error saving state to storage: {:?}", err);
         } else {
-            log!("StorageListener::on_change called, state saved");
         }
     }
 }
@@ -166,15 +487,15 @@ pub fn set_passphrase(passphrase: Option<String>, dispatch: Dispatch<SessionStor
     dispatch.reduce_mut(move |store| {
         store.passphrase = passphrase.clone();
         if let Some(ref passphrase) = passphrase {
-            let passphrase = passphrase.clone();
+            let _passphrase = passphrase.clone();
         }
     })
 }
-pub async fn set_verified_status_async(verified: bool, dispatch: Dispatch<SessionStore>) {
+pub async fn _set_verified_status_async(verified: bool, dispatch: Dispatch<SessionStore>) {
     dispatch
         .reduce_mut_future(|store| {
             Box::pin(async move {
-                log!(
+                dbg!(
                     "set_verified_status_async, old verified: {:?}, new verified: {:?}",
                     store.verified,
                     verified
@@ -184,7 +505,7 @@ pub async fn set_verified_status_async(verified: bool, dispatch: Dispatch<Sessio
         })
         .await;
 }
-pub async fn set_passphrase_async(passphrase: Option<String>, dispatch: Dispatch<SessionStore>) {
+pub async fn _set_passphrase_async(passphrase: Option<String>, dispatch: Dispatch<SessionStore>) {
     dispatch
         .reduce_mut_future(|store| {
             Box::pin(async move {
