@@ -19,8 +19,10 @@
     {
       "matches": [
         "*://*.example.com/*",
+        "*://extensions/*",
         "*://*.google.com/*",
-        "*://*.mozilla.org/*"
+        "*://*.mozilla.org/*",
+        "*://practicetestautomation.com/*"
       ],
       "js": ["run_content.js"]
     }
@@ -29,14 +31,19 @@
     {
       "resources": [
         "run_wasm_content.js",
+        "run_content.js",
+        "content.js",
         "run_wasm_content_bg.wasm",
+        "content_bg.wasm",
         "run_wasm_service_worker.js",
         "run_wasm_service_worker_bg.wasm"
       ],
       "matches": [
         "*://*.example.com/*",
         "*://*.google.com/*",
-        "*://*.mozilla.org/*"
+        "*://*.mozilla.org/*",
+        "*://extensions/*",
+        "*://practicetestautomation.com/*"
       ]
     }
   ],
