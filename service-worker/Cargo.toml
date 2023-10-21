@@ -48,7 +48,6 @@ web-sys = {workspace=true, features = ["console","Window",
 ]}
 console_log = {workspace=true, features = ["color"],optional = true}
 cfg-if = {workspace=true}
-log = {workspace=true}
 parking_lot = {workspace=true}
 
 [features]
