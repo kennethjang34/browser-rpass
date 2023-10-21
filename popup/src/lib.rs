@@ -19,7 +19,7 @@ mod store;
 cfg_if! {
     if #[cfg(feature = "console_log")] {
         fn init_log() {
-            console_log::init_with_level(Level::Trace).expect("error initializing log");
+            let _=browser_rpass::setup_logger();
         }
     } else {
         fn init_log() {}

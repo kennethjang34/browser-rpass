@@ -23,7 +23,7 @@ mod event_handlers;
 cfg_if! {
     if #[cfg(feature = "console_log")] {
         fn init_log() {
-            console_log::init_with_level(Level::Trace).expect("error initializing log");
+            let _=browser_rpass::setup_logger();
         }
     } else {
         fn init_log() {}
@@ -32,7 +32,9 @@ cfg_if! {
 #[wasm_bindgen(start)]
 pub async fn main() {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
+
     init_log();
+
     chrome
         .runtime()
         .on_connect()

@@ -33,6 +33,10 @@ strum = {workspace=true}
 strum_macros = {workspace=true}
 yew-router = {workspace=true}
 once_cell = {workspace=true}
+log = {workspace=true}
+fern={workspace=true}
+
+
 web-sys = {workspace=true, features = ["console","Window",
 	"Document",
 	"HtmlElement",

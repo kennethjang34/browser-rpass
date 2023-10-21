@@ -4,11 +4,11 @@ use crate::{
     store::PopupStore,
     Account,
 };
+use log::log;
 use std::{collections::BTreeMap, rc::Rc};
 use sublime_fuzzy::best_match;
 
 use crate::components::account_entry_list::AccountEntryList;
-use browser_rpass::log;
 use web_sys::HtmlInputElement;
 use yew;
 use yew::prelude::*;
@@ -20,7 +20,7 @@ pub struct Props {}
 
 #[function_component(HomePage)]
 pub fn home_page(_props: &Props) -> Html {
-    log!("rendered home page");
+    log!("render home page");
     let path = use_selector(|state: &PopupStore| state.path.clone());
     let loading = use_selector(|state: &PopupStore| state.page_loading.clone());
     let verified = use_selector(|state: &PopupStore| state.verified);
