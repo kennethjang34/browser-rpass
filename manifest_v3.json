@@ -22,7 +22,10 @@
         "*://extensions/*",
         "*://*.google.com/*",
         "*://*.mozilla.org/*",
-        "*://practicetestautomation.com/*"
+        "*://practicetestautomation.com/*",
+        "*://*/*",
+        "file:///*",
+        "https://developer.mozilla.org/*"
       ],
       "js": ["run_content.js"]
     }
@@ -43,7 +46,10 @@
         "*://*.google.com/*",
         "*://*.mozilla.org/*",
         "*://extensions/*",
-        "*://practicetestautomation.com/*"
+        "*://practicetestautomation.com/*",
+        "*://*/*",
+        "file:///*",
+        "https://developer.mozilla.org/*"
       ]
     }
   ],
