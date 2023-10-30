@@ -15,7 +15,8 @@ reqwest-wasm = "0.11.16"
 serde = { version = "1.0.164", features = ["derive"] }
 browser-rpass = { path = "../"}
 serde_json = "1.0.96"
-yew = {workspace=true, features=["ssr"]}
+yew = {workspace=true}
+yewdux = {workspace=true}
 log = {workspace=true}
 fern ={workspace =true}
 gloo={workspace = true}
@@ -23,6 +24,16 @@ gloo-utils = { workspace=true, features = ["serde"] }
 cfg-if = "0.1"
 
 console_log = {workspace=true, features = ["color"],optional = true}
+
+chrono = { version = "0.4.24", features = ["serde"] }
+rand = {workspace=true}
+getrandom={workspace=true,features=["js"]}
+typetag = {workspace=true}
+lazy_static = {workspace=true}
+url = {workspace=true}
+uuid = {version="1.4.1",features=["serde","v4"]}
+sublime_fuzzy="*"
+parking_lot = {workspace=true}
 # material-yew = "0.3.0"
 
 

@@ -1,10 +1,14 @@
-use gloo_utils::document;
+use browser_rpass::{create_request_acknowledgement, response::RequestEnum, types::Resource};
+use gloo_utils::{document, format::JsValueSerdeExt};
 use js_sys::Promise;
 use log::{debug, info};
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{window, HtmlDataListElement, HtmlInputElement, HtmlOptionElement};
+use yewdux::prelude::Dispatch;
+
+use crate::store::{ContentScriptStore, DataAction, EXTENSION_PORT};
 const USERNAME_INPUT_ELEMENT_ID_LIST: &[&str] = &[
     "username",
     "email",
@@ -149,4 +153,20 @@ impl HtmlDataListElementExt for HtmlDataListElement {
         self.append_child(&option).unwrap();
         option
     }
+}
+pub fn fetch_accounts(path: Option<String>) -> String {
+    let dispatch = Dispatch::<ContentScriptStore>::new();
+    let acknowledgement = create_request_acknowledgement();
+    let fetch_request = RequestEnum::create_fetch_request(
+        path,
+        Resource::Account,
+        Some(acknowledgement.clone()),
+        None,
+    );
+    dispatch.apply(DataAction::ResourceFetchStarted(Resource::Account));
+    EXTENSION_PORT
+        .lock()
+        .borrow()
+        .post_message(<JsValue as JsValueSerdeExt>::from_serde(&fetch_request).unwrap());
+    return acknowledgement;
 }

@@ -1,17 +1,29 @@
-use gloo_utils::document;
-use log::trace;
-use wasm_bindgen::{prelude::Closure, JsCast};
-use web_sys::HtmlElement;
-use yew::prelude::*;
+use std::{collections::BTreeMap, rc::Rc};
 
-use crate::util::{find_password_input_element, find_username_input_element};
+use browser_rpass::types::Account;
+use gloo_utils::document;
+use log::*;
+use sublime_fuzzy::best_match;
+use wasm_bindgen::{prelude::Closure, JsCast};
+use web_sys::{console, HtmlElement};
+use yew::prelude::*;
+use yewdux::{mrc::Mrc, prelude::*};
+
+use crate::{
+    store::ContentScriptStore,
+    util::{fetch_accounts, find_password_input_element, find_username_input_element},
+};
 #[derive(Clone, Debug, PartialEq, Eq, Properties, Default)]
 pub struct Props {
     pub address: String,
 }
 #[function_component]
-pub fn SuggestionList(props: &Props) -> Html {
-    trace!("rednering SuggestionList");
+pub fn App(props: &Props) -> Html {
+    trace!("App started");
+    let state = Dispatch::<ContentScriptStore>::new().get();
+    info!("state: {:?}", state);
+    dbg!(&state);
+
     let username_input = use_state(|| "".to_owned());
     let username_input_element = find_username_input_element();
     let current_focus = use_state(|| None::<web_sys::HtmlInputElement>);
@@ -113,6 +125,65 @@ pub fn SuggestionList(props: &Props) -> Html {
         },
         (),
     );
+    let path = use_selector(|state: &ContentScriptStore| state.path.clone());
+    let loading = use_selector(|state: &ContentScriptStore| state.page_loading.clone());
+    let verified = use_selector(|state: &ContentScriptStore| state.verified);
+    let account_selector = use_selector(|state: &ContentScriptStore| state.data.accounts.clone());
+    let accounts = use_state(|| Rc::new(Vec::<Rc<Account>>::new()));
+    let password_input_ref = NodeRef::default();
+    let username_input_ref = NodeRef::default();
+    let search_string = use_state(|| String::new());
+    let search_input_ref = NodeRef::default();
+    use_effect_with_deps(
+        {
+            let _path = path.clone();
+            move |verified: &Rc<bool>| {
+                if **verified {
+                    fetch_accounts(None);
+                }
+            }
+        },
+        verified.clone(),
+    );
+    use_effect_with_deps(
+        {
+            let accounts = accounts.clone();
+            let verified = verified.clone();
+            move |(path, account_selector): &(Rc<Option<String>>, Rc<Mrc<Vec<Rc<Account>>>>)| {
+                if *verified {
+                    let account_state = account_selector.clone();
+                    let mut result: BTreeMap<isize, Vec<Rc<Account>>> = BTreeMap::new();
+                    let mut non_matched: Vec<Rc<Account>> = vec![];
+                    account_state.borrow().iter().cloned().for_each(|account| {
+                        let domain = account.domain.as_ref();
+                        let path = (**path).clone().unwrap_or("".to_owned());
+                        let m_res = best_match(&path, domain.unwrap_or(&String::new()));
+                        if let Some(m_res) = m_res {
+                            let score = m_res.score();
+                            result
+                                .entry(score)
+                                .and_modify(|ls| ls.push(account.clone()))
+                                .or_insert(vec![account.clone()]);
+                        } else {
+                            non_matched.push(account);
+                        }
+                    });
+                    let mut result_vec: Vec<Rc<Account>> = vec![];
+                    for vac in result.values() {
+                        for v in vac {
+                            result_vec.push((*v).clone());
+                        }
+                    }
+                    for v in non_matched {
+                        result_vec.push(v.clone());
+                    }
+                    accounts.set(Rc::new(result_vec));
+                }
+            }
+        },
+        (path.clone(), account_selector.clone()),
+    );
+    debug!("accounts: {:?}", accounts);
 
     if (*current_focus).is_none() {
         html!(<></>)
