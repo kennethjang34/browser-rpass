@@ -1,11 +1,10 @@
-use std::{collections::BTreeMap, rc::Rc};
+use std::rc::Rc;
 
-use browser_rpass::types::Account;
-use gloo_utils::document;
+use browser_rpass::{get_domain_name, types::Account};
+use gloo_utils::{document, window};
 use log::*;
-use sublime_fuzzy::best_match;
 use wasm_bindgen::{prelude::Closure, JsCast};
-use web_sys::{console, HtmlElement};
+use web_sys::HtmlElement;
 use yew::prelude::*;
 use yewdux::{mrc::Mrc, prelude::*};
 
@@ -14,25 +13,23 @@ use crate::{
     util::{fetch_accounts, find_password_input_element, find_username_input_element},
 };
 #[derive(Clone, Debug, PartialEq, Eq, Properties, Default)]
-pub struct Props {
-    pub address: String,
-}
+pub struct Props {}
 #[function_component]
-pub fn App(props: &Props) -> Html {
+pub fn App(_props: &Props) -> Html {
     trace!("App started");
     let state = Dispatch::<ContentScriptStore>::new().get();
     info!("state: {:?}", state);
     dbg!(&state);
-
+    let page_domain =
+        use_state(|| get_domain_name(&window().location().href().unwrap_or_default()));
     let username_input = use_state(|| "".to_owned());
     let username_input_element = find_username_input_element();
     let current_focus = use_state(|| None::<web_sys::HtmlInputElement>);
     let password_input = use_state(|| "".to_owned());
     let password_input_element = find_password_input_element();
-    let _address = props.address.clone();
-    let suggestions = use_state(|| Vec::<(String, String)>::new());
     use_effect_with_deps(
         {
+            let page_domain = page_domain.clone();
             let _user_input = username_input.clone();
             let user_input_element = username_input_element.clone();
             let _password_input = password_input.clone();
@@ -41,15 +38,12 @@ pub fn App(props: &Props) -> Html {
             {
                 let username_input_element = username_input_element.clone();
                 let password_input_element = password_input_element.clone();
-                let suggestions = suggestions.clone();
                 move |_| {
-                    let test_entries = vec![
-                        ("test_username1".to_owned(), "test_password1".to_owned()),
-                        ("test_username2".to_owned(), "test_password2".to_owned()),
-                        ("test_username3".to_owned(), "test_password3".to_owned()),
-                        ("test_username4".to_owned(), "test_password4".to_owned()),
-                    ];
-                    suggestions.set(test_entries);
+                    let current_address =
+                        get_domain_name(&window().location().href().unwrap_or_default());
+                    if *page_domain != current_address {
+                        page_domain.set(current_address);
+                    }
                     if let Some(ref username_input_element) = user_input_element {
                         let on_focus = {
                             let user_input_element = username_input_element.clone();
@@ -125,21 +119,20 @@ pub fn App(props: &Props) -> Html {
         },
         (),
     );
-    let path = use_selector(|state: &ContentScriptStore| state.path.clone());
-    let loading = use_selector(|state: &ContentScriptStore| state.page_loading.clone());
     let verified = use_selector(|state: &ContentScriptStore| state.verified);
     let account_selector = use_selector(|state: &ContentScriptStore| state.data.accounts.clone());
     let accounts = use_state(|| Rc::new(Vec::<Rc<Account>>::new()));
     let password_input_ref = NodeRef::default();
     let username_input_ref = NodeRef::default();
-    let search_string = use_state(|| String::new());
-    let search_input_ref = NodeRef::default();
     use_effect_with_deps(
         {
-            let _path = path.clone();
+            let accounts = accounts.clone();
             move |verified: &Rc<bool>| {
+                debug!("verified: {:?}", verified);
                 if **verified {
                     fetch_accounts(None);
+                } else {
+                    accounts.set(Rc::new(Vec::<Rc<Account>>::new()));
                 }
             }
         },
@@ -149,39 +142,29 @@ pub fn App(props: &Props) -> Html {
         {
             let accounts = accounts.clone();
             let verified = verified.clone();
-            move |(path, account_selector): &(Rc<Option<String>>, Rc<Mrc<Vec<Rc<Account>>>>)| {
+            move |(page_domain, account_selector): &(
+                UseStateHandle<String>,
+                Rc<Mrc<Vec<Rc<Account>>>>,
+            )| {
                 if *verified {
                     let account_state = account_selector.clone();
-                    let mut result: BTreeMap<isize, Vec<Rc<Account>>> = BTreeMap::new();
-                    let mut non_matched: Vec<Rc<Account>> = vec![];
-                    account_state.borrow().iter().cloned().for_each(|account| {
-                        let domain = account.domain.as_ref();
-                        let path = (**path).clone().unwrap_or("".to_owned());
-                        let m_res = best_match(&path, domain.unwrap_or(&String::new()));
-                        if let Some(m_res) = m_res {
-                            let score = m_res.score();
-                            result
-                                .entry(score)
-                                .and_modify(|ls| ls.push(account.clone()))
-                                .or_insert(vec![account.clone()]);
-                        } else {
-                            non_matched.push(account);
-                        }
-                    });
-                    let mut result_vec: Vec<Rc<Account>> = vec![];
-                    for vac in result.values() {
-                        for v in vac {
-                            result_vec.push((*v).clone());
-                        }
-                    }
-                    for v in non_matched {
-                        result_vec.push(v.clone());
-                    }
+                    let result_vec = account_state
+                        .borrow()
+                        .iter()
+                        .cloned()
+                        .filter(|account| {
+                            debug!("account.domain: {:?}", account.domain);
+                            debug!("page_address: {:?}", page_domain);
+                            let domain = account.domain.as_ref();
+                            let page_address = (**page_domain).clone();
+                            domain.unwrap_or(&String::new()) == &page_address
+                        })
+                        .collect::<Vec<Rc<Account>>>();
                     accounts.set(Rc::new(result_vec));
                 }
             }
         },
-        (path.clone(), account_selector.clone()),
+        (page_domain.clone(), account_selector.clone()),
     );
     debug!("accounts: {:?}", accounts);
 
@@ -210,7 +193,7 @@ pub fn App(props: &Props) -> Html {
                     let username_input_element=username_input_element.clone();
                     let password_input_element=password_input_element.clone();
 
-                    (*suggestions).iter().map(|entry|{
+                    (*accounts).iter().map(|entry|{
                         let on_suggestion_click = {
                             let current_focus=current_focus.clone();
                             let entry=entry.clone();
@@ -219,15 +202,15 @@ pub fn App(props: &Props) -> Html {
                             Callback::from(move |_event: web_sys::MouseEvent| {
                                 _event.prevent_default();
                                 if username_input_element.is_some() {
-                                    username_input_element.as_ref().unwrap().set_value(&entry.0);
+                                    username_input_element.as_ref().unwrap().set_value(&entry.username);
                                 }
                                 if password_input_element.is_some() {
-                                    password_input_element.as_ref().unwrap().set_value(&entry.1);
+                                    password_input_element.as_ref().unwrap().set_value(entry.password.as_ref().unwrap_or(&String::new()));
                                 }
                                 current_focus.set(None);
                             })
                         };
-                        let entry_element=html!(<div style="cursor: pointer; border: 3px solid black;" class="rpass-suggestion" onclick={on_suggestion_click}>{entry.0.clone()}</div>);
+                        let entry_element=html!(<div style="cursor: pointer; border: 3px solid black;" class="rpass-suggestion" onclick={on_suggestion_click}>{entry.username.clone()}</div>);
                         entry_element
                     }).collect::<Html>()}
             }

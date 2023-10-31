@@ -32,9 +32,9 @@ pub async fn main() {
     document().body().unwrap().append_child(&root).unwrap();
     let _password_suggestion_handle = yew::Renderer::<App>::with_root_and_props(
         root.into(),
-        Props {
-            address: window().location().href().unwrap_or_default(),
-        },
+        Props {}, // Props {
+                  //     address: window().location().href().unwrap_or_default(),
+                  // },
     )
     .render();
 }
