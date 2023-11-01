@@ -6,7 +6,7 @@ use browser_rpass::{
     Port,
 };
 use gloo_utils::format::JsValueSerdeExt;
-use log::{info, log};
+use log::*;
 use serde_json::json;
 use wasm_bindgen::{prelude::Closure, JsValue};
 use wasm_bindgen_futures::spawn_local;

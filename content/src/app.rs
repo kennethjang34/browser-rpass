@@ -1,8 +1,9 @@
-use std::rc::Rc;
+use std::{collections::BTreeMap, rc::Rc};
 
 use browser_rpass::{get_domain_name, types::Account};
 use gloo_utils::{document, window};
 use log::*;
+use sublime_fuzzy::best_match;
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::HtmlElement;
 use yew::prelude::*;
@@ -17,9 +18,6 @@ pub struct Props {}
 #[function_component]
 pub fn App(_props: &Props) -> Html {
     trace!("App started");
-    let state = Dispatch::<ContentScriptStore>::new().get();
-    info!("state: {:?}", state);
-    dbg!(&state);
     let page_domain =
         use_state(|| get_domain_name(&window().location().href().unwrap_or_default()));
     let username_input = use_state(|| "".to_owned());
@@ -27,16 +25,19 @@ pub fn App(_props: &Props) -> Html {
     let current_focus = use_state(|| None::<web_sys::HtmlInputElement>);
     let password_input = use_state(|| "".to_owned());
     let password_input_element = find_password_input_element();
+    let verified = use_selector(|state: &ContentScriptStore| state.verified);
+    let account_selector = use_selector(|state: &ContentScriptStore| state.data.accounts.clone());
+    let accounts = use_state(|| Rc::new(Vec::<Rc<Account>>::new()));
     use_effect_with_deps(
         {
             let page_domain = page_domain.clone();
-            let _user_input = username_input.clone();
             let user_input_element = username_input_element.clone();
             let _password_input = password_input.clone();
             let password_input_element = password_input_element.clone();
             let current_focus = current_focus.clone();
             {
                 let username_input_element = username_input_element.clone();
+                let username_input = username_input.clone();
                 let password_input_element = password_input_element.clone();
                 move |_| {
                     let current_address =
@@ -114,16 +115,25 @@ pub fn App(_props: &Props) -> Html {
                         )
                         .unwrap();
                     on_click.forget();
+                    if let Some(username_input_element) = username_input_element {
+                        username_input_element.set_oninput(Some(
+                            &Closure::<dyn Fn(_)>::new({
+                                let username_input_element = username_input_element.clone();
+                                let username_input = username_input.clone();
+                                move |_event: web_sys::InputEvent| {
+                                    let username = username_input_element.value();
+                                    username_input.set(username);
+                                }
+                            })
+                            .into_js_value()
+                            .unchecked_into(),
+                        ));
+                    }
                 }
             }
         },
         (),
     );
-    let verified = use_selector(|state: &ContentScriptStore| state.verified);
-    let account_selector = use_selector(|state: &ContentScriptStore| state.data.accounts.clone());
-    let accounts = use_state(|| Rc::new(Vec::<Rc<Account>>::new()));
-    let password_input_ref = NodeRef::default();
-    let username_input_ref = NodeRef::default();
     use_effect_with_deps(
         {
             let accounts = accounts.clone();
@@ -153,8 +163,6 @@ pub fn App(_props: &Props) -> Html {
                         .iter()
                         .cloned()
                         .filter(|account| {
-                            debug!("account.domain: {:?}", account.domain);
-                            debug!("page_address: {:?}", page_domain);
                             let domain = account.domain.as_ref();
                             let page_address = (**page_domain).clone();
                             domain.unwrap_or(&String::new()) == &page_address
@@ -166,7 +174,6 @@ pub fn App(_props: &Props) -> Html {
         },
         (page_domain.clone(), account_selector.clone()),
     );
-    debug!("accounts: {:?}", accounts);
 
     if (*current_focus).is_none() {
         html!(<></>)
@@ -192,8 +199,31 @@ pub fn App(_props: &Props) -> Html {
                 {
                     let username_input_element=username_input_element.clone();
                     let password_input_element=password_input_element.clone();
-
-                    (*accounts).iter().map(|entry|{
+                    let username_input=username_input.clone();
+                    let mut result_vec: Vec<Rc<Account>> = vec![];
+                    if username_input.is_empty(){
+                        result_vec=(**accounts).clone();
+                    }else{
+                        let mut filtered_with_current_input: BTreeMap<isize, Vec<Rc<Account>>> = BTreeMap::new();
+                        let account_data=&**accounts;
+                        for account in account_data {
+                            let account_id = &account.id;
+                            let result = best_match(&*username_input, account_id);
+                            if let Some(result) = result {
+                                let score = result.score();
+                                filtered_with_current_input
+                                    .entry(score)
+                                    .and_modify(|ls| ls.push(account.clone()))
+                                    .or_insert_with(|| vec![account.clone()]);
+                            }
+                        }
+                        for vac in filtered_with_current_input.into_values() {
+                            for v in vac {
+                                result_vec.push(v);
+                            }
+                        }
+                    }
+                    (*result_vec).iter().map(|entry|{
                         let on_suggestion_click = {
                             let current_focus=current_focus.clone();
                             let entry=entry.clone();
