@@ -5,6 +5,7 @@ pub use browser_rpass::types::*;
 
 use cfg_if::cfg_if;
 pub use gloo_utils::format::JsValueSerdeExt;
+#[warn(unused_imports)]
 use log::{self, *};
 use std::panic;
 use wasm_bindgen::prelude::*;

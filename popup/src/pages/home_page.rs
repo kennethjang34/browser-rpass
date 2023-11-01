@@ -4,7 +4,7 @@ use crate::{
     store::PopupStore,
     Account,
 };
-use log::{log, *};
+use log::*;
 use std::{collections::BTreeMap, rc::Rc};
 use sublime_fuzzy::best_match;
 
@@ -20,7 +20,7 @@ pub struct Props {}
 
 #[function_component(HomePage)]
 pub fn home_page(_props: &Props) -> Html {
-    debug!("render home page");
+    trace!("render home page");
     let path = use_selector(|state: &PopupStore| state.path.clone());
     let loading = use_selector(|state: &PopupStore| state.page_loading.clone());
     let verified = use_selector(|state: &PopupStore| state.verified);
