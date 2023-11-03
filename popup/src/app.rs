@@ -1,4 +1,3 @@
-use crate::dbg;
 use crate::{
     pages::home_page::HomePage,
     store::{PopupAction, PopupStore},
@@ -19,7 +18,6 @@ use yewdux::prelude::Dispatch;
 #[function_component]
 pub fn App() -> Html {
     let state = Dispatch::<PopupStore>::new().get();
-    dbg!(&state);
     use_effect_with_deps(
         {
             let state = state.clone();

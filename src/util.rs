@@ -7,6 +7,7 @@ use rand::thread_rng;
 use rand::Rng;
 use std::collections::HashMap;
 use std::time::Duration;
+use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
@@ -156,6 +157,12 @@ extern "C" {
     pub async fn remove(this: &StorageArea, key: &str) -> JsValue;
     #[wasm_bindgen(method, structural, js_name = "remove")]
     pub async fn remove_bulk(this: &StorageArea, key: JsValue) -> JsValue;
+}
+pub fn get_domain_name(addr: &String) -> String {
+    let url = Url::parse(&addr).unwrap();
+    let domain = url.domain().unwrap();
+    let domain_name = domain.to_string();
+    domain_name
 }
 unsafe impl Send for Port {}
 unsafe impl Sync for Port {}

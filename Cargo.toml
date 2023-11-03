@@ -102,4 +102,6 @@ features = [
 	"HtmlTextAreaElement",
 	"Navigator",
 	"Clipboard",
+	"CssStyleDeclaration",
+	"HtmlStyleElement",
 ]

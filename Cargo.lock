@@ -494,16 +494,32 @@ checksum = "21a53c0a4d288377e7415b53dcfc3c04da5cdc2cc95c8d5ac178b58f0b861ad6"
 name = "content"
 version = "0.1.0"
 dependencies = [
+ "browser-rpass",
+ "cfg-if 0.1.10",
+ "chrono",
  "console_error_panic_hook",
+ "console_log",
  "fern",
+ "getrandom 0.2.10",
+ "gloo",
+ "gloo-utils",
  "js-sys",
+ "lazy_static",
+ "log",
+ "parking_lot",
+ "rand 0.8.5",
  "reqwest-wasm",
  "serde",
  "serde_json",
+ "sublime_fuzzy",
+ "typetag",
+ "url",
+ "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
  "yew",
+ "yewdux",
 ]
 
 [[package]]
