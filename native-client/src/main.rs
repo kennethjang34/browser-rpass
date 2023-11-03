@@ -1,6 +1,7 @@
 use browser_rpass::{request::*, response::*, types::Resource};
 #[allow(warnings)]
 use hex::FromHex;
+use log::*;
 use serde_json::json;
 
 use rpass::{
@@ -8,6 +9,9 @@ use rpass::{
     pass::PasswordStore,
     pass::{self, Error, PasswordEntry, Result},
 };
+use std::time::SystemTime;
+
+use fern::colors::{Color, ColoredLevelConfig};
 use serde::Serialize;
 use std::io::{self, Read, Write};
 use std::{
@@ -152,23 +156,11 @@ fn get_stores(config: &config::Config, home: &Option<PathBuf>) -> pass::Result<V
     Ok(final_stores)
 }
 fn main() -> pass::Result<()> {
-    eprintln!("rpass started!");
-    let mut f = std::fs::OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open("/Users/JANG/rpass_test.log")
-        .expect("Failed to open file");
+    let _ = setup_logger();
+    trace!("Starting rpass");
     let received_message_res = get_message();
-    if received_message_res.is_err() {
-        // continue;
-    }
+    if received_message_res.is_err() {}
     let received_message = received_message_res.unwrap();
-    writeln!(
-        &mut f,
-        "{}",
-        serde_json::to_string(&received_message).unwrap()
-    )
-    .unwrap();
     if let Ok(request) = serde_json::from_value::<RequestEnum>(received_message.clone()) {
         match request {
             RequestEnum::Init(request) => {
@@ -186,11 +178,6 @@ fn main() -> pass::Result<()> {
     }
 }
 fn get_message() -> Result<serde_json::Value> {
-    let mut f = std::fs::OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open("/Users/JANG/rpass_test.log")
-        .expect("Failed to open file");
     let mut raw_length = [0; 4];
     if let Err(read_length_res) = io::stdin().read_exact(&mut raw_length) {
         return Err(Error::Io(read_length_res));
@@ -200,12 +187,7 @@ fn get_message() -> Result<serde_json::Value> {
     io::stdin()
         .read_exact(&mut message)
         .expect("Failed to read message content");
-    writeln!(
-        &mut f,
-        "message: {}",
-        serde_json::to_string(&message).unwrap()
-    )
-    .unwrap();
+    info!("Received message: {:?}", message);
     let parsed = serde_json::from_slice(message.as_slice());
     if let Err(err) = parsed {
         let error_message = format!("Failed to parse JSON: {:?}", err);
@@ -622,7 +604,7 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
                     return Ok(());
                 }
                 _ => {
-                    eprintln!("requsted resource: {:?} not supported", resource);
+                    error!("requsted resource: {:?} not supported", resource);
                     return Err(pass::Error::from(
                         "resource must be either username or password",
                     ));
@@ -722,7 +704,7 @@ fn handle_init_request(request: InitRequest) -> pass::Result<()> {
         Err(_) => match &home {
             Some(home_path) => home_path.join(".local"),
             None => {
-                eprintln!("{}", "No home directory set");
+                error!("{}", "No home directory set");
                 process::exit(1);
             }
         },
@@ -742,14 +724,14 @@ fn handle_init_request(request: InitRequest) -> pass::Result<()> {
         )
     };
     if let Err(err) = config_res {
-        eprintln!("Error {err}");
+        error!("Error {err}");
         process::exit(1);
     }
     let (config, config_file_location) = config_res.unwrap();
 
     let stores = get_stores(&config, &home);
     if let Err(err) = stores {
-        eprintln!("Error {err}");
+        error!("Error {err}");
         process::exit(1);
     }
 
@@ -765,11 +747,11 @@ fn handle_init_request(request: InitRequest) -> pass::Result<()> {
         let mut config_file_dir = config_file_location.clone();
         config_file_dir.pop();
         if let Err(err) = std::fs::create_dir_all(config_file_dir) {
-            eprintln!("Error {err}");
+            error!("Error {err}");
             process::exit(1);
         }
         if let Err(err) = pass::save_config(stores.clone(), &config_file_location) {
-            eprintln!("Error {err}");
+            error!("Error {err}");
             process::exit(1);
         }
     }
@@ -784,7 +766,7 @@ fn handle_init_request(request: InitRequest) -> pass::Result<()> {
     }
     let res = store.lock()?.lock()?.reload_password_list();
     if let Err(err) = res {
-        eprintln!("Error {err}");
+        error!("Error {err}");
         process::exit(1);
     }
 
@@ -922,24 +904,15 @@ fn handle_delete_request(request: DeleteRequest, store: &PasswordStoreType) -> p
 }
 
 fn listen_to_native_messaging(store: &PasswordStoreType) -> pass::Result<()> {
-    let mut f = std::fs::OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open("/Users/JANG/rpass_test.log")
-        .expect("Failed to open file");
+    trace!("start listening to native messaging");
     loop {
         let received_message_res = get_message();
         if received_message_res.is_err() {
             continue;
         }
         let received_message = received_message_res.unwrap();
-        writeln!(
-            &mut f,
-            "{}",
-            serde_json::to_string(&received_message).unwrap()
-        )
-        .unwrap();
         if let Ok(request) = serde_json::from_value::<RequestEnum>(received_message) {
+            info!("request enum extracted: {:?}", request);
             let _ = match request.clone() {
                 RequestEnum::Get(request) => handle_get_request(request, store),
                 RequestEnum::Search(request) => handle_search_request(request, store),
@@ -962,12 +935,12 @@ fn listen_to_native_messaging(store: &PasswordStoreType) -> pass::Result<()> {
                 //     handle_push_request(request, store)
                 // }
                 _ => {
-                    eprintln!("Request: {:?} not recognized", request);
+                    error!("Request: {:?} not recognized", request);
                     continue;
                 }
             };
         } else {
-            eprintln!("Failed to parse message");
+            error!("Failed to parse message");
             continue;
         }
         // let command = parse_message(received_message.clone()).unwrap();
@@ -1018,7 +991,7 @@ fn _create_password_entry(
         password = format!("{password}\n{note}");
     }
     if password.contains("otpauth://") {
-        eprint!("It seems like you are trying to save a TOTP code to the password store. This will reduce your 2FA solution to just 1FA, do you want to proceed?");
+        error!("It seems like you are trying to save a TOTP code to the password store. This will reduce your 2FA solution to just 1FA, do you want to proceed?");
     }
     _new_password_save(path.as_ref(), password.as_ref(), store)
 }
@@ -1054,7 +1027,7 @@ fn create_password_entry_with_passphrase(
         password = format!("{password}\n{note}");
     }
     if password.contains("otpauth://") {
-        eprint!("It seems like you are trying to save a TOTP code to the password store. This will reduce your 2FA solution to just 1FA, do you want to proceed?");
+        error!("It seems like you are trying to save a TOTP code to the password store. This will reduce your 2FA solution to just 1FA, do you want to proceed?");
     }
     new_password_save_with_passphrase(path.as_ref(), password.as_ref(), store, passphrase)
 }
@@ -1100,7 +1073,7 @@ fn change_password(
         passphrase,
     );
     if r.is_err() {
-        eprint!("Failed to update password: {:?}", r.as_ref().unwrap_err());
+        error!("Failed to update password: {:?}", r.as_ref().unwrap_err());
     }
     return r;
 }
@@ -1177,4 +1150,55 @@ fn delete_password_entry(
     password_entry
         .delete_file_passphrase(&*store.lock()?.lock()?, passphrase)
         .map(|_| password_entry)
+}
+pub fn setup_logger() -> std::result::Result<(), fern::InitError> {
+    let home=std::env::var("HOME").unwrap_or("".to_string());
+    let colors_line = ColoredLevelConfig::new()
+        .error(Color::Red)
+        .warn(Color::Yellow)
+        .info(Color::BrightWhite)
+        .debug(Color::BrightMagenta)
+        .trace(Color::BrightBlack);
+    fern::Dispatch::new()
+        .format(move |out, message, record| {
+            out.finish(format_args!(
+                "{header_color}[{date} {target}][{color_line}{level}{header_color}] {color_line}{message} {footer_color}[{file}:{line_number}]\x1B[0m ",
+                header_color=
+                format_args!(
+                    "\x1B[{}m",
+                    colors_line.get_color(&record.level()).to_fg_str()
+                ),
+                color_line = 
+                format_args!(
+                    "\x1B[{}m",
+                    colors_line.get_color(&record.level()).to_fg_str()
+                ),
+                date = humantime::format_rfc3339_seconds(SystemTime::now()),
+                target = record.target(),
+                level = record.level(),
+                message = message,
+                footer_color=
+                format_args!(
+                    "\x1B[{}m",
+                    colors_line.get_color(&record.level()).to_fg_str()
+                ),
+                file = record.file().unwrap_or("unknown"),
+                line_number = record.line().unwrap_or(0)
+            ));
+        })
+        .chain(std::io::stderr())
+        .chain(fern::log_file(format!(
+            "{}/rpass/browser-rpass/native-client/logs/output-{}.log",
+            home,
+            chrono::offset::Local::now()
+        ))?)
+        .chain(
+            std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(format!("{}/rpass/browser-rpass/native-client/logs/output.log",home))?,
+        )
+        .apply()?;
+    Ok(())
 }
