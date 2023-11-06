@@ -1,5 +1,3 @@
-use crate::store::set_passphrase;
-use crate::store::set_verified_status;
 use crate::store::SessionAction;
 use crate::store::SessionActionWrapper;
 use crate::store::SessionStore;
@@ -31,6 +29,7 @@ pub fn process_native_message(
                 let login_response2 = login_response.clone();
                 let ctx = ctx.map_or(json!({"passphrase":login_request.passphrase}), |mut ctx| {
                     ctx["passphrase"] = json!(login_request.passphrase);
+                    ctx["user_id"] = json!(login_request.username);
                     ctx
                 });
                 wasm_bindgen_futures::spawn_local(async move {
@@ -43,14 +42,38 @@ pub fn process_native_message(
                                 meta: Some(ctx),
                             });
                         }
-                        Status::Failure => {
-                            set_verified_status(false, session_store_dispatch.clone());
-                            set_passphrase(None, session_store_dispatch.clone())
-                        }
+                        Status::Failure => session_store_dispatch.apply(SessionActionWrapper {
+                            action: SessionAction::LoginError,
+                            meta: Some(ctx),
+                        }),
                         _ => {}
                     };
                 });
                 let response = ResponseEnum::LoginResponse(login_response);
+                return Ok(response);
+            }
+            &RequestEnum::Logout(_logout_request) => {
+                let logout_response: LogoutResponse =
+                    serde_json::from_value::<LogoutResponse>(json_msg).unwrap();
+                let logout_response2 = logout_response.clone();
+                wasm_bindgen_futures::spawn_local(async move {
+                    let logout_response = logout_response2;
+                    match logout_response.status {
+                        Status::Success => {
+                            dbg!(&logout_response);
+                            session_store_dispatch.apply(SessionActionWrapper {
+                                action: SessionAction::Logout,
+                                meta: None,
+                            });
+                        }
+                        Status::Failure => session_store_dispatch.apply(SessionActionWrapper {
+                            action: SessionAction::LogoutError,
+                            meta: None,
+                        }),
+                        _ => {}
+                    };
+                });
+                let response = ResponseEnum::LogoutResponse(logout_response);
                 return Ok(response);
             }
             &RequestEnum::Get(_get_request) => {
