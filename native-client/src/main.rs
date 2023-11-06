@@ -17,7 +17,6 @@ use std::io::{self, Read, Write};
 use std::{
     collections::HashMap,
     path::PathBuf,
-    process,
     sync::{Arc, Mutex},
     thread, time,
 };
@@ -128,28 +127,28 @@ fn get_stores(config: &config::Config, home: &Option<PathBuf>) -> pass::Result<V
                 };
 
                 final_stores.push(PasswordStore::new(
-                    store_name,
-                    &password_store_dir,
-                    &valid_signing_keys,
-                    home,
-                    &style_path_opt,
-                    &pgp_impl,
-                    &own_fingerprint,
-                )?);
+                        store_name,
+                        &password_store_dir,
+                        &valid_signing_keys,
+                        home,
+                        &style_path_opt,
+                        &pgp_impl,
+                        &own_fingerprint,
+                        )?);
             }
         }
     } else if final_stores.is_empty() && home.is_some() {
         let default_path = home.clone().unwrap().join(".password_store");
         if default_path.exists() {
             final_stores.push(PasswordStore::new(
-                "default",
-                &Some(default_path),
-                &None,
-                home,
-                &None,
-                &CryptoImpl::GpgMe,
-                &None,
-            )?);
+                    "default",
+                    &Some(default_path),
+                    &None,
+                    home,
+                    &None,
+                    &CryptoImpl::GpgMe,
+                    &None,
+                    )?);
         }
     }
 
@@ -164,8 +163,9 @@ fn main() -> pass::Result<()> {
     if let Ok(request) = serde_json::from_value::<RequestEnum>(received_message.clone()) {
         match request {
             RequestEnum::Init(request) => {
-                handle_init_request(request)?;
-                Ok(())
+            let stores=handle_init_request(request)?;
+            thread::sleep(time::Duration::from_millis(200));
+            listen_to_native_messaging(stores)
             }
             _ => {
                 let err_msg=format!("The first message json must have 'init' as key and initialization values as its value. Received message: {:?}",request);
@@ -187,7 +187,6 @@ fn get_message() -> Result<serde_json::Value> {
     io::stdin()
         .read_exact(&mut message)
         .expect("Failed to read message content");
-    info!("Received message: {:?}", message);
     let parsed = serde_json::from_slice(message.as_slice());
     if let Err(err) = parsed {
         let error_message = format!("Failed to parse JSON: {:?}", err);
@@ -215,8 +214,8 @@ fn send_message(encoded_message: &[u8]) {
         &mut f,
         "{}",
         serde_json::to_string(&format!("encoded_message: {:?}", encoded_message)).unwrap()
-    )
-    .unwrap();
+        )
+        .unwrap();
     io::stdout()
         .write_all(encoded_message)
         .expect("Failed to write to stdout");
@@ -226,7 +225,7 @@ fn check_passphrase(
     store: &PasswordStoreType,
     username: Option<String>,
     passphrase: &str,
-) -> Result<bool> {
+    ) -> Result<bool> {
     store
         .lock()
         .unwrap()
@@ -252,7 +251,7 @@ fn handle_get_request(request: GetRequest, store: &PasswordStoreType) -> pass::R
                             let filename = entry.unwrap().file_name().into_string().unwrap();
                             filename.replace(".gpg", "")
                         })
-                        .collect::<Vec<String>>();
+                    .collect::<Vec<String>>();
                     let get_response = {
                         if usernames.len() > 1 || usernames.len() == 0 {
                             GetResponse {
@@ -296,23 +295,23 @@ fn handle_get_request(request: GetRequest, store: &PasswordStoreType) -> pass::R
                     let get_response = {
                         if let Ok(password) =
                             &encrypted_password.secret(locked_store, Some(passphrase.clone()))
-                        {
-                            GetResponse {
-                                data: password.clone().into(),
-                                acknowledgement: acknowledgement.clone(),
-                                status: Status::Success,
-                                resource: Resource::Password,
-                                meta: None,
+                            {
+                                GetResponse {
+                                    data: password.clone().into(),
+                                    acknowledgement: acknowledgement.clone(),
+                                    status: Status::Success,
+                                    resource: Resource::Password,
+                                    meta: None,
+                                }
+                            } else {
+                                GetResponse {
+                                    data: serde_json::Value::Null,
+                                    acknowledgement: acknowledgement.clone(),
+                                    status: Status::Failure,
+                                    resource: Resource::Password,
+                                    meta: None,
+                                }
                             }
-                        } else {
-                            GetResponse {
-                                data: serde_json::Value::Null,
-                                acknowledgement: acknowledgement.clone(),
-                                status: Status::Failure,
-                                resource: Resource::Password,
-                                meta: None,
-                            }
-                        }
                     };
                     let json = serde_json::to_string(&get_response).unwrap();
                     let encoded = encode_message(&json.to_string());
@@ -331,13 +330,13 @@ fn handle_get_request(request: GetRequest, store: &PasswordStoreType) -> pass::R
                                 "password".to_owned(),
                                 serde_json::Value::String(
                                     encrypted_password_entry
-                                        .secret(locked_store, Some(passphrase.clone()))
-                                        .unwrap_or("failed to decrypt password".to_string()),
-                                ),
-                            );
+                                    .secret(locked_store, Some(passphrase.clone()))
+                                    .unwrap_or("failed to decrypt password".to_string()),
+                                    ),
+                                    );
                             json_value
                         },
-                    );
+                        );
                     let get_response = {
                         if let Some(data) = password_entry {
                             GetResponse {
@@ -364,14 +363,14 @@ fn handle_get_request(request: GetRequest, store: &PasswordStoreType) -> pass::R
                 }
                 _ => {
                     return Err(pass::Error::from(
-                        "resource must be either username, password or account",
-                    ));
+                            "resource must be either username, password or account",
+                            ));
                 }
             };
         } else {
             return Err(pass::Error::from(
-                "passphrase must be provided for credential",
-            ));
+                    "passphrase must be provided for credential",
+                    ));
         }
     } else {
         return Err(pass::Error::from("header must be provided for credential"));
@@ -395,7 +394,7 @@ fn handle_search_request(request: SearchRequest, store: &PasswordStoreType) -> p
                             let filename = entry.unwrap().file_name().into_string().unwrap();
                             filename.replace(".gpg", "")
                         })
-                        .collect::<Vec<String>>();
+                    .collect::<Vec<String>>();
                     let search_response = {
                         if let Ok(data) = serde_json::to_value(usernames.clone()) {
                             SearchResponse {
@@ -432,13 +431,13 @@ fn handle_search_request(request: SearchRequest, store: &PasswordStoreType) -> p
                                 "password".to_owned(),
                                 serde_json::Value::String(
                                     encrypted_password_entry
-                                        .secret(locked_store, Some(passphrase.clone()))
-                                        .unwrap_or("failed to decrypt password".to_string()),
-                                ),
-                            );
+                                    .secret(locked_store, Some(passphrase.clone()))
+                                    .unwrap_or("failed to decrypt password".to_string()),
+                                    ),
+                                    );
                             json_value
                         })
-                        .collect::<Vec<serde_json::Value>>();
+                    .collect::<Vec<serde_json::Value>>();
                     let search_response = {
                         if let Ok(data) = serde_json::to_value(decrypted_password_entries.clone()) {
                             SearchResponse {
@@ -466,14 +465,14 @@ fn handle_search_request(request: SearchRequest, store: &PasswordStoreType) -> p
                 }
                 _ => {
                     return Err(pass::Error::from(
-                        "resource must be either username or account",
-                    ));
+                            "resource must be either username or account",
+                            ));
                 }
             };
         } else {
             return Err(pass::Error::from(
-                "passphrase must be provided for credential",
-            ));
+                    "passphrase must be provided for credential",
+                    ));
         }
     } else {
         return Err(pass::Error::from("header must be provided for credential"));
@@ -483,6 +482,7 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
     if let Some(header) = request.header {
         if let Some(passphrase) = header.get("passphrase") {
             let path = request.path.as_ref();
+            debug!("path: {:?}", path);
             let resource = request.resource;
             let acknowledgement = request.acknowledgement;
             match resource {
@@ -497,7 +497,7 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
                             let filename = entry.unwrap().file_name().into_string().unwrap();
                             filename.replace(".gpg", "")
                         })
-                        .collect::<Vec<String>>();
+                    .collect::<Vec<String>>();
                     let fetch_response = {
                         if let Ok(data) = serde_json::to_value(usernames.clone()) {
                             FetchResponse {
@@ -533,7 +533,7 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
                                 .secret(locked_store, Some(passphrase.clone()))
                                 .unwrap_or("failed to decrypt password".to_string())
                         })
-                        .collect::<Vec<String>>();
+                    .collect::<Vec<String>>();
                     let fetch_response = {
                         if let Ok(data) = serde_json::to_value(decrypted_passwords.clone()) {
                             FetchResponse {
@@ -572,13 +572,13 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
                                 "password".to_owned(),
                                 serde_json::Value::String(
                                     encrypted_password_entry
-                                        .secret(locked_store, Some(passphrase.clone()))
-                                        .unwrap_or("failed to decrypt password".to_string()),
-                                ),
-                            );
+                                    .secret(locked_store, Some(passphrase.clone()))
+                                    .unwrap_or("failed to decrypt password".to_string()),
+                                    ),
+                                    );
                             json_value
                         })
-                        .collect::<Vec<serde_json::Value>>();
+                    .collect::<Vec<serde_json::Value>>();
                     let fetch_response = {
                         if let Ok(data) = serde_json::to_value(decrypted_password_entries.clone()) {
                             FetchResponse {
@@ -606,14 +606,14 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
                 _ => {
                     error!("requsted resource: {:?} not supported", resource);
                     return Err(pass::Error::from(
-                        "resource must be either username or password",
-                    ));
+                            "resource must be either username or password",
+                            ));
                 }
             };
         } else {
             return Err(pass::Error::from(
-                "passphrase must be provided for credential",
-            ));
+                    "passphrase must be provided for credential",
+                    ));
         }
     } else {
         return Err(pass::Error::from("header must be provided for credential"));
@@ -634,8 +634,8 @@ fn handle_edit_request(requset: EditRequest, store: &PasswordStoreType) -> pass:
                         &(path + "/" + &username),
                         store.clone(),
                         Some(passphrase),
-                    )
-                    .expect("Failed to change password");
+                        )
+                        .expect("Failed to change password");
                     Ok(())
                 }
                 Resource::Username => {
@@ -647,26 +647,27 @@ fn handle_edit_request(requset: EditRequest, store: &PasswordStoreType) -> pass:
                         &(path.clone() + "/" + value),
                         store.clone(),
                         Some(passphrase),
-                    )
-                    .expect("Failed to rename file");
+                        )
+                        .expect("Failed to rename file");
                     Ok(())
                 }
                 _ => {
                     return Err(pass::Error::from(
-                        "resource must be either username or password",
-                    ));
+                            "resource must be either username or password",
+                            ));
                 }
             }
         } else {
             return Err(pass::Error::from(
-                "passphrase must be provided for credential",
-            ));
+                    "passphrase must be provided for credential",
+                    ));
         }
     } else {
         return Err(pass::Error::from("header must be provided for credential"));
     }
 }
-fn handle_init_request(request: InitRequest) -> pass::Result<()> {
+
+fn handle_init_request(request: InitRequest) -> pass::Result<StoreListType> {
     let home_dir = request.config.get("home_dir");
     let home = {
         if home_dir.is_some() {
@@ -704,8 +705,7 @@ fn handle_init_request(request: InitRequest) -> pass::Result<()> {
         Err(_) => match &home {
             Some(home_path) => home_path.join(".local"),
             None => {
-                error!("{}", "No home directory set");
-                process::exit(1);
+                return Err(pass::Error::from("No home directory set"));
             }
         },
         Ok(data_home_path) => PathBuf::from(data_home_path),
@@ -721,87 +721,94 @@ fn handle_init_request(request: InitRequest) -> pass::Result<()> {
             &password_store_signing_key,
             &home,
             &xdg_config_home,
-        )
+            )
     };
     if let Err(err) = config_res {
-        error!("Error {err}");
-        process::exit(1);
+        error!("Failed to read config: {:?}", err);
+        return Err(err);
     }
     let (config, config_file_location) = config_res.unwrap();
 
     let stores = get_stores(&config, &home);
     if let Err(err) = stores {
-        error!("Error {err}");
-        process::exit(1);
+        error!("{:?}",err);
+        return Err(err);
     }
 
     let stores: StoreListType = Arc::new(Mutex::new(
-        stores
+            stores
             .unwrap()
             .into_iter()
             .map(|s| Arc::new(Mutex::new(s)))
             .collect(),
-    ));
+            ));
 
     if !config_file_location.exists() && stores.lock()?.len() == 1 {
         let mut config_file_dir = config_file_location.clone();
         config_file_dir.pop();
         if let Err(err) = std::fs::create_dir_all(config_file_dir) {
-            error!("Error {err}");
-            process::exit(1);
+        error!("{:?}",err);
+            return Err(pass::Error::from(err));
         }
         if let Err(err) = pass::save_config(stores.clone(), &config_file_location) {
-            error!("Error {err}");
-            process::exit(1);
+        error!("{:?}",err);
+            return Err(err)
         }
     }
-
-    let store: PasswordStoreType = Arc::new(Mutex::new(stores.lock()?[0].clone()));
-    #[allow(clippy::significant_drop_in_scrutinee)]
-    for ss in stores.lock()?.iter() {
-        if ss.lock()?.get_name() == "default" {
-            let mut s = store.lock()?;
-            *s = ss.clone();
-        }
-    }
-    let res = store.lock()?.lock()?.reload_password_list();
-    if let Err(err) = res {
-        error!("Error {err}");
-        process::exit(1);
-    }
-
-    // verify that the git config is correct
-    if !store.lock()?.lock()?.has_configured_username() {
-        process::exit(1);
-    }
-
-    for password in &store.lock()?.lock()?.passwords {
-        if password.is_in_git == pass::RepositoryStatus::NotInRepo {
-            process::exit(1);
-        }
-    }
-    // This construction is to make sure that the password list is populated when the program starts
-    // it would be better to signal this somehow from the library, but that got tricky
-    thread::sleep(time::Duration::from_millis(200));
-    let _ = listen_to_native_messaging(&store);
-    Ok(())
+    Ok(stores)
 }
-fn handle_login_request(request: LoginRequest, store: &PasswordStoreType) -> pass::Result<()> {
-    let username = request.username;
-    let passphrase = request.passphrase;
-    let verified = check_passphrase(&store.clone(), username, &passphrase);
-    let acknowledgement = request.acknowledgement;
-    let status = {
-        if let Ok(verified) = verified {
-            if verified {
-                Status::Success
-            } else {
-                Status::Failure
-            }
-        } else {
-            Status::Error
+fn handle_login_request(request: LoginRequest,stores: &StoreListType) -> pass::Result<PasswordStoreType> {
+        let username = request.username;
+        let passphrase = request.passphrase;
+        let store={
+                let stores_locked=stores.lock()?;
+                let filtered=stores_locked.iter().filter(|s|s.lock().unwrap().get_name()==&username).collect::<Vec<_>>();
+                debug!("filtered: {:?}", filtered);
+                filtered[0].clone()
+        };
+        let store: PasswordStoreType = Arc::new(Mutex::new(store));
+        let res = store.lock()?.lock()?.reload_password_list();
+        if let Err(err) = res {
+            return Err(err);
         }
-    };
+
+        // verify that the git config is correct
+        if !store.lock()?.lock()?.has_configured_username() {
+            Err(Error::GenericDyn(
+                    "Git user.name and user.name must be configured".to_string(),
+                    ))?;
+        }
+        for password in &store.lock()?.lock()?.passwords {
+            if password.is_in_git == pass::RepositoryStatus::NotInRepo {
+                Err(Error::GenericDyn(
+                        "Password not found in the current store".to_string(),
+                ))?;
+            }
+        }
+        let verified = check_passphrase(&store.clone(), Some(username), &passphrase);
+        let acknowledgement = request.acknowledgement;
+        let status = {
+            if let Ok(verified) = verified {
+                if verified {
+                    Status::Success
+                } else {
+                    Status::Failure
+                }
+            } else {
+                Status::Error
+            }
+        };
+        let json = serde_json::json!({"status": status,"acknowledgement": acknowledgement.unwrap_or("".to_string()),});
+        let json = serde_json::to_string(&json).unwrap();
+        let encoded = encode_message(&json.to_string());
+        thread::sleep(time::Duration::from_millis(200));
+        send_message(&encoded);
+        return Ok(store);
+}
+fn handle_logout_request(request:LogoutRequest,store: &PasswordStoreType)->pass::Result<()>{
+    info!("logout request received for store: {:?}",store.lock()?.lock()?.get_name());
+    let acknowledgement = request.acknowledgement;
+    let status = Status::Success;
     let json = serde_json::json!({"status": status,"acknowledgement": acknowledgement.unwrap_or("".to_string()),});
     let json = serde_json::to_string(&json).unwrap();
     let encoded = encode_message(&json.to_string());
@@ -821,28 +828,35 @@ fn handle_create_request(request: CreateRequest, store: &PasswordStoreType) -> p
             let status;
             match resource {
                 Resource::Account => {
-                    if let Ok(password_entry) = create_password_entry_with_passphrase(
+                    let (status,data) = match create_password_entry_with_passphrase(
                         value.as_str().map(|s| s.to_owned()),
                         Some(domain.clone() + "/" + &username),
                         store.clone(),
                         None,
                         Some(passphrase.clone()),
-                    ) {
-                        status = Status::Success;
-                        let mut entry_data = serde_json::to_value(&password_entry).unwrap();
-                        entry_data.as_object_mut().unwrap().insert(
-                            "password".to_owned(),
-                            serde_json::Value::String(
-                                password_entry
+                        ){
+                        Ok(password_entry)=>{
+                            status = Status::Success;
+                            let mut entry_data = serde_json::to_value(&password_entry).unwrap();
+                            entry_data.as_object_mut().unwrap().insert(
+                                "password".to_owned(),
+                                serde_json::Value::String(
+                                    password_entry
                                     .secret(&*store.lock()?.lock()?, Some(passphrase.clone()))
                                     .unwrap_or("failed to decrypt password".to_string()),
-                            ),
-                        );
-                        data = entry_data;
-                    } else {
-                        status = Status::Failure;
-                        data = serde_json::Value::Null;
-                    }
+                                    ),
+                                    );
+                            data = entry_data;
+                            (status,data)
+                        }
+                        Err(err)=>{
+                            status = Status::Failure;
+                            data = serde_json::Value::Null;
+                            error!("Failed to create password entry: {:?}", err);
+                            (status,data)
+                        }
+
+                    };
                     let create_response: CreateResponse = CreateResponse {
                         acknowledgement,
                         data,
@@ -861,8 +875,8 @@ fn handle_create_request(request: CreateRequest, store: &PasswordStoreType) -> p
             };
         } else {
             return Err(pass::Error::from(
-                "passphrase must be provided for credential",
-            ));
+                    "passphrase must be provided for credential",
+                    ));
         }
     } else {
         return Err(pass::Error::from("header must be provided for credential"));
@@ -876,18 +890,18 @@ fn handle_delete_request(request: DeleteRequest, store: &PasswordStoreType) -> p
             let (status, data) = {
                 if let Ok(entry_data) =
                     delete_password_entry(store.clone(), &(id), Some(passphrase))
-                {
-                    (Status::Success, Some(entry_data))
-                } else {
-                    (Status::Failure, None)
-                }
+                    {
+                        (Status::Success, Some(entry_data))
+                    } else {
+                        (Status::Failure, None)
+                    }
             };
             let delete_response = DeleteResponse {
                 acknowledgement,
                 data: data
                     .map(|data| serde_json::to_value(data).unwrap())
                     .unwrap_or_default(),
-                status,
+                    status,
             };
             let json = serde_json::to_string(&delete_response).unwrap();
             let encoded = encode_message(&json.to_string());
@@ -895,56 +909,100 @@ fn handle_delete_request(request: DeleteRequest, store: &PasswordStoreType) -> p
             Ok(())
         } else {
             return Err(pass::Error::from(
-                "passphrase must be provided for credential",
-            ));
+                    "passphrase must be provided for credential",
+                    ));
         }
     } else {
         return Err(pass::Error::from("header must be provided for credential"));
     }
 }
 
-fn listen_to_native_messaging(store: &PasswordStoreType) -> pass::Result<()> {
+fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()> {
     trace!("start listening to native messaging");
+    let mut store_opt: Option<PasswordStoreType> = None;
     loop {
         let received_message_res = get_message();
         if received_message_res.is_err() {
             continue;
         }
         let received_message = received_message_res.unwrap();
-        if let Ok(request) = serde_json::from_value::<RequestEnum>(received_message) {
-            info!("request enum extracted: {:?}", request);
-            let _ = match request.clone() {
-                RequestEnum::Get(request) => handle_get_request(request, store),
-                RequestEnum::Search(request) => handle_search_request(request, store),
-                RequestEnum::Fetch(request) => handle_fetch_request(request, store),
-                RequestEnum::Init(request) => handle_init_request(request),
-                RequestEnum::Login(request) => handle_login_request(request, store),
-                RequestEnum::Create(request) => handle_create_request(request, store),
-                RequestEnum::Delete(request) => handle_delete_request(request, store),
-                RequestEnum::Edit(request) => handle_edit_request(request, store),
-                // RequestEnum::EditUserName(request) => {
-                //     handle_edit_username_request(request, store)
-                // }
-                // RequestEnum::Generate(request) => {
-                //     handle_generate_request(request, store)
-                // }
-                // RequestEnum::Pull(request) => {
-                //     handle_pull_request(request, store)
-                // }
-                // RequestEnum::Push(request) => {
-                //     handle_push_request(request, store)
-                // }
-                _ => {
-                    error!("Request: {:?} not recognized", request);
-                    continue;
+        let request_result={if let Ok(request) = serde_json::from_value::<RequestEnum>(received_message) {
+            info!("request received: {:?}", request);
+            if let Some(store)=store_opt.as_ref(){
+                match request.clone() {
+                    RequestEnum::Get(request) => handle_get_request(request, store),
+                    RequestEnum::Search(request) => handle_search_request(request, store),
+                    RequestEnum::Fetch(request) => handle_fetch_request(request, store),
+                    RequestEnum::Init(request) => {
+                        let init_res=handle_init_request(request);
+                        if init_res.is_ok(){
+                            stores=init_res.unwrap();
+                            Ok(())
+                        }else{
+                            Err(init_res.unwrap_err())
+                        }
+                    },
+                    RequestEnum::Login(request) => {
+                        let store_res=handle_login_request(request,&stores);
+                        if store_res.is_ok(){
+                            store_opt=Some(store_res.unwrap());
+                            Ok(())
+                        }else{
+                            Err(store_res.unwrap_err())
+                        }
+                    },
+                    RequestEnum::Logout(request) => {
+                        let res=handle_logout_request(request,store);
+                        if res.is_ok(){
+                            store_opt=None;
+                        Ok(())
+                        }else{
+                            Err(res.unwrap_err())
+                        }
+                    },
+                    RequestEnum::Create(request) => handle_create_request(request, store),
+                    RequestEnum::Delete(request) => handle_delete_request(request, store),
+                    RequestEnum::Edit(request) => handle_edit_request(request, store),
+                    _ => {
+                        Err(pass::Error::Generic("Unknown request"))
+                    }
                 }
-            };
+            }else {
+                match request.clone() {
+                    RequestEnum::Init(request) => {
+                        let init_res=handle_init_request(request);
+                        if init_res.is_ok(){
+                            stores=init_res.unwrap();
+                            Ok(())
+                        }else{
+                            Err(init_res.unwrap_err())
+                        }
+                    },
+                    RequestEnum::Login(request) => {
+                        let store_res=handle_login_request(request,&stores);
+                        if store_res.is_ok(){
+                            store_opt=Some(store_res.unwrap());
+                            Ok(())
+                        }else{
+                            Err(store_res.unwrap_err())
+                        }
+                    },
+                    _ => {
+                        error!("Only login request could be accepted when no store has been set. Request was: {:?}", request);
+                        Err(pass::Error::Generic("Only login request could be accepted when no store has been set"))
+                    }
+                }
+            }
         } else {
-            error!("Failed to parse message");
-            continue;
+            Err(pass::Error::Generic("Failed to parse message"))
         }
-        // let command = parse_message(received_message.clone()).unwrap();
-        // execute_command(command, &store);
+        };
+        if request_result.is_err(){
+            error!("Error: {:?}", request_result.unwrap_err());
+            continue;
+        }else{
+            info!("Request processed with result: {:?}", request_result.unwrap());
+        }
     }
 }
 fn do_rename_file(
@@ -952,7 +1010,7 @@ fn do_rename_file(
     new_name: &str,
     store: PasswordStoreType,
     passphrase: Option<String>,
-) -> pass::Result<()> {
+    ) -> pass::Result<()> {
     let res = store
         .lock()?
         .lock()?
@@ -965,22 +1023,22 @@ fn _create_password_entry(
     path: Option<String>,
     store: PasswordStoreType,
     note: Option<String>,
-) -> pass::Result<PasswordEntry> {
+    ) -> pass::Result<PasswordEntry> {
     if password.is_none() {
         return Err(pass::Error::Generic(
-            "No password is given. Password must be passed to create_password_entry",
-        ));
+                "No password is given. Password must be passed to create_password_entry",
+                ));
     }
     let mut password = password.unwrap();
     if password.is_empty() {
         return Err(pass::Error::Generic(
-            "Password is empty, not saving anything",
-        ));
+                "Password is empty, not saving anything",
+                ));
     }
     if path.is_none() {
         return Err(pass::Error::Generic(
-            "No path given. Path must be passed to create_password_entry",
-        ));
+                "No path given. Path must be passed to create_password_entry",
+                ));
     }
     let path = path.unwrap();
     if path.is_empty() {
@@ -1001,22 +1059,22 @@ fn create_password_entry_with_passphrase(
     store: PasswordStoreType,
     note: Option<String>,
     passphrase: Option<String>,
-) -> pass::Result<PasswordEntry> {
+    ) -> pass::Result<PasswordEntry> {
     if password.is_none() {
         return Err(pass::Error::Generic(
-            "No password is given. Password must be passed to create_password_entry",
-        ));
+                "No password is given. Password must be passed to create_password_entry",
+                ));
     }
     let mut password = password.unwrap();
     if password.is_empty() {
         return Err(pass::Error::Generic(
-            "Password is empty, not saving anything",
-        ));
+                "Password is empty, not saving anything",
+                ));
     }
     if path.is_none() {
         return Err(pass::Error::Generic(
-            "No path given. Path must be passed to create_password_entry",
-        ));
+                "No path given. Path must be passed to create_password_entry",
+                ));
     }
     let path = path.unwrap();
     if path.is_empty() {
@@ -1035,7 +1093,7 @@ fn _new_password_save(
     path: &str,
     password: &str,
     store: PasswordStoreType,
-) -> pass::Result<PasswordEntry> {
+    ) -> pass::Result<PasswordEntry> {
     let entry = store
         .lock()?
         .lock()?
@@ -1047,12 +1105,12 @@ fn new_password_save_with_passphrase(
     password: &str,
     store: PasswordStoreType,
     passphrase: Option<String>,
-) -> pass::Result<PasswordEntry> {
+    ) -> pass::Result<PasswordEntry> {
     let entry = store.lock()?.lock()?.new_password_file_with_passphrase(
         path.as_ref(),
         password.as_ref(),
         passphrase,
-    );
+        );
     entry
 }
 
@@ -1061,7 +1119,7 @@ fn change_password(
     path: &str,
     store: PasswordStoreType,
     passphrase: Option<String>,
-) -> pass::Result<()> {
+    ) -> pass::Result<()> {
     let password_entry_opt = get_entry(&*store.lock()?.lock()?, path);
     if password_entry_opt.is_none() {
         return Err("No password entry found".into());
@@ -1071,7 +1129,7 @@ fn change_password(
         password.to_string(),
         &*store.lock()?.lock()?,
         passphrase,
-    );
+        );
     if r.is_err() {
         error!("Failed to update password: {:?}", r.as_ref().unwrap_err());
     }
@@ -1087,7 +1145,7 @@ fn _get_entries(query: &str, store: PasswordStoreType) -> pass::Result<Vec<Passw
 fn get_entries_with_path(
     store: &PasswordStoreType,
     path: Option<String>,
-) -> pass::Result<Vec<PasswordEntry>> {
+    ) -> pass::Result<Vec<PasswordEntry>> {
     let entries = pass::get_entries_with_path(&*store.lock()?.lock()?, path);
     if entries.len() == 0 {
         return Err("No entries found".into());
@@ -1129,19 +1187,19 @@ pub fn remove_entry(store: &mut PasswordStore, path: &str) -> Option<PasswordEnt
     }
     if let Some(idx) = passwords
         .iter()
-        .position(|p| matches(p.path.to_str().unwrap(), path))
-    {
-        let matching = passwords.remove(idx);
-        return Some(matching);
-    } else {
-        return None;
-    }
+            .position(|p| matches(p.path.to_str().unwrap(), path))
+            {
+                let matching = passwords.remove(idx);
+                return Some(matching);
+            } else {
+                return None;
+            }
 }
 fn delete_password_entry(
     store: PasswordStoreType,
     id: &str,
     passphrase: Option<String>,
-) -> pass::Result<PasswordEntry> {
+    ) -> pass::Result<PasswordEntry> {
     let password_entry_opt = remove_entry(&mut *store.lock()?.lock()?, id);
     if password_entry_opt.is_none() {
         return Err("No password entry found".into());
@@ -1162,43 +1220,43 @@ pub fn setup_logger() -> std::result::Result<(), fern::InitError> {
     fern::Dispatch::new()
         .format(move |out, message, record| {
             out.finish(format_args!(
-                "{header_color}[{date} {target}][{color_line}{level}{header_color}] {color_line}{message} {footer_color}[{file}:{line_number}]\x1B[0m ",
-                header_color=
-                format_args!(
-                    "\x1B[{}m",
-                    colors_line.get_color(&record.level()).to_fg_str()
-                ),
-                color_line = 
-                format_args!(
-                    "\x1B[{}m",
-                    colors_line.get_color(&record.level()).to_fg_str()
-                ),
-                date = humantime::format_rfc3339_seconds(SystemTime::now()),
-                target = record.target(),
-                level = record.level(),
-                message = message,
-                footer_color=
-                format_args!(
-                    "\x1B[{}m",
-                    colors_line.get_color(&record.level()).to_fg_str()
-                ),
-                file = record.file().unwrap_or("unknown"),
-                line_number = record.line().unwrap_or(0)
-            ));
+                    "{header_color}[{date} {target}][{color_line}{level}{header_color}] {color_line}{message} {footer_color}[{file}:{line_number}]\x1B[0m ",
+                    header_color=
+                    format_args!(
+                        "\x1B[{}m",
+                        colors_line.get_color(&record.level()).to_fg_str()
+                        ),
+                        color_line = 
+                        format_args!(
+                            "\x1B[{}m",
+                            colors_line.get_color(&record.level()).to_fg_str()
+                            ),
+                            date = humantime::format_rfc3339_seconds(SystemTime::now()),
+                            target = record.target(),
+                            level = record.level(),
+                            message = message,
+                            footer_color=
+                            format_args!(
+                                "\x1B[{}m",
+                                colors_line.get_color(&record.level()).to_fg_str()
+                                ),
+                                file = record.file().unwrap_or("unknown"),
+                                line_number = record.line().unwrap_or(0)
+                                    ));
         })
-        .chain(std::io::stderr())
+    .chain(std::io::stderr())
         .chain(fern::log_file(format!(
-            "{}/rpass/browser-rpass/native-client/logs/output-{}.log",
-            home,
-            chrono::offset::Local::now()
-        ))?)
+                    "{}/rpass/browser-rpass/native-client/logs/output-{}.log",
+                    home,
+                    chrono::offset::Local::now()
+                    ))?)
         .chain(
             std::fs::OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(format!("{}/rpass/browser-rpass/native-client/logs/output.log",home))?,
-        )
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(format!("{}/rpass/browser-rpass/native-client/logs/output.log",home))?,
+            )
         .apply()?;
     Ok(())
 }
