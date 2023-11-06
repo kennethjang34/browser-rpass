@@ -223,7 +223,7 @@ fn send_message(encoded_message: &[u8]) {
 }
 fn check_passphrase(
     store: &PasswordStoreType,
-    username: Option<String>,
+    user_id: Option<String>,
     passphrase: &str,
     ) -> Result<bool> {
     store
@@ -231,7 +231,7 @@ fn check_passphrase(
         .unwrap()
         .lock()
         .unwrap()
-        .verify_passphrase(username, passphrase)
+        .verify_passphrase(user_id, passphrase)
 }
 fn handle_get_request(request: GetRequest, store: &PasswordStoreType) -> pass::Result<()> {
     let resource = request.resource;

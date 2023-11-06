@@ -308,11 +308,11 @@ impl RequestEnum {
     }
     pub fn create_login_request(
         acknowledgement: Option<String>,
-        username: String,
+        user_id: String,
         passphrase: String,
     ) -> RequestEnum {
         RequestEnum::Login(LoginRequest {
-            username,
+            username: user_id,
             passphrase,
             acknowledgement: {
                 if acknowledgement.is_some() {
