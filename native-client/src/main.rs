@@ -442,7 +442,6 @@ fn handle_search_request(request: SearchRequest, store: &PasswordStoreType) -> p
                     let search_response = {
                         if let Ok(data) = serde_json::to_value(decrypted_password_entries.clone()) {
                             SearchResponse {
-                                // data: json!({"payload":data,"query":query.clone(),"resource":resource}),
                                 data: data.as_array().unwrap().clone().into(),
                                 acknowledgement: acknowledgement.clone(),
                                 status: Status::Success,
