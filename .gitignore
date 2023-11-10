@@ -3,3 +3,4 @@
 /pkg
 **/dist
 logs
+node_modules
