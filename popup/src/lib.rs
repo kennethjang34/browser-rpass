@@ -27,7 +27,6 @@ cfg_if! {
     }
 }
 
-#[wasm_bindgen(start)]
 pub async fn run_app() -> Result<(), JsValue> {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
     init_log();

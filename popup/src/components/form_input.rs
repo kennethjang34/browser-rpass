@@ -15,6 +15,9 @@ pub struct Props {
     pub handle_onchange: Callback<String>,
     pub handle_on_input_blur: Callback<(String, String)>,
     pub errors: Rc<RefCell<ValidationErrors>>,
+    pub label_class: Option<String>,
+    pub input_class: Option<String>,
+    pub placeholder: Option<String>,
     pub disabled: Option<bool>,
 }
 
@@ -56,18 +59,18 @@ pub fn form_input_component(props: &Props) -> Html {
 
     html! {
     <div>
-      <label html={props.name.clone()} class="block text-ct-blue-600 mb-3">
-        {props.label.clone()}
-      </label>
+        <label html={props.name.clone()}for="email" class={props.label_class.clone().unwrap_or("".to_owned())}>
+            {props.label.clone()}
+        </label>
       <input
         type={input_type}
         placeholder=""
-        class="block w-full rounded-2xl appearance-none focus:outline-none py-2 px-4"
+        class={props.input_class.clone().unwrap_or_else(|| "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500".to_string())}
         ref={props.input_ref.clone()}
         onchange={onchange}
         onblur={on_blur}
         disabled={props.disabled.unwrap_or(false)}
-      />
+        />
     <span class="text-red-500 text-xs pt-1 block">
         {error_message}
     </span>

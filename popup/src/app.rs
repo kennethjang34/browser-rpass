@@ -68,6 +68,8 @@ pub fn App() -> Html {
     );
 
     html! {
-        <HomePage/>
+        <>
+            <HomePage/>
+        </>
     }
 }

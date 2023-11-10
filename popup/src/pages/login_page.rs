@@ -1,7 +1,9 @@
 use crate::api::extension_api::login;
 // use crate::api::user_api::api_login_user;
 use crate::components::{form_input::FormInput, loading_button::LoadingButton};
+use log::*;
 use serde_json::json;
+use wasm_bindgen::JsCast;
 use yew;
 // use router::{self, Route};
 use crate::store::{LoginAction, PopupStore};
@@ -31,9 +33,7 @@ struct LoginUserSchema {
     passphrase: String,
 }
 #[derive(Properties, PartialEq)]
-pub struct Props {
-    // pub port: Option<Port>,
-}
+pub struct Props {}
 
 fn get_input_callback(
     name: &'static str,
@@ -53,13 +53,13 @@ fn get_input_callback(
 #[function_component(LoginPage)]
 pub fn login_page(_props: &Props) -> Html {
     log!("LoginPage");
-    let form = use_state(|| LoginUserSchema::default());
+    let login_form = use_state(|| LoginUserSchema::default());
     let validation_errors = use_state(|| Rc::new(RefCell::new(ValidationErrors::new())));
 
     let user_id_put_ref = NodeRef::default();
     let passphrase_input_ref = NodeRef::default();
     let validate_input_on_blur = {
-        let cloned_form = form.clone();
+        let cloned_form = login_form.clone();
         let cloned_validation_errors = validation_errors.clone();
         Callback::from(move |(name, value): (String, String)| {
             let mut data = cloned_form.deref().clone();
@@ -94,13 +94,33 @@ pub fn login_page(_props: &Props) -> Html {
             }
         })
     };
+    let remember_me = use_state(|| false);
+    use_effect_with_deps(
+        move |remember_me: &UseStateHandle<bool>| {
+            log!("remember_me changed: {:?}", remember_me.deref());
+        },
+        remember_me.clone(),
+    );
 
-    let handle_user_id_input = get_input_callback("email", form.clone());
-    let handle_passphrase_input = get_input_callback("passphrase", form.clone());
+    let handle_user_id_input = get_input_callback("email", login_form.clone());
+    let handle_passphrase_input = get_input_callback("passphrase", login_form.clone());
+    let handle_rememeber_me_input = Callback::from({
+        let remember_me = remember_me.clone();
+        move |event: Event| {
+            remember_me.set(
+                event
+                    .target()
+                    .unwrap()
+                    .dyn_into::<HtmlInputElement>()
+                    .unwrap()
+                    .checked(),
+            );
+        }
+    });
     let _is_loading = use_selector(|state: &PopupStore| state.page_loading);
-    let (popup_store, popup_store_dispatch) = use_store::<PopupStore>();
+    let (_popup_store, popup_store_dispatch) = use_store::<PopupStore>();
     let on_submit = {
-        let cloned_form = form.clone();
+        let cloned_form = login_form.clone();
         let cloned_validation_errors = validation_errors.clone();
 
         let user_id_input_ref = user_id_put_ref.clone();
@@ -108,6 +128,7 @@ pub fn login_page(_props: &Props) -> Html {
 
         Callback::from(move |event: SubmitEvent| {
             event.prevent_default();
+            info!("login form submitted, {:?}", cloned_form.deref());
 
             let form = cloned_form.clone();
             let validation_errors = cloned_validation_errors.clone();
@@ -132,30 +153,38 @@ pub fn login_page(_props: &Props) -> Html {
 
     html! {
         <>
-    <section class="bg-ct-blue-600 min-h-screen grid place-items-center">
-      <div class="w-full">
-        <h1 class="text-4xl xl:text-6xl text-center font-[600] text-ct-yellow-600 mb-4">
-          {"Welcome Back"}
-        </h1>
-        <h2 class="text-lg text-center mb-4 text-ct-dark-200">
-          {"Login to have access"}
-        </h2>
-          <form
-            onsubmit={on_submit}
-            class="max-w-md w-full mx-auto overflow-hidden shadow-lg bg-ct-dark-200 rounded-2xl p-8 space-y-5"
-          >
-            <FormInput label="Email"  name="email" input_type="email" input_ref={user_id_put_ref} handle_onchange={handle_user_id_input} errors={&*validation_errors} handle_on_input_blur={validate_input_on_blur.clone()}/>
-            <FormInput label="Passphrase" name="passphrase" input_type="password" input_ref={passphrase_input_ref} handle_onchange={handle_passphrase_input} errors={&*validation_errors} handle_on_input_blur={validate_input_on_blur.clone()}/>
+                           <h3 class="mb-3 text-xl font-medium text-gray-900 dark:text-white">{ "Login" }</h3>
+                           <form
+                              onsubmit={on_submit}
+                                        class="space-y-6" action="#"
 
-            <LoadingButton
-              loading={popup_store.page_loading}
-              text_color={Some("text-ct-blue-600".to_string())}
-            >
-              {"Login"}
-            </LoadingButton>
-          </form>
-      </div>
-    </section>
+                              >
+                              <FormInput label="Email"  name="email" input_type="email" input_ref={user_id_put_ref} handle_onchange={handle_user_id_input} errors={&*validation_errors} handle_on_input_blur={validate_input_on_blur.clone()}
+                              label_class={
+    "block mb-auto text-sm font-medium text-gray-900 dark:text-white"
+                              }
+        input_class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder={"name@company.com"}
+                              />
+                                  <FormInput label="Passphrase" name="passphrase" input_type="password" input_ref={passphrase_input_ref} handle_onchange={handle_passphrase_input} errors={&*validation_errors} handle_on_input_blur={validate_input_on_blur.clone()} label_class={"block mb-auto text-sm font-medium text-gray-900 dark:text-white"} input_class={
+                                      "bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                                  }
+                              />
+                                  <div class="flex justify-between">
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <input id="remember" type="checkbox" value="" class="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300 dark:bg-gray-600 dark:border-gray-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800" required={false} onchange={handle_rememeber_me_input}/>
+                            </div>
+                            <label for="remember" class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">{"Remeber me"}</label>
+                        </div>
+                        <a href="#" class="text-sm text-blue-700 hover:underline dark:text-blue-500">{"Forgot password?"}</a>
+                    </div>
+                                                      <button type="submit" class="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">{"Login to your account"}</button>
+                                                      <div class="text-sm font-medium text-gray-500 dark:text-gray-300">
+                                                      {"Not registered? "} <a href="#" class="text-blue-700 hover:underline dark:text-blue-500">{"Create new account"}</a>
+                    </div>
+
+                           </form>
+            // </section>
     </>
     }
 }

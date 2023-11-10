@@ -8,6 +8,7 @@ pub struct Props {
     pub btn_color: Option<String>,
     pub text_color: Option<String>,
     pub children: Children,
+    pub class: Option<String>,
 }
 
 #[function_component(LoadingButton)]
