@@ -34,7 +34,6 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                 }
                 MessageEnum::Message(request) => match request.clone() {
                     RequestEnum::SessionEventRequest(request) => {
-                        dbg!(&request);
                         let dispatch = Dispatch::<PopupStore>::new();
                         let event_request = request.session_event.clone();
                         let event_type = &event_request.event_type;
@@ -43,10 +42,15 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                         let resource = event_request.resource.unwrap_or(vec![]);
                         match event_type {
                             &SessionEventType::Login => {
-                                dispatch.apply(LoginAction::Login);
+                                dispatch.apply(LoginAction::Login(
+                                    data.get("user_id")
+                                        .map(|v| v.as_str().unwrap().to_owned())
+                                        .unwrap(),
+                                    data,
+                                ));
                             }
                             &SessionEventType::Logout => {
-                                dispatch.apply(LoginAction::Logout);
+                                dispatch.apply(LoginAction::Logout(data));
                             }
                             &SessionEventType::Delete => {
                                 let resource = resource[0].clone();

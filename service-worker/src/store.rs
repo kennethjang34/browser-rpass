@@ -41,6 +41,7 @@ pub enum SessionAction {
     Login,
     LoginError,
     Logout,
+    LogoutError,
     DataFetched(FetchResponse),
     DataLoading(Option<String>),
     DataCreated(CreateResponse),
@@ -64,8 +65,8 @@ fn native_port_disconnect_handler(_port: Port) {
     new_port
         .on_message()
         .add_listener(Closure::<dyn Fn(String)>::new(native_port_message_handler).into_js_value());
+    #[allow(unused_mut)]
     let mut init_config = HashMap::new();
-    init_config.insert("home_dir".to_owned(), "/Users/JANG".to_owned());
     let init_request = RequestEnum::create_init_request(init_config, None, None);
     new_port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
     if let Ok(mut borrowed) = NATIVE_PORT.lock().try_borrow_mut() {
@@ -131,8 +132,7 @@ pub struct StoreData {
 }
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct SessionStore {
-    pub passphrase: Option<String>,
-    pub verified: bool,
+    pub user: (Option<String>, Option<String>),
     pub data: StoreData,
 }
 
@@ -184,35 +184,47 @@ impl Reducer<SessionStore> for SessionActionWrapper {
         let session_action = self.action;
         let mut clear_ports = false;
         let (session_store, session_event) = match session_action {
-            SessionAction::Login => (
-                SessionStore {
-                    verified: true,
-                    passphrase: {
-                        if let Some(ref meta) = meta {
-                            if let Some(passphrase) = meta.get("passphrase") {
-                                Some(passphrase.as_str().unwrap().to_owned())
-                            } else {
-                                None
-                            }
+            SessionAction::Login => {
+                let passphrase = {
+                    if let Some(ref meta) = meta {
+                        if let Some(passphrase) = meta.get("passphrase") {
+                            Some(passphrase.as_str().unwrap().to_owned())
                         } else {
                             None
                         }
-                    },
-                    ..store.deref().clone()
-                }
-                .into(),
-                Some(SessionEvent {
-                    event_type: SessionEventType::Login,
-                    data: Some(json!({"verified":true})),
-                    meta,
-                    resource: Some(vec![Resource::Auth]),
-                    is_global: true,
-                }),
-            ),
+                    } else {
+                        None
+                    }
+                };
+                let user_id = {
+                    if let Some(ref meta) = meta {
+                        if let Some(user_id) = meta.get("user_id") {
+                            Some(user_id.as_str().unwrap().to_owned())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                };
+                (
+                    SessionStore {
+                        user: (user_id.clone(), passphrase),
+                        ..store.deref().clone()
+                    }
+                    .into(),
+                    Some(SessionEvent {
+                        event_type: SessionEventType::Login,
+                        data: Some(json!({"verified":true,"user_id":user_id.clone()})),
+                        meta,
+                        resource: Some(vec![Resource::Auth]),
+                        is_global: true,
+                    }),
+                )
+            }
             SessionAction::LoginError => (
                 SessionStore {
-                    verified: false,
-                    passphrase: None,
+                    user: (store.user.0.clone(), None),
                     ..store.deref().clone()
                 }
                 .into(),
@@ -225,11 +237,11 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 }),
             ),
             SessionAction::Logout => {
-                if (*store).verified {
+                if (*store).user.1.is_some() {
                     clear_ports = true;
                     (
                         SessionStore {
-                            verified: false,
+                            user: (store.user.0.clone(), None),
                             data: StoreData::default(),
                             ..SessionStore::default().clone()
                         }
@@ -483,39 +495,12 @@ impl Listener for StorageListener {
     }
 }
 
-pub fn set_passphrase(passphrase: Option<String>, dispatch: Dispatch<SessionStore>) {
-    dispatch.reduce_mut(move |store| {
-        store.passphrase = passphrase.clone();
-        if let Some(ref passphrase) = passphrase {
-            let _passphrase = passphrase.clone();
-        }
-    })
-}
-pub async fn _set_verified_status_async(verified: bool, dispatch: Dispatch<SessionStore>) {
-    dispatch
-        .reduce_mut_future(|store| {
-            Box::pin(async move {
-                dbg!(
-                    "set_verified_status_async, old verified: {:?}, new verified: {:?}",
-                    store.verified,
-                    verified
-                );
-                store.verified = verified;
-            })
-        })
-        .await;
-}
 pub async fn _set_passphrase_async(passphrase: Option<String>, dispatch: Dispatch<SessionStore>) {
     dispatch
         .reduce_mut_future(|store| {
             Box::pin(async move {
-                store.passphrase = passphrase.clone();
+                store.user.1 = passphrase.clone();
             })
         })
         .await;
-}
-pub fn set_verified_status(verified: bool, dispatch: Dispatch<SessionStore>) {
-    dispatch.reduce_mut(move |store| {
-        store.verified = verified;
-    })
 }

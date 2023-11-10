@@ -1,4 +1,3 @@
-use browser_rpass::dbg;
 use browser_rpass::request::SessionEventWrapper;
 use browser_rpass::types::StorageStatus;
 use gloo_utils::format::JsValueSerdeExt;
@@ -73,6 +72,7 @@ pub struct PopupStore {
     pub page_loading: bool,
     pub alert_input: AlertInput,
     pub verified: bool,
+    pub user_id: Option<String>,
     pub status: StoreStatus,
     pub data: StoreData,
     pub path: Option<String>,
@@ -80,15 +80,15 @@ pub struct PopupStore {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum LoginAction {
-    LoginStarted,
-    LoginError,
-    LoginSucceeded,
-    LoginFailed,
-    LogoutSucceeded,
-    LogoutFailed,
-    LogoutStarted,
-    Logout,
-    Login,
+    LoginStarted(String, Value),
+    LoginError(Value),
+    LoginSucceeded(Value),
+    LoginFailed(Value),
+    LogoutSucceeded(Value),
+    LogoutFailed(Value),
+    LogoutStarted(Value),
+    Logout(Value),
+    Login(String, Value),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -136,14 +136,12 @@ impl Reducer<PopupStore> for DataAction {
             .into(),
             DataAction::ResourceFetched(resource, data, _meta) => match resource {
                 Resource::Account => {
-                    dbg!(&data);
                     let state_data = state.data.clone();
                     let accounts = serde_json::from_value::<Vec<Account>>(data)
                         .unwrap_or_default()
                         .into_iter()
                         .map(|v| Rc::new(v))
                         .collect::<Vec<Rc<Account>>>();
-                    dbg!(&accounts);
                     PopupStore {
                         page_loading: false,
                         data: StoreData {
@@ -229,31 +227,33 @@ impl Reducer<PopupStore> for DataAction {
 impl Reducer<PopupStore> for LoginAction {
     fn apply(self, store: Rc<PopupStore>) -> Rc<PopupStore> {
         match self {
-            LoginAction::LoginStarted => PopupStore {
+            LoginAction::LoginStarted(user_id, data) => PopupStore {
                 page_loading: true,
+                user_id: Some(user_id),
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LoginError => PopupStore {
+            LoginAction::LoginError(data) => PopupStore {
                 page_loading: false,
                 status: StoreStatus::Error,
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LoginSucceeded => PopupStore {
+            LoginAction::LoginSucceeded(data) => PopupStore {
                 page_loading: false,
                 verified: true,
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LoginFailed => PopupStore {
+            LoginAction::LoginFailed(data) => PopupStore {
                 page_loading: false,
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LogoutSucceeded => PopupStore {
+            LoginAction::LogoutSucceeded(data) => PopupStore {
                 page_loading: false,
                 verified: false,
+                user_id: None,
                 status: StoreStatus::Success,
                 data: StoreData {
                     accounts: Mrc::new(vec![]),
@@ -262,20 +262,21 @@ impl Reducer<PopupStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LogoutFailed => PopupStore {
+            LoginAction::LogoutFailed(data) => PopupStore {
                 page_loading: false,
                 status: StoreStatus::Failure,
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LogoutStarted => PopupStore {
+            LoginAction::LogoutStarted(data) => PopupStore {
                 page_loading: true,
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::Logout => PopupStore {
+            LoginAction::Logout(data) => PopupStore {
                 verified: false,
                 page_loading: false,
+                user_id: None,
                 data: StoreData {
                     accounts: Mrc::new(vec![]),
                     ..store.deref().clone().data
@@ -283,11 +284,11 @@ impl Reducer<PopupStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::Login => {
-                dbg!("login event!!!");
+            LoginAction::Login(user_id, data) => {
                 PopupStore {
                     verified: true,
                     page_loading: false,
+                    user_id: Some(user_id),
                     ..store.deref().clone()
                 }
             }

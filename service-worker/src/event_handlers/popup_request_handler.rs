@@ -54,11 +54,13 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
             };
             if let RequestEnum::Init(_init_request) = request {
                 let dispatch = Dispatch::<SessionStore>::new();
-                if dispatch.get().verified {
+                if dispatch.get().user.1.is_some() {
                     let mock_session_event = {
                         SessionEvent {
                             event_type: SessionEventType::Login,
-                            data: Some(json!({"verified":true})),
+                            data: Some(
+                                json!({"verified":true, "user_id":dispatch.get().user.0.clone().unwrap_or_default()}),
+                            ),
                             meta,
                             resource: None,
                             is_global: false,
@@ -88,10 +90,14 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                         set.insert(extension_port.name());
                         set
                     });
-            } else if let Some(passphrase) = dispatch.get().passphrase.clone() {
+            } else if let Some(passphrase) = dispatch.get().user.1.clone() {
                 let header_map = {
                     let mut map = HashMap::new();
                     map.insert("passphrase".to_owned(), passphrase.clone());
+                    map.insert(
+                        "user_id".to_owned(),
+                        dispatch.get().user.0.clone().unwrap_or_default(),
+                    );
                     map
                 };
                 request.set_header(header_map);
@@ -106,12 +112,18 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                             todo!();
                         }
                     },
-                    RequestEnum::Logout(_logout_request) => {
-                        let dispatch = Dispatch::<SessionStore>::new();
-                        dispatch.apply(SessionActionWrapper {
-                            meta,
-                            action: SessionAction::Logout,
-                        });
+                    RequestEnum::Logout(logout_request) => {
+                        REQUEST_MAP
+                            .lock()
+                            .unwrap()
+                            .insert(native_request_acknowledgement.clone(), request.clone());
+                        PORT_ID_MAP
+                            .lock()
+                            .unwrap()
+                            .insert(acknowledgement.clone(), extension_port.name());
+                        native_port.post_message(
+                            <JsValue as JsValueSerdeExt>::from_serde(&logout_request).unwrap(),
+                        );
                     }
                     RequestEnum::Create(create_request) => {
                         REQUEST_MAP

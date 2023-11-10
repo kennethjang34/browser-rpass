@@ -1,6 +1,7 @@
 use crate::api::extension_api::login;
 // use crate::api::user_api::api_login_user;
 use crate::components::{form_input::FormInput, loading_button::LoadingButton};
+use serde_json::json;
 use yew;
 // use router::{self, Route};
 use crate::store::{LoginAction, PopupStore};
@@ -22,7 +23,7 @@ struct LoginUserSchema {
     //     length(min = 1, message = "Email is required"),
     //     email(message = "Email is invalid")
     // )]
-    email: String,
+    user_id: String,
     #[validate(
         length(min = 1, message = "Password is required"),
         // length(min = 6, message = "Password must be at least 6 characters")
@@ -41,7 +42,7 @@ fn get_input_callback(
     Callback::from(move |value| {
         let mut data = cloned_form.deref().clone();
         match name {
-            "email" => data.email = value,
+            "user_id" => data.user_id = value,
             "passphrase" => data.passphrase = value,
             _ => (),
         }
@@ -55,7 +56,7 @@ pub fn login_page(_props: &Props) -> Html {
     let form = use_state(|| LoginUserSchema::default());
     let validation_errors = use_state(|| Rc::new(RefCell::new(ValidationErrors::new())));
 
-    let email_input_ref = NodeRef::default();
+    let user_id_put_ref = NodeRef::default();
     let passphrase_input_ref = NodeRef::default();
     let validate_input_on_blur = {
         let cloned_form = form.clone();
@@ -63,7 +64,7 @@ pub fn login_page(_props: &Props) -> Html {
         Callback::from(move |(name, value): (String, String)| {
             let mut data = cloned_form.deref().clone();
             match name.as_str() {
-                "email" => data.email = value,
+                "user_id" => data.user_id = value,
                 "passphrase" => data.passphrase = value,
                 _ => (),
             }
@@ -94,7 +95,7 @@ pub fn login_page(_props: &Props) -> Html {
         })
     };
 
-    let handle_email_input = get_input_callback("email", form.clone());
+    let handle_user_id_input = get_input_callback("email", form.clone());
     let handle_passphrase_input = get_input_callback("passphrase", form.clone());
     let _is_loading = use_selector(|state: &PopupStore| state.page_loading);
     let (popup_store, popup_store_dispatch) = use_store::<PopupStore>();
@@ -102,8 +103,8 @@ pub fn login_page(_props: &Props) -> Html {
         let cloned_form = form.clone();
         let cloned_validation_errors = validation_errors.clone();
 
-        let cloned_email_input_ref = email_input_ref.clone();
-        let cloned_passphrase_input_ref = passphrase_input_ref.clone();
+        let user_id_input_ref = user_id_put_ref.clone();
+        let passphrase_input_ref = passphrase_input_ref.clone();
 
         Callback::from(move |event: SubmitEvent| {
             event.prevent_default();
@@ -111,18 +112,16 @@ pub fn login_page(_props: &Props) -> Html {
             let form = cloned_form.clone();
             let validation_errors = cloned_validation_errors.clone();
 
-            let email_input_ref = cloned_email_input_ref.clone();
-            let passphrase_input_ref = cloned_passphrase_input_ref.clone();
             match form.validate() {
                 Ok(_) => {
                     let _form_data = form.deref().clone();
-                    popup_store_dispatch.apply(LoginAction::LoginStarted);
-                    let email_input = email_input_ref.cast::<HtmlInputElement>().unwrap();
+                    popup_store_dispatch
+                        .apply(LoginAction::LoginStarted(form.user_id.clone(), json!({})));
+                    let user_id_input = user_id_input_ref.cast::<HtmlInputElement>().unwrap();
                     let passphrase_input = passphrase_input_ref.cast::<HtmlInputElement>().unwrap();
-                    login(passphrase_input.value());
-                    let passphrase_input2 = passphrase_input.clone();
-                    email_input.set_value("");
-                    passphrase_input2.set_value("");
+                    login(user_id_input.value(), passphrase_input.value());
+                    user_id_input.set_value("");
+                    passphrase_input.set_value("");
                 }
                 Err(e) => {
                     validation_errors.set(Rc::new(RefCell::new(e)));
@@ -145,7 +144,7 @@ pub fn login_page(_props: &Props) -> Html {
             onsubmit={on_submit}
             class="max-w-md w-full mx-auto overflow-hidden shadow-lg bg-ct-dark-200 rounded-2xl p-8 space-y-5"
           >
-            <FormInput label="Email"  name="email" input_type="email" input_ref={email_input_ref} handle_onchange={handle_email_input} errors={&*validation_errors} handle_on_input_blur={validate_input_on_blur.clone()} disabled={true}/>
+            <FormInput label="Email"  name="email" input_type="email" input_ref={user_id_put_ref} handle_onchange={handle_user_id_input} errors={&*validation_errors} handle_on_input_blur={validate_input_on_blur.clone()}/>
             <FormInput label="Passphrase" name="passphrase" input_type="password" input_ref={passphrase_input_ref} handle_onchange={handle_passphrase_input} errors={&*validation_errors} handle_on_input_blur={validate_input_on_blur.clone()}/>
 
             <LoadingButton

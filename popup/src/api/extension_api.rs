@@ -26,11 +26,14 @@ pub fn fetch_accounts(path: Option<String>) -> String {
         .post_message(<JsValue as JsValueSerdeExt>::from_serde(&fetch_request).unwrap());
     return acknowledgement;
 }
-pub fn login(passphrase: String) {
+pub fn login(user_id: String, passphrase: String) {
     let dispatch = Dispatch::<PopupStore>::new();
-    dispatch.apply(LoginAction::LoginStarted);
-    let login_request =
-        RequestEnum::create_login_request(Some(create_request_acknowledgement()), None, passphrase);
+    dispatch.apply(LoginAction::LoginStarted(user_id.clone(), json!({})));
+    let login_request = RequestEnum::create_login_request(
+        Some(create_request_acknowledgement()),
+        user_id,
+        passphrase,
+    );
     EXTENSION_PORT
         .lock()
         .borrow()
@@ -38,7 +41,7 @@ pub fn login(passphrase: String) {
 }
 pub fn logout() {
     let dispatch = Dispatch::<PopupStore>::new();
-    dispatch.apply(LoginAction::LogoutStarted);
+    dispatch.apply(LoginAction::LogoutStarted(json!({})));
     let logout_request = RequestEnum::create_logout_request(None, None);
     EXTENSION_PORT
         .lock()

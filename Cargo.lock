@@ -2637,6 +2637,7 @@ dependencies = [
  "gpgme",
  "hex",
  "hmac",
+ "log",
  "rand 0.8.5",
  "reqwest",
  "sequoia-ipc",

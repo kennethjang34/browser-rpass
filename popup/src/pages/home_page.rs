@@ -24,6 +24,7 @@ pub fn home_page(_props: &Props) -> Html {
     let path = use_selector(|state: &PopupStore| state.path.clone());
     let loading = use_selector(|state: &PopupStore| state.page_loading.clone());
     let verified = use_selector(|state: &PopupStore| state.verified);
+    let user_id = use_selector(|state: &PopupStore| state.user_id.clone());
     let account_selector = use_selector(|state: &PopupStore| state.data.accounts.clone());
     let accounts = use_state(|| Rc::new(Vec::<Rc<Account>>::new()));
     let password_input_ref = NodeRef::default();
@@ -180,6 +181,9 @@ pub fn home_page(_props: &Props) -> Html {
             <p>{"loading..."}</p>
         }else{
             if *verified{
+                if user_id.is_some(){
+                    <p>{format!("logged in as {}", (*user_id).as_ref().unwrap())}</p>
+                }
                 <form  onsubmit={on_search}>
                 <label for="account-search">{"Search for account:"}</label><br/>
                 <input type="search" id="account-search" name="account-search" ref={search_input_ref}/>
