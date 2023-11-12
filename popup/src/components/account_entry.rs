@@ -67,39 +67,64 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
     };
     html! {
         <>
-                    <td>
-                        <div >
-                                <p>
-                                    {domain.clone()}
-                                </p>
+                    <th scope="row" class="px-3 py-2 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                            <div>
+                                <div style="max-width: fit-content;" class="group text-xs">
+                                    <span class="cursor-pointer text-gray-500 text-xs font-normal select-all" onclick={copy_domain.clone()}>
+                                        {domain.as_ref().unwrap_or(&"".to_string())}
+                                    </span>
+                                    <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto">
+                                        {"click to copy domain"}
+                                    </span>
+                                </div>
+                                <div style="max-width: fit-content;" class="group">
+                                    <span class="cursor-pointer select-all"  onclick={copy_username.clone()} >
+                                    {
+                                        username.clone()
+                                     }
+                                    </span>
+                                    <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto">
+                                        {"click to copy username"}
+                                    </span>
+                                </div>
                             </div>
-                        <button onclick={copy_domain.clone()}>{"copy domain"}</button>
+                    </th>
+                    <td class="px-3 py-2 font-medium">
+                            <div>
+                            if *reveal_password {
+                                <div style="max-width: fit-content;" class="group">
+                                    <span class="cursor-pointer" onclick={copy_pw.clone()}>
+                                        {password.clone()}
+                                    </span>
+                                    <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto dark:text-white">
+                                        {"click to copy password"}
+                                    </span>
+                                </div>
+                                <div style="max-width: fit-content;" class="group">
+                                    <button onclick={on_reveal}>{"Hide"}</button>
+                                    <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto dark:text-white">
+                                        {"click to hide password"}
+                                    </span>
+                                </div>
+
+                            } else{
+                                <div style="max-width: fit-content;" class="group">
+                                    <span class="cursor-pointer" onclick={copy_pw.clone()}>
+                                        {"**********"}
+                                    </span>
+                                    <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto dark:text-white">
+                                        {"click to copy password"}
+                                    </span>
+                                </div>
+                                <div style="max-width: fit-content;" class="group">
+                                    <button class="cursor-pointer" onclick={on_reveal}>{"Show"}</button>
+                                    <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto dark:text-white">
+                                        {"click to reveal password"}
+                                    </span>
+                                </div>
+                            }
+                        </div>
                     </td>
-                    <td class="email">
-                            <div class="pressable" onclick={copy_username.clone()}>
-                                <p class="pressable" >
-                                    {username.clone()}
-                                </p>
-                            </div>
-                        <button onclick={copy_username.clone()}>{"copy username"}</button>
-                    </td>
-                    <td>
-                        <div class="pressable" onclick={copy_pw.clone()}>
-                    if *reveal_password {
-                            <p>
-                        {password.clone()}
-                        </p>
-                        <button onclick={copy_pw.clone()}>{"copy password"}</button>
-                        <button onclick={on_reveal}>{"Hide"}</button>
-                    } else{
-                        <p onclick={copy_pw.clone()}>
-                        {"**********"}
-                        </p>
-                        <button onclick={copy_pw.clone()}>{"copy password"}</button>
-                        <button onclick={on_reveal}>{"Show"}</button>
-                    }
-                    </div>
-                    </td>
-                    </>
+                </>
     }
 }
