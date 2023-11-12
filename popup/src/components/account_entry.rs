@@ -67,7 +67,7 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
     };
     html! {
         <>
-                    <th scope="row" class="px-3 py-2 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                    <td scope="row" class="px-3 py-2 font-medium bold text-gray-900 whitespace-nowrap dark:text-white">
                             <div>
                                 <div style="max-width: fit-content;" class="group text-xs">
                                     <span class="cursor-pointer text-gray-500 text-xs font-normal select-all" onclick={copy_domain.clone()}>
@@ -88,7 +88,7 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                     </span>
                                 </div>
                             </div>
-                    </th>
+                    </td>
                     <td class="px-3 py-2 font-medium">
                             <div>
                             if *reveal_password {
