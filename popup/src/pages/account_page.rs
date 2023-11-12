@@ -1,26 +1,15 @@
-use crate::api::extension_api::{create_account, fetch_accounts, login};
 use crate::components::account_entry_list::AccountEntryList;
-// use crate::api::user_api::api_login_user;
-use crate::components::{form_input::FormInput, loading_button::LoadingButton};
+use crate::components::create_account_popup::CreateAccountPopup;
+use crate::store::PopupStore;
 use browser_rpass::types::Account;
+#[allow(unused_imports)]
 use log::*;
-use serde_json::json;
+use std::collections::BTreeMap;
+use std::rc::Rc;
 use sublime_fuzzy::best_match;
 use wasm_bindgen::JsCast;
 use yew;
-use yewdux::mrc::Mrc;
-// use router::{self, Route};
-use crate::store::{LoginAction, PopupStore};
-use std::borrow::BorrowMut;
-use std::cell::RefCell;
-use std::collections::BTreeMap;
-use std::ops::Deref;
-use std::rc::Rc;
 
-use browser_rpass::log;
-use serde;
-use serde::{Deserialize, Serialize};
-use validator::{Validate, ValidationErrors};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yewdux::prelude::*;
@@ -34,8 +23,6 @@ pub struct Props {
 #[function_component(AccountPage)]
 pub fn account_page(props: &Props) -> Html {
     let account_selector = use_selector(|state: &PopupStore| state.data.accounts.clone());
-    let password_input_ref = NodeRef::default();
-    let username_input_ref = NodeRef::default();
     let search_string = use_state(|| String::new());
     let search_input_ref = NodeRef::default();
     let path = props.path.clone();
@@ -104,58 +91,61 @@ pub fn account_page(props: &Props) -> Html {
             search_string.set(search_input.value());
         }
     });
-    let on_create_submit = Callback::from({
-        let path = props.path.clone();
-        let password_input_ref = password_input_ref.clone();
-        let username_input_ref = username_input_ref.clone();
-        move |event: SubmitEvent| {
-            event.prevent_default();
-            let password_input = password_input_ref.cast::<HtmlInputElement>().unwrap();
-            let username_input = username_input_ref.cast::<HtmlInputElement>().unwrap();
-            let path = path.clone();
-            create_account(
-                path.unwrap_or_default(),
-                username_input.value(),
-                password_input.value(),
-            );
-            username_input.set_value("");
-            password_input.set_value("");
-        }
-    });
+    let show_create_account_popup = use_state(|| false);
+    let on_create_account = {
+        let show_create_account_popup = show_create_account_popup.clone();
+        Callback::from(move |_: MouseEvent| {
+            let value = !*show_create_account_popup;
+            show_create_account_popup.set(value);
+        })
+    };
+    let close_create_account_popup = {
+        let show_create_account_popup = show_create_account_popup.clone();
+        Callback::from(move |_: MouseEvent| {
+            show_create_account_popup.set(false);
+        })
+    };
     html! {
-        <>
-                    if props.user_id.is_some(){
-                        <p>{format!("logged in as {}", (props.user_id).as_ref().unwrap())}</p>
+            <>
+                <div class="relative overflow-hidden shadow-md sm:rounded-lg w-full h-full">
+                <div class="w-full" style="min-height:350px; border-bottom:outset;">
+                    <label for="table-search" class="sr-only">{"Search"}</label>
+                    <form class="relative mt-1 mb-3 top-14" onsubmit={on_search}>
+                        <div class="absolute inset-y-0 rtl:inset-r-0 start-0 flex items-center ps-3 pointer-events-none">
+                            <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
+                            </svg>
+                        </div>
+                        <input type="text" id="table-search" class="block pt-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg w-80 bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Search for items" ref={search_input_ref}
+                         />
+                    </form>
+                    <table class="dark:text-gray-400 mt-14 relative rtl:text-right text-gray-500 text-left text-sm top-3 w-full">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                            <tr>
+                                <th scope="col" class="px-3 py-2">
+                                {
+                                    "Username"
+                                }
+                                </th>
+                                <th scope="col" class="px-3 py-2">
+                                {
+                                    "Password"
+                                }
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <AccountEntryList accounts={Rc::new(accounts)}/>
+                        </tbody>
+                    </table>
+                    </div>
+                    <button  class="bg-white block dark:bg-gray-800 dark:focus:ring-gray-800 dark:hover:bg-gray-600 relative focus:outline-none focus:ring-4 focus:ring-gray-50 font-medium hover:bg-gray-50 px-5 py-2.5 rounded-lg text-center text-sm text-blue-600 dark:text-blue-500 my-4" type="button" onclick={on_create_account}>
+                    {"Create Account"}
+    </button>
+                    if *show_create_account_popup{
+                        <CreateAccountPopup domain={props.path.clone()} handle_close={close_create_account_popup}/>
                     }
-                    <form  onsubmit={on_search}>
-                    <label for="account-search">{"Search for account:"}</label><br/>
-                    <input type="search" id="account-search" name="account-search" ref={search_input_ref}/>
-                <button >{ "Search" }</button>
-                    </form>
-                <table class="table table-bordered">
-                    <thead>
-                      <tr>
-                        <th>{ "Domain" }</th>
-                        <th>{ "Username" }</th>
-                        <th>{ "Password" }</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                    <AccountEntryList
-                    accounts={Rc::new(accounts)}
-                    />
-                    </tbody>
-                </table>
-                <div>
-                    // <button onclick={on_logout_click}>{ "Logout" }</button>
-                    <form  onsubmit={on_create_submit}>
-                    <label for="new-username">{"new username:"}</label>
-                    <input type="text" id="new-username" name="create-username" ref={username_input_ref}/><br/>
-                    <label for="new-password">{"new password:"}</label>
-                    <input type="password" id="new-password" name="create-password" ref={password_input_ref}/><br/>
-                    <button>{ "Create" }</button>
-                    </form>
                 </div>
-    </>
-    }
+            </>
+        }
 }
