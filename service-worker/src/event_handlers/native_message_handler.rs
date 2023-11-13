@@ -126,6 +126,32 @@ pub fn process_native_message(
                 }
                 return Ok(response);
             }
+            &RequestEnum::Edit(edit_request) => {
+                dbg!(&json_msg);
+                let edit_response: EditResponse =
+                    serde_json::from_value::<EditResponse>(json_msg).unwrap();
+                let response = ResponseEnum::EditResponse(edit_response.clone());
+                let status = &edit_response.status;
+                match status {
+                    &Status::Success => {
+                        session_store_dispatch.apply(SessionActionWrapper {
+                            action: SessionAction::DataEdited(edit_response),
+                            meta: ctx,
+                        });
+                    }
+                    _ => {
+                        session_store_dispatch.apply(SessionActionWrapper {
+                            meta: ctx,
+                            action: SessionAction::DataEditFailed(
+                                edit_request.resource.clone(),
+                                edit_response.data.clone(),
+                                Some(request.clone()),
+                            ),
+                        });
+                    }
+                }
+                return Ok(response);
+            }
             &RequestEnum::Search(_search_request) => {
                 let search_response: SearchResponse =
                     serde_json::from_value::<SearchResponse>(json_msg).unwrap();

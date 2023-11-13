@@ -138,6 +138,19 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                             <JsValue as JsValueSerdeExt>::from_serde(&create_request).unwrap(),
                         );
                     }
+                    RequestEnum::Edit(edit_request) => {
+                        REQUEST_MAP
+                            .lock()
+                            .unwrap()
+                            .insert(native_request_acknowledgement.clone(), request.clone());
+                        PORT_ID_MAP
+                            .lock()
+                            .unwrap()
+                            .insert(acknowledgement.clone(), extension_port.name());
+                        native_port.post_message(
+                            <JsValue as JsValueSerdeExt>::from_serde(&edit_request).unwrap(),
+                        );
+                    }
                     RequestEnum::Delete(delete_request) => {
                         REQUEST_MAP
                             .lock()

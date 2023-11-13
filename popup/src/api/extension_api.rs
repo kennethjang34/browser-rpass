@@ -1,8 +1,9 @@
+use crate::log::*;
 use crate::{store::LoginAction, Resource};
 
 use browser_rpass::{request::RequestEnum, util::create_request_acknowledgement};
 use gloo_utils::format::JsValueSerdeExt;
-use serde_json::json;
+use serde_json::{json, Value};
 use wasm_bindgen::JsValue;
 use yewdux;
 use yewdux::prelude::Dispatch;
@@ -68,6 +69,54 @@ pub fn create_account(path: String, username: String, password: String) -> Strin
         .lock()
         .borrow()
         .post_message(<JsValue as JsValueSerdeExt>::from_serde(&create_request).unwrap());
+    return acknowledgement;
+}
+
+pub fn edit_account(
+    id: String,
+    domain: Option<String>,
+    username: Option<String>,
+    password: Option<String>,
+) -> String {
+    let dispatch = Dispatch::<PopupStore>::new();
+    let mut payload = json!({"id": id});
+    if let Some(username) = username.as_ref() {
+        payload
+            .as_object_mut()
+            .unwrap()
+            .insert("username".into(), Value::String(username.clone()));
+    }
+    if let Some(domain) = domain.as_ref() {
+        payload
+            .as_object_mut()
+            .unwrap()
+            .insert("domain".into(), Value::String(domain.clone()));
+    }
+    if let Some(password) = password.as_ref() {
+        payload
+            .as_object_mut()
+            .unwrap()
+            .insert("password".into(), Value::String(password.clone()));
+    }
+    dispatch.apply(DataAction::ResourceEditionStarted(
+        Resource::Account,
+        payload,
+    ));
+    let acknowledgement = create_request_acknowledgement();
+    debug!("domain: {:?}", domain);
+    let edit_request = RequestEnum::create_edit_request(
+        id,
+        Resource::Account,
+        domain.clone(),
+        json!({"username": username, "password": password,"domain": domain}),
+        Some(acknowledgement.clone()),
+        None,
+    );
+    debug!("edit request: {:?}", edit_request);
+    EXTENSION_PORT
+        .lock()
+        .borrow()
+        .post_message(<JsValue as JsValueSerdeExt>::from_serde(&edit_request).unwrap());
     return acknowledgement;
 }
 

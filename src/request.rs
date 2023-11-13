@@ -55,7 +55,7 @@ pub struct GetRequest {
 pub struct EditRequest {
     pub id: String,
     pub resource: Resource,
-    pub path: String,
+    pub domain: Option<String>,
     pub value: Value,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
@@ -342,7 +342,7 @@ impl RequestEnum {
     pub fn create_edit_request(
         id: String,
         resource: Resource,
-        path: String,
+        domain: Option<String>,
         value: Value,
         acknowledgement: Option<String>,
         header: Option<HashMap<String, String>>,
@@ -350,7 +350,7 @@ impl RequestEnum {
         RequestEnum::Edit(EditRequest {
             id,
             resource,
-            path,
+            domain,
             value,
             acknowledgement: {
                 if acknowledgement.is_some() {

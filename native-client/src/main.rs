@@ -9,7 +9,7 @@ use rpass::{
     pass::PasswordStore,
     pass::{self, Error, PasswordEntry, Result},
 };
-use std::time::SystemTime;
+use std::{time::SystemTime, path::{Path, Ancestors}};
 
 use fern::colors::{Color, ColoredLevelConfig};
 use serde::Serialize;
@@ -481,7 +481,6 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
     if let Some(header) = request.header {
         if let Some(passphrase) = header.get("passphrase") {
             let path = request.path.as_ref();
-            debug!("path: {:?}", path);
             let resource = request.resource;
             let acknowledgement = request.acknowledgement;
             match resource {
@@ -618,15 +617,16 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
         return Err(pass::Error::from("header must be provided for credential"));
     }
 }
-fn handle_edit_request(requset: EditRequest, store: &PasswordStoreType) -> pass::Result<()> {
-    if let Some(header) = requset.header {
+fn handle_edit_request(request: EditRequest, store: &PasswordStoreType) -> pass::Result<()> {
+    info!("Handling edit request: {:?}", request);
+    if let Some(header) = request.header {
         if let Some(passphrase) = header.get("passphrase").cloned() {
-            let value = requset.value;
-            let resource = requset.resource;
+            let value = request.value;
+            let resource = request.resource;
             match resource {
                 Resource::Password => {
-                    let username = requset.id;
-                    let path = requset.path;
+                    let username = request.id;
+                    let path = request.domain.unwrap_or("".to_string());
                     let value = value.as_str().unwrap_or("");
                     change_password(
                         value,
@@ -638,8 +638,8 @@ fn handle_edit_request(requset: EditRequest, store: &PasswordStoreType) -> pass:
                     Ok(())
                 }
                 Resource::Username => {
-                    let username = requset.id;
-                    let path = requset.path;
+                    let username = request.id;
+                    let path = request.domain.unwrap_or("".to_string());
                     let value = value.as_str().unwrap_or("");
                     do_rename_file(
                         &(path.clone() + "/" + &username),
@@ -650,6 +650,36 @@ fn handle_edit_request(requset: EditRequest, store: &PasswordStoreType) -> pass:
                         .expect("Failed to rename file");
                     Ok(())
                 }
+                Resource::Account =>{
+                    let domain = value.get("domain").map(|d|d.as_str().unwrap().to_owned());
+                    let username = value.get("username").map(|d|d.as_str().unwrap().to_owned());
+                    let password = value.get("password").map(|d|d.as_str().unwrap().to_owned());
+                    let updated_entry=update_entry(
+                        &(request.id),
+                        domain.clone(),
+                        username.clone(),password.clone(),
+                        store.clone(),
+                        Some(passphrase.clone())
+                        )?;
+                    //for now, we are using file path instead of account id to update the entry.
+                    //TODO we need to make use account id instead of file path in the future.
+                    // let updated_entry=get_entry(&*store.lock()?.lock()?, &file_path_for_temp_id).unwrap();
+                    let password=updated_entry.secret(&*store.lock()?.lock()?, Some(passphrase.clone())).unwrap();
+                    let mut data=serde_json::to_value(updated_entry).unwrap();
+                    data.as_object_mut().unwrap().insert("password".to_string(),serde_json::Value::String(password));
+                    let edit_response = EditResponse {
+                        acknowledgement: request.acknowledgement,
+                        data,
+                        status: Status::Success,
+                        resource: Resource::Account,
+                        id:request.id,
+                       meta:None,
+                    };
+                    let json = serde_json::to_string(&edit_response).unwrap();
+                    let encoded = encode_message(&json.to_string());
+                    send_message(&encoded);
+                    Ok(())
+                },
                 _ => {
                     return Err(pass::Error::from(
                             "resource must be either username or password",
@@ -762,7 +792,6 @@ fn handle_login_request(request: LoginRequest,stores: &StoreListType) -> pass::R
         let store={
                 let stores_locked=stores.lock()?;
                 let filtered=stores_locked.iter().filter(|s|s.lock().unwrap().get_name()==&username).collect::<Vec<_>>();
-                debug!("filtered: {:?}", filtered);
                 filtered[0].clone()
         };
         let store: PasswordStoreType = Arc::new(Mutex::new(store));
@@ -780,7 +809,7 @@ fn handle_login_request(request: LoginRequest,stores: &StoreListType) -> pass::R
         for password in &store.lock()?.lock()?.passwords {
             if password.is_in_git == pass::RepositoryStatus::NotInRepo {
                 Err(Error::GenericDyn(
-                        "Password not found in the current store".to_string(),
+                        format!("Password entry: {:?}  not found in the current store",password).to_string(),
                 ))?;
             }
         }
@@ -1004,6 +1033,74 @@ fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()> {
         }
     }
 }
+
+fn update_entry(
+    id: &str,
+    domain: Option<String>,
+    new_name: Option<String>,
+    password: Option<String>,
+    store: PasswordStoreType,
+    passphrase: Option<String>,
+    ) -> pass::Result<PasswordEntry> {
+    // TODO 
+    // following is the temporary solution as id is not used yet. file name will become id of an
+    // entry so should never change in future implementation
+    // username, password, domain or other fields should exist as some key value pairs in each file named
+    // with unique id
+    let path=Path::new(id);
+    let mut id=id.to_string();
+    let parent=path.parent().unwrap().file_stem().unwrap().to_str().unwrap();
+    let old_name=parent.to_string()+"/"+path.file_stem().unwrap().to_str().unwrap();
+    let entry=get_entry(&*store.lock().unwrap().lock().unwrap(), &old_name).unwrap();
+    let new_name={
+    if let Some(new_name)=new_name.as_ref(){
+        if let Some(domain)=domain.as_ref(){
+            let name=domain.to_owned()+"/"+new_name;
+            if name != old_name{
+                Some(name)
+            }else{
+                None
+            }
+        }else{
+            let name=path.parent().unwrap().file_stem().unwrap().to_str().unwrap().to_string()+"/"+new_name;
+            if name != old_name{
+                Some(name)
+            }else{
+                None
+            }
+        }
+    }else if domain.is_some(){
+        let name=domain.unwrap()+"/"+path.file_stem().unwrap().to_str().unwrap();
+        if name != old_name{
+            Some(name)
+        }else{
+            None
+        }
+    }else{
+        None
+    }
+    };
+    if new_name.is_some(){
+        do_rename_file(&old_name, &new_name.clone().unwrap(), store.clone(), passphrase.clone())?;
+        info!("renamed file from {:?} to {:?}",old_name,new_name.clone().unwrap());
+        id=new_name.unwrap();
+    }else{
+        //TODO we need to make use account id instead of file path in the future.
+        id=old_name;
+    }
+    let res=if let Some(password) = password {
+       change_password(
+            &password,
+            &id,
+            store.clone(),
+            passphrase.clone(),
+        )
+    } 
+    else {
+        Ok(())
+    };
+    res.map(|_| get_entry(&*store.lock().unwrap().lock().unwrap(), &id).unwrap())
+}
 fn do_rename_file(
     old_name: &str,
     new_name: &str,
@@ -1115,11 +1212,11 @@ fn new_password_save_with_passphrase(
 
 fn change_password(
     password: &str,
-    path: &str,
+    entry_filename: &str,
     store: PasswordStoreType,
     passphrase: Option<String>,
     ) -> pass::Result<()> {
-    let password_entry_opt = get_entry(&*store.lock()?.lock()?, path);
+    let password_entry_opt = get_entry(&*store.lock()?.lock()?, entry_filename);
     if password_entry_opt.is_none() {
         return Err("No password entry found".into());
     }
