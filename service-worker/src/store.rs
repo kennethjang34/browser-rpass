@@ -3,7 +3,7 @@ pub use crate::Resource;
 use crate::{api, StorageStatus};
 use browser_rpass::dbg;
 use browser_rpass::request::{RequestEnumTrait, SessionEventType};
-use browser_rpass::response::{CreateResponse, FetchResponse};
+use browser_rpass::response::{CreateResponse, EditResponse, FetchResponse};
 use browser_rpass::types::Account;
 use gloo_utils::format::JsValueSerdeExt;
 use log::info;
@@ -45,6 +45,7 @@ pub enum SessionAction {
     DataFetched(FetchResponse),
     DataLoading(Option<String>),
     DataCreated(CreateResponse),
+    DataEdited(EditResponse),
     DataDeleted(Resource, Value),
     DataDeletionFailed(Resource, String),
     DataCreationFailed(Resource, Value, Option<RequestEnum>),
@@ -323,6 +324,64 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             .into(),
                             Some(SessionEvent {
                                 event_type: SessionEventType::Create,
+                                data: Some(serde_json::to_value(account).unwrap()),
+                                meta,
+                                resource: Some(vec![resource]),
+                                is_global: true,
+                            }),
+                        )
+                    }
+                    _ => (
+                        SessionStore {
+                            ..store.deref().clone()
+                        }
+                        .into(),
+                        Some(SessionEvent {
+                            event_type: SessionEventType::Create,
+                            data: None,
+                            meta,
+                            resource: Some(vec![resource]),
+                            is_global: true,
+                        }),
+                    ),
+                }
+            }
+            SessionAction::DataEdited(edit_response) => {
+                let resource = edit_response.resource.clone();
+                match resource {
+                    Resource::Account => {
+                        let data_payload = edit_response.data.clone();
+                        let account: Rc<Account> =
+                            Rc::new(serde_json::from_value(data_payload).unwrap());
+                        let current_state_data = &store.data;
+                        let mut account_vec = current_state_data.accounts.borrow_mut();
+                        // TODO make sure edit_response.id is same as account.id. it is not the
+                        // same in the current implementation
+                        // response.id is previous domain+username, but account.id is new
+                        // domain+new username
+                        let account_id = edit_response.id.clone();
+                        let mut meta = meta.unwrap_or(json!({}));
+                        meta.as_object_mut().unwrap().insert(
+                            "id".to_owned(),
+                            serde_json::to_value(account_id.clone()).unwrap(),
+                        );
+                        let meta = Some(meta);
+                        let index = account_vec
+                            .iter()
+                            .position(|ac| account_id == ac.id)
+                            .unwrap();
+                        account_vec[index] = account.clone();
+                        (
+                            SessionStore {
+                                data: StoreData {
+                                    accounts: current_state_data.accounts.clone(),
+                                    storage_status: current_state_data.storage_status.clone(),
+                                },
+                                ..store.deref().clone()
+                            }
+                            .into(),
+                            Some(SessionEvent {
+                                event_type: SessionEventType::Update,
                                 data: Some(serde_json::to_value(account).unwrap()),
                                 meta,
                                 resource: Some(vec![resource]),

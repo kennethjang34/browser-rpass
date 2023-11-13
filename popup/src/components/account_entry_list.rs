@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::api::extension_api::edit_account;
 use crate::Account;
 use crate::Resource;
 use log::*;
@@ -33,7 +34,12 @@ pub fn account_entry_list_component(props: &AccountEntryListProps) -> Html {
                 e.prevent_default();
                 let id = account.id.clone();
                 debug!("edit account: {:?}", account);
-                // delete_resource(id.clone(), Resource::Account);
+                edit_account(
+                    id,
+                    account.domain.clone(),
+                    Some("username editing test".to_string()),
+                    account.password.clone(),
+                );
             }
         })
     };

@@ -38,6 +38,7 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                         let event_request = request.session_event.clone();
                         let event_type = &event_request.event_type;
                         let data = event_request.data.clone().unwrap_or(json!({}));
+                        let meta = request.session_event.clone().meta.unwrap_or(json!({}));
 
                         let resource = event_request.resource.unwrap_or(vec![]);
                         match event_type {
@@ -68,6 +69,20 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                         dispatch.apply(DataAction::ResourceCreated(
                                             resource,
                                             data.clone().into(),
+                                        ));
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            &SessionEventType::Update => {
+                                let resource = resource[0].clone();
+                                match resource {
+                                    Resource::Account => {
+                                        dispatch.apply(DataAction::ResourceEdited_temp(
+                                            resource,
+                                            data.clone().into(),
+                                            //TODO!!!!! following line should not be needed
+                                            meta.get("id").unwrap().as_str().unwrap().to_string(),
                                         ));
                                     }
                                     _ => {}

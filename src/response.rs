@@ -29,6 +29,16 @@ pub struct CreateResponse {
     pub meta: Option<Value>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct EditResponse {
+    pub acknowledgement: Option<String>,
+    #[serde(default)]
+    pub data: Value,
+    pub status: Status,
+    pub resource: Resource,
+    pub id: String,
+    pub meta: Option<Value>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SearchResponse {
     pub acknowledgement: Option<String>,
     #[serde(default)]
@@ -187,6 +197,7 @@ response_enum_trait_impl!(LogoutResponse);
 // response_enum_trait_impl!(ErrorResponse);
 response_enum_trait_impl!(InitResponse);
 response_enum_trait_impl!(DeleteResponse);
+response_enum_trait_impl!(EditResponse);
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[enum_dispatch(ResponseEnumTrait,Into<JsValue>)]
@@ -207,6 +218,8 @@ pub enum ResponseEnum {
     LogoutResponse(LogoutResponse),
     #[serde(rename = "create_response")]
     CreateResponse(CreateResponse),
+    #[serde(rename = "edit_response")]
+    EditResponse(EditResponse),
     #[serde(rename = "delete_response")]
     DeleteResponse(DeleteResponse),
 }
