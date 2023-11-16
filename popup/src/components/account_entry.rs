@@ -69,7 +69,7 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
         <>
                     <td scope="row" class="px-3 py-2 font-medium bold text-gray-900 whitespace-nowrap dark:text-white">
                             <div>
-                                <div style="max-width: fit-content;" class="group text-xs">
+                                <div style="max-width: fit-content;" class="group text-xs overflow-x-hidden">
                                     <span class="cursor-pointer text-gray-500 text-xs font-normal select-all" onclick={copy_domain.clone()}>
                                         {domain.as_ref().unwrap_or(&"".to_string())}
                                     </span>
@@ -77,7 +77,7 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                         {"click to copy domain"}
                                     </span>
                                 </div>
-                                <div style="max-width: fit-content;" class="group">
+                                <div style="width: 12rem;" class="group overflow-x-auto">
                                     <span class="cursor-pointer select-all"  onclick={copy_username.clone()} >
                                     {
                                         username.clone()
@@ -90,38 +90,49 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                             </div>
                     </td>
                     <td class="px-3 py-2 font-medium">
-                            <div>
+                            <div class="relative">
                             if *reveal_password {
-                                <div style="max-width: fit-content;" class="group">
-                                    <span class="cursor-pointer" onclick={copy_pw.clone()}>
+                                <div style="width: 6rem;" class="group overflow-x-auto cursor-copy">
+                                    <span onclick={copy_pw.clone()}>
                                         {password.clone()}
                                     </span>
                                     <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto dark:text-white">
                                         {"click to copy password"}
                                     </span>
-                                </div>
-                                <div style="max-width: fit-content;" class="group">
-                                    <button onclick={on_reveal}>{"Hide"}</button>
+                                    </div>
+                                <div class="group">
+                                    <span onclick={on_reveal} class="absolute cursor-pointer top-1/2 ps-4" style="transform: translateY(-50%); right:1rem;">
+                                        <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 18">
+                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1.933 10.909A4.357 4.357 0 0 1 1 9c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 19 9c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M2 17 18 1m-5 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                                        </svg>
+                                    </span>
                                     <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto dark:text-white">
                                         {"click to hide password"}
                                     </span>
                                 </div>
-
-                            } else{
-                                <div style="max-width: fit-content;" class="group">
-                                    <span class="cursor-pointer" onclick={copy_pw.clone()}>
+                            } else
+                            {
+                                <div style="width: 6rem;" class="group overflow-x-auto cursor-copy">
+                                    <span onclick={copy_pw.clone()}>
                                         {"**********"}
                                     </span>
                                     <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto dark:text-white">
                                         {"click to copy password"}
                                     </span>
-                                </div>
-                                <div style="max-width: fit-content;" class="group">
-                                    <button class="cursor-pointer" onclick={on_reveal}>{"Show"}</button>
+                                    </div>
+                                    <div class="group">
+                                    <span onclick={on_reveal} class="absolute cursor-pointer top-1/2 ps-4" style="transform: translateY(-50%); right:1rem;">
+                                        <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 14">
+                                            <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                                              <path d="M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
+                                              <path d="M10 13c4.97 0 9-2.686 9-6s-4.03-6-9-6-9 2.686-9 6 4.03 6 9 6Z"/>
+                                            </g>
+                                        </svg>
+                                    </span>
                                     <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto dark:text-white">
                                         {"click to reveal password"}
                                     </span>
-                                </div>
+                                    </div>
                             }
                         </div>
                     </td>
