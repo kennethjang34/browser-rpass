@@ -1038,7 +1038,7 @@ fn update_entry(
     // with unique id
     let path=Path::new(id);
     let mut id=id.to_string();
-    let parent=path.parent().unwrap().file_stem().unwrap().to_str().unwrap();
+    let parent=path.parent().unwrap().file_name().unwrap().to_str().unwrap();
     let old_name=parent.to_string()+"/"+path.file_stem().unwrap().to_str().unwrap();
     let entry=get_entry(&*store.lock().unwrap().lock().unwrap(), &old_name).unwrap();
     let new_name={
