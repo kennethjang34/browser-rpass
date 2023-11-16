@@ -138,7 +138,6 @@ pub fn App(_props: &Props) -> Html {
         {
             let accounts = accounts.clone();
             move |verified: &Rc<bool>| {
-                debug!("verified: {:?}", verified);
                 if **verified {
                     fetch_accounts(None);
                 } else {

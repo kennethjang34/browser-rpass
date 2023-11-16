@@ -1,7 +1,6 @@
 use browser_rpass::{create_request_acknowledgement, response::RequestEnum, types::Resource};
 use gloo_utils::{document, format::JsValueSerdeExt};
 use js_sys::Promise;
-use log::{debug, info};
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
@@ -63,9 +62,7 @@ pub fn find_email_input_element() -> Option<HtmlInputElement> {
                 .dyn_into::<HtmlInputElement>()
                 .ok()
                 .and_then(|input_element| {
-                    info!("input_element.type_(): {}", input_element.type_());
                     if input_element.type_() == "email" {
-                        debug!("find_email_input_element: email input element found");
                         Some(input_element)
                     } else {
                         None
@@ -76,7 +73,6 @@ pub fn find_email_input_element() -> Option<HtmlInputElement> {
             }
         }
     }
-    debug!("no email input element found");
     return None;
 }
 pub fn find_password_input_element() -> Option<HtmlInputElement> {

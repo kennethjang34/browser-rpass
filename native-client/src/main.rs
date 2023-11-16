@@ -205,17 +205,6 @@ fn encode_message<T: Serialize>(message_content: &T) -> Vec<u8> {
 
 /// Send an encoded message to stdout
 fn send_message(encoded_message: &[u8]) {
-    let mut f = std::fs::OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open("/Users/JANG/rpass_test.log")
-        .expect("Failed to open file");
-    writeln!(
-        &mut f,
-        "{}",
-        serde_json::to_string(&format!("encoded_message: {:?}", encoded_message)).unwrap()
-        )
-        .unwrap();
     io::stdout()
         .write_all(encoded_message)
         .expect("Failed to write to stdout");
@@ -1341,18 +1330,21 @@ pub fn setup_logger() -> std::result::Result<(), fern::InitError> {
                                     ));
         })
     .chain(std::io::stderr())
-        .chain(fern::log_file(format!(
+        .chain(
+            fern::Dispatch::new().level(LevelFilter::Warn).chain(
+            fern::log_file(format!(
                     "{}/rpass/browser-rpass/native-client/logs/output-{}.log",
                     home,
                     chrono::offset::Local::now()
-                    ))?)
+                    ))?))
         .chain(
+            fern::Dispatch::new().level(LevelFilter::Warn).chain(
             std::fs::OpenOptions::new()
             .write(true)
             .create(true)
             .truncate(true)
             .open(format!("{}/rpass/browser-rpass/native-client/logs/output.log",home))?,
-            )
+            ))
         .apply()?;
     Ok(())
 }

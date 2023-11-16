@@ -2,7 +2,6 @@ use browser_rpass::request::SessionEventWrapper;
 use browser_rpass::types::StorageStatus;
 use gloo_utils::format::JsValueSerdeExt;
 use lazy_static::lazy_static;
-use log::*;
 use parking_lot::ReentrantMutex;
 use serde_json;
 use wasm_bindgen::prelude::Closure;
@@ -188,7 +187,6 @@ impl Reducer<PopupStore> for DataAction {
             },
             DataAction::ResourceEdited_temp(resource, data, id) => match resource {
                 Resource::Account => {
-                    debug!("account edited: {:?}", data);
                     let account = serde_json::from_value::<Account>(data.clone()).unwrap();
                     //TODO
                     // let id = account.id.clone();
@@ -244,7 +242,6 @@ impl Reducer<PopupStore> for DataAction {
             }
             .into(),
             DataAction::ResourceCreationFailed(resource, _session_event_wrapper) => {
-                info!("resource creation failed for resource: {:?}", &resource);
                 PopupStore {
                     page_loading: false,
                     ..state.deref().clone()
@@ -252,7 +249,6 @@ impl Reducer<PopupStore> for DataAction {
             }
             .into(),
             DataAction::ResourceEditionFailed(resource, _session_event_wrapper) => {
-                info!("resource edition failed for resource: {:?}", &resource);
                 PopupStore {
                     page_loading: false,
                     ..state.deref().clone()

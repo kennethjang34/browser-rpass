@@ -1,4 +1,3 @@
-use crate::log::*;
 use crate::{store::LoginAction, Resource};
 
 use browser_rpass::{request::RequestEnum, util::create_request_acknowledgement};
@@ -103,7 +102,6 @@ pub fn edit_account(
         payload,
     ));
     let acknowledgement = create_request_acknowledgement();
-    debug!("domain: {:?}", domain);
     let edit_request = RequestEnum::create_edit_request(
         id,
         Resource::Account,
@@ -112,7 +110,6 @@ pub fn edit_account(
         Some(acknowledgement.clone()),
         None,
     );
-    debug!("edit request: {:?}", edit_request);
     EXTENSION_PORT
         .lock()
         .borrow()
