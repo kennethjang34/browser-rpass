@@ -124,10 +124,9 @@ pub fn edit_account_popup(props: &Props) -> Html {
                             if !*reveal_password {
                                 <div class="col-span-2 sm:col-span-1">
                                     <label for="password" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{ "Password" }</label>
+                                    <div class="relative">
                                     <input type="password" name="password" id="password" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Password" required={true} value={(*password_input).clone()} oninput={on_password_input} />
-                                </div>
-                                <div style="max-width: fit-content;">
-                                    <span onclick={on_reveal} class="pointer-cursor">
+                                    <span onclick={on_reveal} class="absolute cursor-pointer right-2 top-1/2" style="transform: translateY(-50%);">
                                         <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 14">
                                             <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
                                               <path d="M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
@@ -135,18 +134,19 @@ pub fn edit_account_popup(props: &Props) -> Html {
                                             </g>
                                         </svg>
                                     </span>
+                                    </div>
                                 </div>
                             }else{
                                 <div class="col-span-2 sm:col-span-1">
                                     <label for="password" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{ "Password" }</label>
+                                    <div class="relative">
                                     <input type="text" name="password" id="password" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Password" required={true} value={(*password_input).clone()} oninput={on_password_input}/>
-                                </div>
-                                <div style="max-width: fit-content;">
-                                    <span onclick={on_reveal} class="pointer-cursor">
+                                    <span onclick={on_reveal} class="absolute cursor-pointer right-2 top-1/2" style="transform: translateY(-50%);">
                                         <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 18">
                                             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1.933 10.909A4.357 4.357 0 0 1 1 9c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 19 9c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M2 17 18 1m-5 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
                                         </svg>
                                     </span>
+                                    </div>
                                 </div>
                             }
                             <div class="col-span-2 sm:col-span-1">
