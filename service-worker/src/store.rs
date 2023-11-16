@@ -6,7 +6,7 @@ use browser_rpass::request::{RequestEnumTrait, SessionEventType};
 use browser_rpass::response::{CreateResponse, EditResponse, FetchResponse};
 use browser_rpass::types::Account;
 use gloo_utils::format::JsValueSerdeExt;
-use log::info;
+use log::*;
 use parking_lot::ReentrantMutex;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -58,7 +58,6 @@ pub struct SessionActionWrapper {
 }
 
 fn native_port_disconnect_handler(_port: Port) {
-    info!("native port disconnected: {:?}", _port);
     let new_port = chrome.runtime().connect_native("com.rpass");
     new_port
         .on_disconnect()
@@ -75,7 +74,6 @@ fn native_port_disconnect_handler(_port: Port) {
     }
 }
 fn native_port_message_handler(msg: String) {
-    info!("native msg received in service worker: {:?}", msg);
     match serde_json::from_slice::<serde_json::Value>(&msg.as_bytes()) {
         Ok(parsed_response) => {
             let acknowledgement = parsed_response.get("acknowledgement").cloned().unwrap();
@@ -89,7 +87,7 @@ fn native_port_message_handler(msg: String) {
             );
         }
         Err(e) => {
-            info!(
+            error!(
                 "error happend while parsing:{:?}. Error message: {:?}",
                 msg, e
             );
@@ -526,7 +524,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     });
                     extension_ports.clear();
                     LISTENER_PORT.lock().unwrap().clear();
-                    info!("cleared all ports in service worker");
+                    trace!("cleared all ports in service worker");
                 }
             } else {
                 if let Some(extension_port_name) = extension_port_name {

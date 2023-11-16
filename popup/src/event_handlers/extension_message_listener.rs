@@ -16,7 +16,6 @@ use crate::store::{DataAction, LoginAction, PopupStore};
 pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
     let port = port.clone();
     Closure::<dyn Fn(JsValue)>::new(move |msg: JsValue| {
-        info!("msg received in popup: {:?}", msg);
         match <JsValue as JsValueSerdeExt>::into_serde::<MessageEnum>(&msg) {
             Ok(parsed_message) => match parsed_message {
                 MessageEnum::Response(response) => {

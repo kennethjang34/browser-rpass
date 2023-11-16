@@ -213,7 +213,6 @@ impl Reducer<ContentScriptStore> for DataAction {
             }
             .into(),
             DataAction::ResourceCreationFailed(resource, _session_event_wrapper) => {
-                info!("resource creation failed for resource: {:?}", &resource);
                 ContentScriptStore {
                     page_loading: false,
                     ..state.deref().clone()

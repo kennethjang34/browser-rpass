@@ -607,7 +607,6 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
     }
 }
 fn handle_edit_request(request: EditRequest, store: &PasswordStoreType) -> pass::Result<()> {
-    info!("Handling edit request: {:?}", request);
     if let Some(header) = request.header {
         if let Some(passphrase) = header.get("passphrase").cloned() {
             let value = request.value;
@@ -823,7 +822,6 @@ fn handle_login_request(request: LoginRequest,stores: &StoreListType) -> pass::R
         return Ok(store);
 }
 fn handle_logout_request(request:LogoutRequest,store: &PasswordStoreType)->pass::Result<()>{
-    info!("logout request received for store: {:?}",store.lock()?.lock()?.get_name());
     let acknowledgement = request.acknowledgement;
     let status = Status::Success;
     let json = serde_json::json!({"status": status,"acknowledgement": acknowledgement.unwrap_or("".to_string()),});
@@ -944,7 +942,6 @@ fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()> {
         }
         let received_message = received_message_res.unwrap();
         let request_result={if let Ok(request) = serde_json::from_value::<RequestEnum>(received_message) {
-            info!("request received: {:?}", request);
             if let Some(store)=store_opt.as_ref(){
                 match request.clone() {
                     RequestEnum::Get(request) => handle_get_request(request, store),
@@ -1018,7 +1015,6 @@ fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()> {
             error!("Error: {:?}", request_result.unwrap_err());
             continue;
         }else{
-            info!("Request processed with result: {:?}", request_result.unwrap());
         }
     }
 }
@@ -1071,7 +1067,6 @@ fn update_entry(
     };
     if new_name.is_some(){
         do_rename_file(&old_name, &new_name.clone().unwrap(), store.clone(), passphrase.clone())?;
-        info!("renamed file from {:?} to {:?}",old_name,new_name.clone().unwrap());
         id=new_name.unwrap();
     }else{
         //TODO we need to make use account id instead of file path in the future.

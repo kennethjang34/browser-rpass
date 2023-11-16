@@ -128,7 +128,6 @@ pub fn login_page(_props: &Props) -> Html {
 
         Callback::from(move |event: SubmitEvent| {
             event.prevent_default();
-            info!("login form submitted, {:?}", cloned_form.deref());
 
             let form = cloned_form.clone();
             let validation_errors = cloned_validation_errors.clone();

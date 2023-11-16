@@ -9,7 +9,7 @@ use crate::Resource;
 use browser_rpass::types::Account;
 use browser_rpass::types::StorageStatus;
 use browser_rpass::util::*;
-use log::info;
+use log::*;
 pub use wasm_bindgen;
 use wasm_bindgen::JsValue;
 pub use wasm_bindgen_futures;
@@ -282,7 +282,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
 }
 pub fn create_request_listener() -> Closure<dyn Fn(Port)> {
     let on_connect_with_popup_cb = Closure::<dyn Fn(Port)>::new(move |port: Port| {
-        info!("popup connected. Port info: {:?}", port);
+        trace!("popup connected. Port info: {:?}", port);
         let mut ports = EXTENSION_PORT.lock().unwrap();
         if port.name().is_empty() {
             let acknowledgement = create_request_acknowledgement();
@@ -310,7 +310,6 @@ pub fn create_request_listener() -> Closure<dyn Fn(Port)> {
         );
         let cb = Closure::<dyn Fn(JsValue, Port)>::new({
             move |msg: JsValue, port: Port| {
-                info!("extension msg recieved in servcie worker: {:?}", msg);
                 wasm_bindgen_futures::spawn_local(async move {
                     let request: RequestEnum =
                         <JsValue as JsValueSerdeExt>::into_serde(&msg).unwrap();
