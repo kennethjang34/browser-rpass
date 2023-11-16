@@ -152,10 +152,11 @@ pub fn login_page(_props: &Props) -> Html {
 
     html! {
         <>
-                           <h3 class="mb-3 text-xl font-medium text-gray-900 dark:text-white">{ "Login" }</h3>
+            <div class="mt-4">
+                           <h3 class="relative top-3 text-xl font-medium text-gray-900 dark:text-white">{ "Login" }</h3>
                            <form
                               onsubmit={on_submit}
-                                        class="space-y-6" action="#"
+                                        class="space-y-6 top-5 m-4 pt-5 relative" action="#"
 
                               >
                               <FormInput label="Email"  name="email" input_type="email" input_ref={user_id_put_ref} handle_onchange={handle_user_id_input} errors={&*validation_errors} handle_on_input_blur={validate_input_on_blur.clone()}
@@ -183,7 +184,7 @@ pub fn login_page(_props: &Props) -> Html {
                     </div>
 
                            </form>
-            // </section>
+            </div>
     </>
     }
 }
