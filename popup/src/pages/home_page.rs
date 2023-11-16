@@ -5,6 +5,7 @@ use crate::{
     store::PopupStore,
     Account,
 };
+use gloo_utils::window;
 use log::*;
 use std::{collections::BTreeMap, rc::Rc};
 use sublime_fuzzy::best_match;
@@ -30,6 +31,10 @@ pub fn home_page(_props: &Props) -> Html {
         event.prevent_default();
         logout();
     });
+    let on_close = Callback::from(move |event: MouseEvent| {
+        event.prevent_default();
+        window().close().unwrap();
+    });
     use_effect_with_deps(
         {
             let _path = path.clone();
@@ -47,7 +52,7 @@ pub fn home_page(_props: &Props) -> Html {
                    <div class="w-full h-full">
                       <div class="relative w-full h-full max-w-full max-h-full">
                          <div class="relative bg-white shadow dark:bg-gray-700 w-full h-full overflow-hidden">
-                            <button type="button" class="absolute bg-transparent dark:hover:bg-gray-600 dark:hover:text-white h-6 hover:bg-gray-200 hover:text-gray-900 inline-flex items-center justify-center ml-auto right-2.5 rounded-lg text-gray-400 text-sm w-6" >
+                            <button type="button" class="absolute bg-transparent dark:hover:bg-gray-600 dark:hover:text-white h-6 hover:bg-gray-200 hover:text-gray-900 inline-flex items-center justify-center ml-auto right-2.5 rounded-lg text-gray-400 text-sm w-6" style="z-index: 1000;" onclick={on_close}>
                                <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
                                   <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
                                </svg>
