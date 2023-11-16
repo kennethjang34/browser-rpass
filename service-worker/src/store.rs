@@ -106,7 +106,6 @@ lazy_static! {
             Closure::<dyn Fn(String)>::new(native_port_message_handler).into_js_value(),
         );
         let mut init_config = HashMap::new();
-        init_config.insert("home_dir".to_owned(), "/Users/JANG".to_owned());
         let init_request = RequestEnum::create_init_request(init_config, None, None);
         port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
         ReentrantMutex::new(RefCell::new(port))
