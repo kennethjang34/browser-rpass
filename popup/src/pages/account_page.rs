@@ -24,7 +24,6 @@ pub struct Props {
 pub fn account_page(props: &Props) -> Html {
     let account_selector = use_selector(|state: &PopupStore| state.data.accounts.clone());
     let search_string = use_state(|| String::new());
-    let search_input_ref = NodeRef::default();
     let path = props.path.clone();
     let accounts = {
         if search_string.is_empty() {
