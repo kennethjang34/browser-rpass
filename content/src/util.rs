@@ -47,59 +47,58 @@ macro_rules! log {
     }
 }
 
+pub enum InputElementType {
+    Text,
+    Email,
+    Password,
+}
+impl InputElementType {
+    fn to_string(&self) -> &'static str {
+        match self {
+            InputElementType::Text => "text",
+            InputElementType::Email => "email",
+            InputElementType::Password => "password",
+        }
+    }
+}
 pub fn find_input_element_with_candidate_ids(id_list: &[&str]) -> Option<HtmlInputElement> {
     id_list
         .into_iter()
         .find_map(|candidate| document().get_element_by_id(candidate))
         .and_then(|element| element.dyn_into::<HtmlInputElement>().ok())
 }
-pub fn find_email_input_element() -> Option<HtmlInputElement> {
+pub fn find_email_type_input_element() -> Option<Vec<HtmlInputElement>> {
+    return find_input_element_with_type(InputElementType::Email);
+}
+pub fn find_input_element_with_type(input_type: InputElementType) -> Option<Vec<HtmlInputElement>> {
     let input_elements = document().get_elements_by_tag_name("input");
     let length = input_elements.length();
+    let mut res = Vec::new();
     for i in 0..length {
         if let Some(input_element) = input_elements.get_with_index(i) {
-            let res = input_element
-                .dyn_into::<HtmlInputElement>()
-                .ok()
-                .and_then(|input_element| {
-                    if input_element.type_() == "email" {
-                        Some(input_element)
-                    } else {
-                        None
-                    }
-                });
-            if res.is_some() {
-                return res;
+            let input_element = input_element.dyn_into::<HtmlInputElement>().ok();
+            if let Some(input_element) = input_element {
+                if input_element.type_() == input_type.to_string() {
+                    res.push(input_element);
+                }
             }
         }
+    }
+    if res.len() > 0 {
+        return Some(res);
     }
     return None;
 }
 pub fn find_password_input_element() -> Option<HtmlInputElement> {
-    let input_elements = document().get_elements_by_tag_name("input");
-    let length = input_elements.length();
-    for i in 0..length {
-        if let Some(input_element) = input_elements.get_with_index(i) {
-            let res = input_element
-                .dyn_into::<HtmlInputElement>()
-                .ok()
-                .and_then(|input_element| {
-                    if input_element.type_() == "password" {
-                        Some(input_element)
-                    } else {
-                        None
-                    }
-                });
-            if res.is_some() {
-                return res;
-            }
-        }
+    let by_type = find_input_element_with_type(InputElementType::Password);
+    if let Some(by_type) = by_type {
+        return Some(by_type[0].clone());
     }
     find_input_element_with_candidate_ids(PASSWORD_INPUT_ELEMENT_ID_LIST)
 }
 pub fn find_username_input_element() -> Option<HtmlInputElement> {
     find_input_element_with_candidate_ids(USERNAME_INPUT_ELEMENT_ID_LIST)
-        .or(find_email_input_element())
+        .or(find_email_type_input_element().map(|mut v| v.remove(0)))
 }
 pub fn _create_autocomplete_suggestion_element(
     id: &str,
