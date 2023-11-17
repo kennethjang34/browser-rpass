@@ -52,7 +52,7 @@ pub fn account_entry_list_component(props: &AccountEntryListProps) -> Html {
             let on_edit_account = on_edit_account.clone();
             html! {
             <>
-                <tr key={id.clone()} class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                <tr key={id.clone()} class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 block">
                     <AccountEntry id={i} account={account.clone()}></AccountEntry>
                     <td class="px-1 py-0.5">
                     <a href="#" 
