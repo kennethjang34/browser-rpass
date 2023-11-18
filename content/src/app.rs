@@ -17,7 +17,7 @@ use crate::{
 pub struct Props {}
 #[function_component]
 pub fn App(_props: &Props) -> Html {
-    trace!("App started");
+    trace!("App rendered!");
     let page_domain =
         use_state(|| get_domain_name(&window().location().href().unwrap_or_default()));
     let username_input = use_state(|| "".to_owned());
@@ -82,25 +82,33 @@ pub fn App(_props: &Props) -> Html {
                         let username_input_element = username_input_element.clone();
                         let password_input_element = password_input_element.clone();
                         Closure::<dyn Fn(_)>::new(move |_event: web_sys::MouseEvent| {
-                            let event_target =
-                                _event.target().unwrap().dyn_into::<HtmlElement>().unwrap();
-                            if event_target.class_name().contains("rpass-suggestion")
-                                || (username_input_element.is_some()
-                                    && event_target
-                                        == username_input_element
-                                            .clone()
-                                            .unwrap()
-                                            .dyn_into()
-                                            .unwrap())
-                                || (password_input_element.is_some()
-                                    && event_target
-                                        == password_input_element
-                                            .clone()
-                                            .unwrap()
-                                            .dyn_into()
-                                            .unwrap())
-                            {
-                                // do nothing when click on suggestion list
+                            if let Some(event_target) = _event.target() {
+                                if let Ok(target_element) =
+                                    event_target.clone().dyn_into::<HtmlElement>()
+                                {
+                                    if target_element.class_name().contains("rpass-suggestion")
+                                        || (username_input_element.is_some()
+                                            && target_element
+                                                == username_input_element
+                                                    .clone()
+                                                    .unwrap()
+                                                    .dyn_into()
+                                                    .unwrap())
+                                        || (password_input_element.is_some()
+                                            && target_element
+                                                == password_input_element
+                                                    .clone()
+                                                    .unwrap()
+                                                    .dyn_into()
+                                                    .unwrap())
+                                    {
+                                        // do nothing when click on suggestion list
+                                    } else {
+                                        current_focus.set(None);
+                                    }
+                                } else {
+                                    current_focus.set(None);
+                                }
                             } else {
                                 current_focus.set(None);
                             }
