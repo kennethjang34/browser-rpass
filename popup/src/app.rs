@@ -34,7 +34,6 @@ pub fn App() -> Html {
                                     .into()
                             })
                             .collect::<Vec<Tab>>();
-                        assert_eq!(tabs.len(), 1);
                         let tab = tabs.get(0).unwrap();
                         let _tab_id = tab.id();
                         let host_name = url::Url::parse(&tab.url().unwrap())
