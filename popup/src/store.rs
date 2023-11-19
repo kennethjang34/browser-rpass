@@ -3,6 +3,7 @@ use browser_rpass::types::StorageStatus;
 use gloo::storage::errors::StorageError;
 use gloo_utils::format::JsValueSerdeExt;
 use lazy_static::lazy_static;
+use log::debug;
 use parking_lot::ReentrantMutex;
 use serde_json;
 use wasm_bindgen::prelude::Closure;
@@ -343,9 +344,12 @@ impl Reducer<PopupStore> for LoginAction {
                 }
             }
             .into(),
-            LoginAction::RememberMe(remember_me) => PopupStore {
-                remember_me,
-                ..store.deref().clone()
+            LoginAction::RememberMe(remember_me) => {
+                debug!("remember_me changed: {:?}", remember_me);
+                PopupStore {
+                    remember_me,
+                    ..store.deref().clone()
+                }
             }
             .into(),
         }
@@ -360,8 +364,9 @@ pub struct AlertInput {
 
 impl Store for PopupStore {
     fn new() -> Self {
+        log::debug!("PopupStore::new");
         init_listener(StorageListener);
-        PopupStore::init();
+        // PopupStore::init();
         PopupStore::default()
     }
     fn should_notify(&self, old: &Self) -> bool {
@@ -373,10 +378,31 @@ impl PopupStore {
         let value = serde_json::to_string(state)
             .map_err(|serde_error| StorageError::SerdeError(serde_error))?;
 
-        chrome
-            .storage()
-            .session()
-            .set_string_item_sync(type_name::<T>().to_owned(), value, area);
+        wasm_bindgen_futures::spawn_local(async move {
+            match area {
+                store::StorageArea::Local => {
+                    let _ = chrome
+                        .storage()
+                        .local()
+                        .set_string_item(type_name::<T>().to_owned(), value, area)
+                        .await;
+                }
+                store::StorageArea::Sync => {
+                    let _ = chrome
+                        .storage()
+                        .sync()
+                        .set_string_item(type_name::<T>().to_owned(), value, area)
+                        .await;
+                }
+                store::StorageArea::Session => {
+                    let _ = chrome
+                        .storage()
+                        .session()
+                        .set_string_item(type_name::<T>().to_owned(), value, area)
+                        .await;
+                }
+            }
+        });
         Ok(())
     }
 
@@ -389,6 +415,31 @@ impl PopupStore {
             .lock()
             .borrow()
             .post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
+    }
+    pub async fn load() -> Option<PopupStore> {
+        let loaded = chrome
+            .storage()
+            .local()
+            .get_item(&type_name::<PopupStore>(), store::StorageArea::Local)
+            .await;
+        if let Ok(value) = loaded {
+            debug!("loaded: {:?}", value);
+            let parsed = <JsValue as JsValueSerdeExt>::into_serde::<String>(&value);
+            debug!("parsed: {:?}", parsed);
+            if let Ok(json_string) = parsed {
+                let state = serde_json::from_str::<PopupStore>(&json_string);
+                debug!("state: {:?}", state);
+                if let Ok(state) = state {
+                    return Some(state);
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 struct StorageListener;

@@ -5,6 +5,7 @@ use lazy_static::lazy_static;
 pub type AsyncCallback =
     Box<dyn Send + FnOnce(ResponseEnum, Port) -> Pin<Box<dyn Future<Output = ()>>>>;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum StorageArea {
     Local,
     Sync,
