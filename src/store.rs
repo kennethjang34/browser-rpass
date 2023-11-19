@@ -5,6 +5,11 @@ use lazy_static::lazy_static;
 pub type AsyncCallback =
     Box<dyn Send + FnOnce(ResponseEnum, Port) -> Pin<Box<dyn Future<Output = ()>>>>;
 
+pub enum StorageArea {
+    Local,
+    Sync,
+    Session,
+}
 lazy_static! {
     pub static ref MESSAGE_ACKNOWLEDGEMENTS_NATIVE: Mutex<HashMap<String, Vec<Box<dyn FnOnce(&[u8], Port) -> Result<(), String> + Send>>>> =
         Mutex::new(HashMap::new());

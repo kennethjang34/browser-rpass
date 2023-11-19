@@ -1,11 +1,14 @@
 use browser_rpass::request::SessionEventWrapper;
 use browser_rpass::types::StorageStatus;
+use gloo::storage::errors::StorageError;
 use gloo_utils::format::JsValueSerdeExt;
 use lazy_static::lazy_static;
 use parking_lot::ReentrantMutex;
 use serde_json;
 use wasm_bindgen::prelude::Closure;
 use yewdux::mrc::Mrc;
+
+use browser_rpass::store;
 
 use crate::event_handlers::extension_message_listener::create_message_listener;
 use crate::Resource;
@@ -14,6 +17,7 @@ pub use browser_rpass::util::*;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
+use std::any::type_name;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -71,6 +75,7 @@ pub struct PopupStore {
     pub page_loading: bool,
     pub alert_input: AlertInput,
     pub verified: bool,
+    pub remember_me: bool,
     pub user_id: Option<String>,
     pub status: StoreStatus,
     pub data: StoreData,
@@ -88,6 +93,7 @@ pub enum LoginAction {
     LogoutStarted(Value),
     Logout(Value),
     Login(String, Value),
+    RememberMe(bool),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -289,7 +295,11 @@ impl Reducer<PopupStore> for LoginAction {
             LoginAction::LogoutSucceeded(data) => PopupStore {
                 page_loading: false,
                 verified: false,
-                user_id: None,
+                user_id: if store.remember_me {
+                    store.user_id.clone()
+                } else {
+                    None
+                },
                 status: StoreStatus::Success,
                 data: StoreData {
                     accounts: Mrc::new(vec![]),
@@ -312,7 +322,11 @@ impl Reducer<PopupStore> for LoginAction {
             LoginAction::Logout(data) => PopupStore {
                 verified: false,
                 page_loading: false,
-                user_id: None,
+                user_id: if store.remember_me {
+                    store.user_id.clone()
+                } else {
+                    None
+                },
                 data: StoreData {
                     accounts: Mrc::new(vec![]),
                     ..store.deref().clone().data
@@ -329,6 +343,11 @@ impl Reducer<PopupStore> for LoginAction {
                 }
             }
             .into(),
+            LoginAction::RememberMe(remember_me) => PopupStore {
+                remember_me,
+                ..store.deref().clone()
+            }
+            .into(),
         }
     }
 }
@@ -342,7 +361,7 @@ pub struct AlertInput {
 impl Store for PopupStore {
     fn new() -> Self {
         init_listener(StorageListener);
-        PopupStore::load();
+        PopupStore::init();
         PopupStore::default()
     }
     fn should_notify(&self, old: &Self) -> bool {
@@ -350,7 +369,18 @@ impl Store for PopupStore {
     }
 }
 impl PopupStore {
-    pub fn load() {
+    pub fn save<T: Serialize>(state: &T, area: store::StorageArea) -> Result<(), StorageError> {
+        let value = serde_json::to_string(state)
+            .map_err(|serde_error| StorageError::SerdeError(serde_error))?;
+
+        chrome
+            .storage()
+            .session()
+            .set_string_item_sync(type_name::<T>().to_owned(), value, area);
+        Ok(())
+    }
+
+    pub fn init() {
         let acknowledgement = create_request_acknowledgement();
         let init_config = HashMap::new();
         let init_request =
@@ -365,5 +395,10 @@ struct StorageListener;
 impl Listener for StorageListener {
     type Store = PopupStore;
 
-    fn on_change(&mut self, _state: Rc<Self::Store>) {}
+    fn on_change(&mut self, state: Rc<Self::Store>) {
+        if let Err(err) = Self::Store::save(state.as_ref(), store::StorageArea::Local) {
+            println!("Error saving state to storage: {:?}", err);
+        } else {
+        }
+    }
 }

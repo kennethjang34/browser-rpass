@@ -245,8 +245,12 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                         }
                     }
                     _ => {
+                        error!("resouce not supported. received request: {:?}", request);
                         let error_response = ErrorResponse {
-                            message: Some("resource not supported".to_owned()),
+                            message: Some(
+                                format!("resource not supported. received request: {:?}", request)
+                                    .to_owned(),
+                            ),
                             acknowledgement: request.get_acknowledgement(),
                             code: Some(ErrorCode::NotSupported),
                         };
