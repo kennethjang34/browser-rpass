@@ -375,6 +375,11 @@ impl Reducer<PopupStore> for LoginAction {
                 }
             }
             .into(),
+            LoginAction::RememberMe(remember_me) => PopupStore {
+                remember_me,
+                ..store.deref().clone()
+            }
+            .into(),
         }
     }
 }
