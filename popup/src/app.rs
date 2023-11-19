@@ -7,20 +7,27 @@ use browser_rpass::{
     util::{chrome, Tab},
 };
 use gloo_utils::format::JsValueSerdeExt;
+use log::*;
 use serde_json::{json, Value};
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures;
 use yew;
 use yew::prelude::*;
-use yewdux::prelude::Dispatch;
+use yewdux::{dispatch, functional::use_selector, prelude::Dispatch};
+
+// #[derive(Properties, PartialEq, Clone, Default, Debug)]
+// pub struct Props {
+//     pub saved_state: Option<PopupStore>,
+// }
 
 #[function_component]
 pub fn App() -> Html {
-    let state = Dispatch::<PopupStore>::new().get();
+    let dispatch = Dispatch::<PopupStore>::new();
+    let verified = use_selector(|state: &PopupStore| state.verified.clone());
     use_effect_with_deps(
         {
-            let state = state.clone();
+            let state = dispatch.get();
             move |_| {
                 wasm_bindgen_futures::spawn_local(async move {
                     let cb: Closure<dyn FnMut(JsValue)> = Closure::new(move |tabs: JsValue| {
@@ -63,7 +70,7 @@ pub fn App() -> Html {
                 });
             }
         },
-        state.verified,
+        verified.clone(),
     );
 
     html! {

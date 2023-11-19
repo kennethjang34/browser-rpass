@@ -11,7 +11,6 @@ pub struct Props {
     pub input_type: Option<String>,
     pub label: String,
     pub name: String,
-    pub input_ref: NodeRef,
     pub handle_onchange: Callback<String>,
     pub handle_on_input_blur: Callback<(String, String)>,
     pub errors: Rc<RefCell<ValidationErrors>>,
@@ -19,6 +18,7 @@ pub struct Props {
     pub input_class: Option<String>,
     pub placeholder: Option<String>,
     pub disabled: Option<bool>,
+    pub value: Option<String>,
 }
 
 #[function_component(FormInput)]
@@ -66,10 +66,10 @@ pub fn form_input_component(props: &Props) -> Html {
         type={input_type}
         placeholder=""
         class={props.input_class.clone().unwrap_or_else(|| "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500".to_string())}
-        ref={props.input_ref.clone()}
         onchange={onchange}
         onblur={on_blur}
         disabled={props.disabled.unwrap_or(false)}
+        value={props.value.clone().unwrap_or("".to_string())}
         />
     <span class="text-red-500 text-xs pt-1 block">
         {error_message}
