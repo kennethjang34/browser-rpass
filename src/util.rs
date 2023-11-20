@@ -2,6 +2,7 @@
 use gloo::storage::errors::StorageError;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::Promise;
+use log::debug;
 use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
@@ -11,7 +12,10 @@ use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
+use web_sys::console;
 use web_sys::window;
+
+use crate::store;
 pub fn create_request_acknowledgement() -> String {
     thread_rng()
         .sample_iter(&Alphanumeric)
@@ -47,6 +51,7 @@ pub async fn clipboard_copy(text: &str) -> Result<JsValue, JsValue> {
     let result = wasm_bindgen_futures::JsFuture::from(clipboard.write_text(text)).await?;
     Ok(result)
 }
+
 #[wasm_bindgen]
 extern "C" {
     #[derive(Debug, Clone, PartialEq)]
@@ -167,56 +172,118 @@ pub fn get_domain_name(addr: &String) -> String {
 unsafe impl Send for Port {}
 unsafe impl Sync for Port {}
 impl StorageArea {
-    pub async fn get_all(&self) -> Result<JsValue, JsValue> {
+    pub async fn get_all(&self, area: store::StorageArea) -> Result<JsValue, JsValue> {
         let key: JsValue = JsValue::NULL;
-        Ok(chrome.storage().session().get(key.clone()).await)
+        let fetched = {
+            match area {
+                store::StorageArea::Local => chrome.storage().local(),
+                store::StorageArea::Sync => chrome.storage().sync(),
+                store::StorageArea::Session => chrome.storage().session(),
+            }
+        }
+        .get(key.clone())
+        .await;
+        Ok(fetched)
     }
-    pub async fn get_value(&self, key: &str) -> Result<JsValue, StorageError> {
+    pub async fn get_value(
+        &self,
+        key: &str,
+        storage: store::StorageArea,
+    ) -> Result<JsValue, StorageError> {
         let js_key: JsValue = key.into();
-        let entry = chrome.storage().session().get(js_key.clone()).await;
-        js_sys::Reflect::get(&entry, &js_key).map_err(|_| StorageError::KeyNotFound(key.to_owned()))
+        let entry = {
+            let storage = match storage {
+                store::StorageArea::Local => chrome.storage().local(),
+                store::StorageArea::Sync => chrome.storage().sync(),
+                store::StorageArea::Session => chrome.storage().session(),
+            };
+            storage.get(js_key.clone()).await
+        };
+        if entry.is_undefined() {
+            return Err(StorageError::KeyNotFound(key.to_owned()));
+        } else {
+            return Ok(entry);
+        }
+        // entry.map_err(|_| StorageError::KeyNotFound(key.to_owned()))
     }
-    pub async fn get_string_value(&self, key: &str) -> Result<Option<String>, StorageError> {
-        let js_key: JsValue = key.into();
-        let entry = chrome.storage().session().get(js_key.clone()).await;
-        js_sys::Reflect::get(&entry, &js_key)
-            .map(|v| {
-                if let Some(v) = v.as_string() {
-                    Some(v)
-                } else {
-                    None
+    pub fn get_all_sync(&self, storage: store::StorageArea) -> JsValue {
+        let key: JsValue = JsValue::NULL;
+        let fetched = match storage {
+            store::StorageArea::Local => chrome.storage().local().get_sync(key.clone()),
+            store::StorageArea::Sync => chrome.storage().sync().get_sync(key.clone()),
+            store::StorageArea::Session => chrome.storage().session().get_sync(key.clone()),
+        };
+        fetched
+    }
+    pub async fn get_item(
+        &self,
+        key: &str,
+        storage: store::StorageArea,
+    ) -> Result<JsValue, StorageError> {
+        let entry = {
+            let storage = {
+                match storage {
+                    store::StorageArea::Local => chrome.storage().local(),
+                    store::StorageArea::Sync => chrome.storage().sync(),
+                    store::StorageArea::Session => chrome.storage().session(),
                 }
-            })
-            .map_err(|_| StorageError::KeyNotFound(key.to_owned()))
+            };
+            storage.get(key.into()).await
+        };
+        let value = js_sys::Reflect::get(&entry, &JsValue::from_str(key));
+        debug!("current storage: {:?}", storage);
+        console::log_1(&chrome.storage().local().get_all(storage).await.unwrap());
+        if let Ok(value) = value {
+            debug!("value: {:?}", value);
+            console::log_1(&value);
+            return Ok(value);
+        } else {
+            return Err(StorageError::KeyNotFound(key.to_owned()));
+        }
     }
-    pub fn get_string_value_sync(&self, key: &str) -> Result<Option<String>, StorageError> {
+    pub fn get_string_value_sync(
+        &self,
+        key: &str,
+        storage: store::StorageArea,
+    ) -> Result<Option<String>, StorageError> {
         let js_key: JsValue = key.into();
-        let entry = chrome.storage().session().get_sync(js_key.clone());
-        js_sys::Reflect::get(&entry, &js_key)
-            .map(|v| {
-                if let Some(v) = v.as_string() {
-                    Some(v)
-                } else {
-                    None
-                }
-            })
-            .map_err(|_| StorageError::KeyNotFound(key.to_owned()))
+        let entry = {
+            match storage {
+                store::StorageArea::Local => chrome.storage().local().get_sync(js_key.clone()),
+                store::StorageArea::Sync => chrome.storage().sync().get_sync(js_key.clone()),
+                store::StorageArea::Session => chrome.storage().session().get_sync(js_key.clone()),
+            }
+        };
+        console::log_1(&entry);
+        debug!("entry: {:?}", entry);
+        debug!("entry.is_string(): {:?}", entry.is_string());
+        debug!("entry type: {:?}", entry.js_typeof());
+        debug!("entry: {:?}", entry);
+        let fut = js_sys::Reflect::get(&entry, &JsValue::from_str(&"PromiseResult")).unwrap();
+        debug!("fut: {:?}", fut);
+        console::log_1(&fut);
+        Ok(None)
     }
-    pub fn set_string_item_sync(&self, key: String, value: String) {
+    pub fn set_string_item_sync(&self, key: String, value: String, stroage: store::StorageArea) {
         let mut entry = HashMap::new();
         entry.insert(key, value);
         let js_val = <JsValue as JsValueSerdeExt>::from_serde(&entry).unwrap();
-        chrome.storage().session().set_sync(js_val);
+        match stroage {
+            store::StorageArea::Local => chrome.storage().local().set_sync(js_val),
+            store::StorageArea::Sync => chrome.storage().sync().set_sync(js_val),
+            store::StorageArea::Session => chrome.storage().session().set_sync(js_val),
+        }
     }
-    pub async fn set_string_item(&self, key: String, value: String) {
+    pub async fn set_string_item(&self, key: String, value: String, storage: store::StorageArea) {
         let mut entry = HashMap::new();
         entry.insert(key, value);
         let js_val = <JsValue as JsValueSerdeExt>::from_serde(&entry).unwrap();
-        chrome.storage().session().set(js_val).await;
-    }
-    pub async fn set_item(&self, key: String, value: JsValue) {
-        let entry = js_sys::Map::new();
-        entry.set(&JsValue::from_str(&key), &value);
-        chrome.storage().session().set(entry.into()).await;
+        match storage {
+            store::StorageArea::Local => chrome.storage().local().set(js_val).await,
+            store::StorageArea::Sync => chrome.storage().sync().set(js_val).await,
+            store::StorageArea::Session => chrome.storage().session().set(js_val).await,
+        }
+        debug!("current storage: {:?}", storage);
+        console::log_1(&chrome.storage().local().get_all(storage).await.unwrap());
     }
 }

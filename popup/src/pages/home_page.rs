@@ -7,15 +7,12 @@ use crate::{
 };
 use gloo_utils::window;
 use log::*;
-use std::{collections::BTreeMap, rc::Rc};
-use sublime_fuzzy::best_match;
+use std::rc::Rc;
 
-use crate::components::account_entry_list::AccountEntryList;
-use web_sys::HtmlInputElement;
 use yew;
 use yew::prelude::*;
+use yewdux::prelude::use_selector;
 use yewdux::{self};
-use yewdux::{mrc::Mrc, prelude::use_selector};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {}
@@ -26,7 +23,7 @@ pub fn home_page(_props: &Props) -> Html {
     let verified = use_selector(|state: &PopupStore| state.verified);
     let loading = use_selector(|state: &PopupStore| state.page_loading.clone());
     let path = use_selector(|state: &PopupStore| state.path.clone());
-    let user_id = use_selector(|state: &PopupStore| state.user_id.clone());
+    let user_id = use_selector(|state: &PopupStore| state.persistent_data.user_id.clone());
     let on_logout_click = Callback::from(move |event: MouseEvent| {
         event.prevent_default();
         logout();

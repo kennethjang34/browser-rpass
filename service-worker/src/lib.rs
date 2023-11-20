@@ -15,8 +15,6 @@ pub use log::*;
 
 pub use browser_rpass::dbg;
 mod api;
-#[cfg(test)]
-mod tests;
 
 mod event_handlers;
 
