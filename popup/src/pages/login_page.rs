@@ -54,42 +54,42 @@ pub fn login_page(_props: &Props) -> Html {
         })
     };
 
-    let validate_input_on_blur = {
-        let cloned_validation_errors = validation_errors.clone();
-        Callback::from({
-            let user_id = user_id.clone();
-            let passphrase = passphrase.clone();
-            move |(name, _value): (String, String)| {
-                let login_form = LoginUserSchema {
-                    user_id: (*user_id).clone().unwrap_or_default(),
-                    passphrase: (*passphrase).clone(),
-                };
-
-                match login_form.validate() {
-                    Ok(_) => {
-                        cloned_validation_errors
-                            .borrow_mut()
-                            .errors_mut()
-                            .remove(name.as_str());
-                    }
-                    Err(errors) => {
-                        cloned_validation_errors
-                            .borrow_mut()
-                            .errors_mut()
-                            .retain(|key, _| key != &name);
-                        for (field_name, error) in errors.errors() {
-                            if field_name == &name {
-                                cloned_validation_errors
-                                    .borrow_mut()
-                                    .errors_mut()
-                                    .insert(field_name, error.clone());
-                            }
-                        }
-                    }
-                }
-            }
-        })
-    };
+    // let _validate_input_on_blur = {
+    //     let cloned_validation_errors = validation_errors.clone();
+    //     Callback::from({
+    //         let user_id = user_id.clone();
+    //         let passphrase = passphrase.clone();
+    //         move |(name, _value): (String, String)| {
+    //             let login_form = LoginUserSchema {
+    //                 user_id: (*user_id).clone().unwrap_or_default(),
+    //                 passphrase: (*passphrase).clone(),
+    //             };
+    //
+    //             match login_form.validate() {
+    //                 Ok(_) => {
+    //                     cloned_validation_errors
+    //                         .borrow_mut()
+    //                         .errors_mut()
+    //                         .remove(name.as_str());
+    //                 }
+    //                 Err(errors) => {
+    //                     cloned_validation_errors
+    //                         .borrow_mut()
+    //                         .errors_mut()
+    //                         .retain(|key, _| key != &name);
+    //                     for (field_name, error) in errors.errors() {
+    //                         if field_name == &name {
+    //                             cloned_validation_errors
+    //                                 .borrow_mut()
+    //                                 .errors_mut()
+    //                                 .insert(field_name, error.clone());
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     })
+    // };
     let remember_me = use_selector(|state: &PopupStore| state.persistent_data.remember_me);
 
     let handle_rememeber_me_input = Callback::from({
@@ -141,14 +141,14 @@ pub fn login_page(_props: &Props) -> Html {
                                         class="space-y-6 top-5 m-4 pt-5 relative" action="#"
 
                               >
-                              <FormInput label="Email"  name="email" input_type="email"  handle_onchange={handle_user_id_input} errors={&*validation_errors} handle_on_input_blur={validate_input_on_blur.clone()}
+                              <FormInput label="Email"  name="email" input_type="email"  handle_onchange={handle_user_id_input} errors={&*validation_errors} /* handle_on_input_blur={validate_input_on_blur.clone()} */
                               label_class={
     "block mb-auto text-sm font-medium text-gray-900 dark:text-white"
                               }
         input_class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder={"name@company.com"}
                               value={(*user_id).clone()}
                               />
-                                  <FormInput label="Passphrase" name="passphrase" input_type="password"  handle_onchange={handle_passphrase_input} errors={&*validation_errors} handle_on_input_blur={validate_input_on_blur.clone()} label_class={"block mb-auto text-sm font-medium text-gray-900 dark:text-white"} input_class={
+                                  <FormInput label="Passphrase" name="passphrase" input_type="password"  handle_onchange={handle_passphrase_input} errors={&*validation_errors} /* handle_on_input_blur={validate_input_on_blur.clone()} */ label_class={"block mb-auto text-sm font-medium text-gray-900 dark:text-white"} input_class={
                                       "bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
                                   }
                                     value={(*passphrase).clone()}

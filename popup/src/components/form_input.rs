@@ -12,7 +12,7 @@ pub struct Props {
     pub label: String,
     pub name: String,
     pub handle_onchange: Callback<String>,
-    pub handle_on_input_blur: Callback<(String, String)>,
+    pub handle_on_input_blur: Option<Callback<(String, String)>>,
     pub errors: Rc<RefCell<ValidationErrors>>,
     pub label_class: Option<String>,
     pub input_class: Option<String>,
@@ -46,15 +46,19 @@ pub fn form_input_component(props: &Props) -> Html {
         handle_onchange.emit(value);
     });
 
-    let handle_on_input_blur = props.handle_on_input_blur.clone();
     let on_blur = {
+        let handle_on_input_blur = props.handle_on_input_blur.clone();
         let cloned_input_name = props.name.clone();
-        Callback::from(move |event: FocusEvent| {
-            let input_name = cloned_input_name.clone();
-            let target = event.target().unwrap();
-            let value = target.unchecked_into::<HtmlInputElement>().value();
-            handle_on_input_blur.emit((input_name, value));
-        })
+        if let Some(handle_on_input_blur) = handle_on_input_blur {
+            Some(Callback::from(move |event: FocusEvent| {
+                let input_name = cloned_input_name.clone();
+                let target = event.target().unwrap();
+                let value = target.unchecked_into::<HtmlInputElement>().value();
+                handle_on_input_blur.emit((input_name, value));
+            }))
+        } else {
+            None
+        }
     };
 
     html! {
