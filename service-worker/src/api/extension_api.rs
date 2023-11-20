@@ -11,6 +11,7 @@ use wasm_bindgen::JsValue;
 use crate::store::{EXTENSION_PORT, LISTENER_PORT};
 
 pub fn broadcast_session_event(session_event: SessionEvent) {
+    info!("broadcast_session_event: {:?}", session_event);
     if let Some(ref resources) = session_event.resource {
         for resource in resources {
             let locked = LISTENER_PORT.lock().unwrap();

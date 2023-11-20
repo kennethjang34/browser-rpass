@@ -4,6 +4,7 @@ use crate::{api, StorageStatus};
 use browser_rpass::dbg;
 use browser_rpass::request::{RequestEnumTrait, SessionEventType};
 use browser_rpass::response::{CreateResponse, EditResponse, FetchResponse};
+use browser_rpass::store;
 use browser_rpass::types::Account;
 use gloo_utils::format::JsValueSerdeExt;
 use log::*;
@@ -146,31 +147,33 @@ impl Store for SessionStore {
 }
 impl SessionStore {
     pub fn load() -> Result<Option<SessionStore>, StorageError> {
-        let storage = chrome.storage().session();
-        let value = storage.get_string_value_sync(type_name::<SessionStore>());
-        match value {
-            Ok(value) => {
-                if let Some(value) = value {
-                    let state = serde_json::from_str(&value);
-                    if let Ok(state) = state {
-                        Ok(Some(state))
-                    } else {
-                        Ok(None)
-                    }
-                } else {
-                    Ok(None)
-                }
-            }
-            Err(err) => Err(err),
-        }
+        Result::Ok(None)
+        // let storage = chrome.storage().session();
+        // let value = storage.get_string_value_sync(type_name::<SessionStore>());
+        // match value {
+        //     Ok(value) => {
+        //         if let Some(value) = value {
+        //             let state = serde_json::from_str(&value);
+        //             if let Ok(state) = state {
+        //                 Ok(Some(state))
+        //             } else {
+        //                 Ok(None)
+        //             }
+        //         } else {
+        //             Ok(None)
+        //         }
+        //     }
+        //     Err(err) => Err(err),
+        // }
     }
     pub fn save<T: Serialize>(state: &T, _area: StorageArea) -> Result<(), StorageError> {
         let value = serde_json::to_string(state)
             .map_err(|serde_error| StorageError::SerdeError(serde_error))?;
-        chrome
-            .storage()
-            .session()
-            .set_string_item_sync(type_name::<T>().to_owned(), value);
+        chrome.storage().session().set_string_item_sync(
+            type_name::<T>().to_owned(),
+            value,
+            store::StorageArea::Session,
+        );
         Ok(())
     }
 }
