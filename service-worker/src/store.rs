@@ -1,11 +1,11 @@
 use crate::event_handlers::native_message_handler::process_native_message;
 pub use crate::Resource;
 use crate::{api, StorageStatus};
-use browser_rpass::dbg;
 use browser_rpass::request::{RequestEnumTrait, SessionEventType};
 use browser_rpass::response::{CreateResponse, EditResponse, FetchResponse};
 use browser_rpass::store;
 use browser_rpass::types::Account;
+use browser_rpass::{dbg, StorageArea};
 use gloo_utils::format::JsValueSerdeExt;
 use log::*;
 use parking_lot::ReentrantMutex;
@@ -17,6 +17,7 @@ use std::collections::HashSet;
 use std::{any::type_name, collections::HashMap, ops::Deref, rc::Rc, sync::Mutex};
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
+use web_sys::console;
 use yewdux::mrc::Mrc;
 
 use yewdux::prelude::Reducer;
@@ -30,9 +31,6 @@ pub use browser_rpass::{
 };
 use gloo::storage::errors::StorageError;
 use lazy_static::lazy_static;
-pub enum StorageArea {
-    Session,
-}
 use yewdux::{
     prelude::{init_listener, Dispatch, Listener},
     store::Store,
@@ -79,7 +77,6 @@ fn native_port_message_handler(msg: String) {
         Ok(parsed_response) => {
             let acknowledgement = parsed_response.get("acknowledgement").cloned().unwrap();
             let acknowledgement = acknowledgement.as_str().unwrap();
-            dbg!(&parsed_response);
             let _ = process_native_message(
                 parsed_response,
                 NATIVE_PORT.lock().borrow().clone(),
@@ -138,43 +135,76 @@ pub struct SessionStore {
 impl Store for SessionStore {
     fn new() -> Self {
         init_listener(StorageListener);
-        let loaded = SessionStore::load().ok().flatten().unwrap_or_default();
-        loaded
+        SessionStore::default()
     }
     fn should_notify(&self, old: &Self) -> bool {
         self != old
     }
 }
 impl SessionStore {
-    pub fn load() -> Result<Option<SessionStore>, StorageError> {
-        Result::Ok(None)
-        // let storage = chrome.storage().session();
-        // let value = storage.get_string_value_sync(type_name::<SessionStore>());
-        // match value {
-        //     Ok(value) => {
-        //         if let Some(value) = value {
-        //             let state = serde_json::from_str(&value);
-        //             if let Ok(state) = state {
-        //                 Ok(Some(state))
-        //             } else {
-        //                 Ok(None)
-        //             }
-        //         } else {
-        //             Ok(None)
-        //         }
-        //     }
-        //     Err(err) => Err(err),
-        // }
+    pub async fn load() -> Option<SessionStore> {
+        let loaded = chrome
+            .storage()
+            .session()
+            .get_item(&type_name::<SessionStore>(), store::StorageArea::Session)
+            .await;
+        if let Ok(value) = loaded {
+            let parsed = <JsValue as JsValueSerdeExt>::into_serde::<String>(&value);
+            if let Ok(json_string) = parsed {
+                let state = serde_json::from_str::<SessionStore>(&json_string);
+                if let Ok(state) = state {
+                    return Some(state);
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
-    pub fn save<T: Serialize>(state: &T, _area: StorageArea) -> Result<(), StorageError> {
+
+    pub fn save<T: Serialize>(state: &T, area: store::StorageArea) -> Result<(), StorageError> {
         let value = serde_json::to_string(state)
             .map_err(|serde_error| StorageError::SerdeError(serde_error))?;
-        chrome.storage().session().set_string_item_sync(
-            type_name::<T>().to_owned(),
-            value,
-            store::StorageArea::Session,
-        );
+
+        wasm_bindgen_futures::spawn_local(async move {
+            match area {
+                store::StorageArea::Local => {
+                    let _ = chrome
+                        .storage()
+                        .local()
+                        .set_string_item(type_name::<T>().to_owned(), value, area)
+                        .await;
+                }
+                store::StorageArea::Sync => {
+                    let _ = chrome
+                        .storage()
+                        .sync()
+                        .set_string_item(type_name::<T>().to_owned(), value, area)
+                        .await;
+                }
+                store::StorageArea::Session => {
+                    let _ = chrome
+                        .storage()
+                        .session()
+                        .set_string_item(type_name::<T>().to_owned(), value, area)
+                        .await;
+                    let current = chrome
+                        .storage()
+                        .session()
+                        .get_all(store::StorageArea::Session)
+                        .await
+                        .unwrap();
+                    console::log_1(&current);
+                }
+            }
+        });
         Ok(())
+    }
+    pub fn get_storage_status(&self) -> StorageStatus {
+        self.data.storage_status.clone()
     }
 }
 
@@ -269,7 +299,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     if let Some(index) = index {
                         account_vec.remove(index);
                     } else {
-                        dbg!("account not found");
                     }
                     (
                         SessionStore {
@@ -515,7 +544,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 None,
             ),
         };
-        dbg!(&session_event);
         if let Some(session_event) = session_event {
             if session_event.is_global {
                 api::extension_api::broadcast_session_event(session_event.clone());
@@ -547,7 +575,7 @@ impl Listener for StorageListener {
     type Store = SessionStore;
 
     fn on_change(&mut self, state: Rc<Self::Store>) {
-        if let Err(err) = Self::Store::save(state.as_ref(), StorageArea::Session) {
+        if let Err(err) = Self::Store::save(state.as_ref(), store::StorageArea::Session) {
             println!("Error saving state to storage: {:?}", err);
         } else {
         }
