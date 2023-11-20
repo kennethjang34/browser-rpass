@@ -192,16 +192,20 @@ pub fn App(_props: &Props) -> Html {
             let top = target_rect.top() + target_rect.height();
             let left = target_rect.left();
             let width = target_rect.width();
+
             format!(
-                "position:fixed; background-color: #f9f9f9;
+                "position:fixed;
             top: {top}px; width:{width}px ;left: {left}px;
                     min-width: 160px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
                     z-index: 99;"
             )
         };
         html!(
-            <div id={format!("{}-suggestions",target_input_element.id())}
-                style={list_style} class="rpass-suggestion">
+              <div id={format!("{}-suggestions",target_input_element.id())}
+              class="w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="menu-button" tabindex="-1"
+                style={list_style}
+              >
+
             {
                 {
                     let username_input_element=username_input_element.clone();
@@ -247,7 +251,7 @@ pub fn App(_props: &Props) -> Html {
                                 current_focus.set(None);
                             })
                         };
-                        let entry_element=html!(<div style="cursor: pointer; border: 3px solid black;" class="rpass-suggestion" onclick={on_suggestion_click}>{entry.username.clone()}</div>);
+                        let entry_element=html!(<div style="cursor: pointer; border: 3px solid black;" class="rpass-suggestion bg-gray-200 text-gray-700 block px-3 py-2 text-sm" onclick={on_suggestion_click}>{entry.username.clone()}</div>);
                         entry_element
                     }).collect::<Html>()}
             }
