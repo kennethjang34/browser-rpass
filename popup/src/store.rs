@@ -91,7 +91,7 @@ pub struct PopupStore {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum LoginAction {
     LoginStarted(String, Value),
-    LoginError(Value),
+    LoginError(Value, String),
     LoginSucceeded(Value),
     LoginFailed(Value),
     LogoutSucceeded(Value),
@@ -284,10 +284,13 @@ impl Reducer<PopupStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LoginError(data) => PopupStore {
-                page_loading: false,
-                status: StoreStatus::Error,
-                ..store.deref().clone()
+            LoginAction::LoginError(data, user_id) => {
+                debug!("LoginError: {:?}", user_id);
+                PopupStore {
+                    page_loading: false,
+                    status: StoreStatus::Error,
+                    ..store.deref().clone()
+                }
             }
             .into(),
             LoginAction::LoginSucceeded(data) => PopupStore {

@@ -170,6 +170,9 @@ impl ResponseEnumTrait for ErrorResponse {
         }
         data.into()
     }
+    fn get_status(&self) -> Status {
+        Status::Error
+    }
 }
 macro_rules! response_enum_trait_impl {
     ($($t:ty)*) => ($(
@@ -184,6 +187,9 @@ macro_rules! response_enum_trait_impl {
         self.acknowledgement = acknowledgement;
     }
 
+    fn get_status(&self) -> Status{
+        self.status.clone().into()
+    }
         }
 
     )*)
@@ -236,6 +242,8 @@ pub trait ResponseEnumTrait: Debug {
     fn get_acknowledgement(&self) -> Option<String>;
     fn get_data(&self) -> Value;
     fn set_acknowledgement(&mut self, acknowledgement: Option<String>);
+    fn get_status(&self) -> Status;
+
     // fn get_response_type(&self) -> String;
 }
 

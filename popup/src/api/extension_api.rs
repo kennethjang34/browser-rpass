@@ -1,6 +1,8 @@
 use crate::{store::LoginAction, Resource};
 
-use browser_rpass::{request::RequestEnum, util::create_request_acknowledgement};
+use browser_rpass::{
+    request::RequestEnum, store::MESSAGE_CONTEXT_POPUP, util::create_request_acknowledgement,
+};
 use gloo_utils::format::JsValueSerdeExt;
 use serde_json::{json, Value};
 use wasm_bindgen::JsValue;
@@ -29,11 +31,16 @@ pub fn fetch_accounts(path: Option<String>) -> String {
 pub fn login(user_id: String, passphrase: String) {
     let dispatch = Dispatch::<PopupStore>::new();
     dispatch.apply(LoginAction::LoginStarted(user_id.clone(), json!({})));
+    let acknowledgement = create_request_acknowledgement();
     let login_request = RequestEnum::create_login_request(
-        Some(create_request_acknowledgement()),
-        user_id,
+        Some(acknowledgement.clone()),
+        user_id.clone(),
         passphrase,
     );
+    MESSAGE_CONTEXT_POPUP
+        .lock()
+        .unwrap()
+        .insert(acknowledgement, json!({"user_id":user_id.clone()}));
     EXTENSION_PORT
         .lock()
         .borrow()
