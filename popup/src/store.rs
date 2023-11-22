@@ -116,6 +116,7 @@ pub enum LoginAction {
     LogoutStarted(Value),
     Logout(Value),
     Login(String, Value),
+    LoginIdle,
     RememberMe(bool),
 }
 
@@ -299,6 +300,12 @@ impl Reducer<PopupStore> for LoginAction {
                     remember_me: store.persistent_data.remember_me,
                 },
                 login_status: LoginStatus::Loading,
+                ..store.deref().clone()
+            }
+            .into(),
+            LoginAction::LoginIdle => PopupStore {
+                page_loading: false,
+                login_status: LoginStatus::Idle,
                 ..store.deref().clone()
             }
             .into(),
