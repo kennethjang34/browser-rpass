@@ -46,7 +46,6 @@ pub fn process_native_message(
                 ctx["acknowledgement"] = json!(login_request.acknowledgement);
                 wasm_bindgen_futures::spawn_local(async move {
                     let login_response = login_response2;
-                    debug!("login_response: {:?}", login_response);
                     match login_response.status {
                         Status::Success => {
                             dbg!(&login_response);
@@ -70,8 +69,6 @@ pub fn process_native_message(
             }
         }
         ResponseEnum::LogoutResponse(logout_response) => {
-            // let logout_response: LogoutResponse =
-            //     serde_json::from_value::<LogoutResponse>(json_msg).unwrap();
             let logout_response2 = logout_response.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let logout_response = logout_response2;
@@ -94,14 +91,10 @@ pub fn process_native_message(
             return Ok(response);
         }
         ResponseEnum::GetResponse(get_response) => {
-            // let get_response: GetResponse =
-            //     serde_json::from_value::<GetResponse>(json_msg).unwrap();
             let response = ResponseEnum::GetResponse(get_response);
             return Ok(response);
         }
         ResponseEnum::DeleteResponse(delete_response) => {
-            // let delete_response: DeleteResponse =
-            //     serde_json::from_value::<DeleteResponse>(json_msg).unwrap();
             match delete_response.status.clone() {
                 Status::Success => {
                     session_store_dispatch.apply(SessionActionWrapper {
@@ -119,8 +112,6 @@ pub fn process_native_message(
         }
         ResponseEnum::CreateResponse(create_response) => {
             dbg!(&json_msg);
-            // let create_response: CreateResponse =
-            //     serde_json::from_value::<CreateResponse>(json_msg).unwrap();
             let response = ResponseEnum::CreateResponse(create_response.clone());
             let status = &create_response.status;
             match status {

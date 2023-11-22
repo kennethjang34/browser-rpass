@@ -45,7 +45,7 @@ pub fn broadcast_session_event(session_event: SessionEvent) {
         }
     }
 }
-pub fn whisper_session_event(mut session_event: SessionEvent, port: &Port) {
+pub fn whisper_session_event(session_event: SessionEvent, port: &Port) {
     let msg = MessageEnum::Message(RequestEnum::create_session_event_request(
         None,
         session_event,
