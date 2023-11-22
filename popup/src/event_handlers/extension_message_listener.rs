@@ -1,12 +1,12 @@
 use browser_rpass::{
     request::SessionEventType,
-    response::{MessageEnum, RequestEnum, ResponseEnumTrait},
+    response::{LoginResponse, MessageEnum, RequestEnum, ResponseEnumTrait},
     store::{MESSAGE_ACKNOWLEDGEMENTS_POP_UP, MESSAGE_CONTEXT_POPUP},
     types::Resource,
     Port,
 };
 use gloo_utils::format::JsValueSerdeExt;
-use log::{debug, info};
+use log::{debug, error, info};
 use serde_json::json;
 use wasm_bindgen::{prelude::Closure, JsValue};
 use wasm_bindgen_futures::spawn_local;
@@ -39,7 +39,6 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                         let event_type = &event_request.event_type;
                         let data = event_request.data.clone().unwrap_or(json!({}));
                         let meta = request.session_event.clone().meta.unwrap_or(json!({}));
-                        debug!("event request: {:?}", event_request);
                         let contexts = MESSAGE_CONTEXT_POPUP.lock().unwrap();
 
                         let resource = event_request.resource.unwrap_or(vec![]);
@@ -133,10 +132,9 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                 },
             },
             Err(e) => {
-                log!(
+                error!(
                     "error happend while parsing:{:?}. Error message: {:?}",
-                    msg,
-                    e
+                    msg, e
                 );
             }
         }

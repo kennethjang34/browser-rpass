@@ -1,17 +1,21 @@
 use crate::api::extension_api::login;
 // use crate::api::user_api::api_login_user;
 use crate::components::{form_input::FormInput, loading_button::LoadingButton};
+use browser_rpass::response::ResponseEnum;
+use browser_rpass::store::AsyncCallback;
 use log::*;
 use serde_json::json;
 use wasm_bindgen::JsCast;
 use yew;
 // use router::{self, Route};
-use crate::store::{LoginAction, PopupStore};
+use crate::store::{LoginAction, LoginStatus, PopupStore};
 use std::cell::RefCell;
+use std::future::Future;
 use std::ops::Deref;
+use std::pin::Pin;
 use std::rc::Rc;
 
-use browser_rpass::log;
+use browser_rpass::{log, Port};
 use serde;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationErrors};
@@ -54,42 +58,6 @@ pub fn login_page(_props: &Props) -> Html {
         })
     };
 
-    // let _validate_input_on_blur = {
-    //     let cloned_validation_errors = validation_errors.clone();
-    //     Callback::from({
-    //         let user_id = user_id.clone();
-    //         let passphrase = passphrase.clone();
-    //         move |(name, _value): (String, String)| {
-    //             let login_form = LoginUserSchema {
-    //                 user_id: (*user_id).clone().unwrap_or_default(),
-    //                 passphrase: (*passphrase).clone(),
-    //             };
-    //
-    //             match login_form.validate() {
-    //                 Ok(_) => {
-    //                     cloned_validation_errors
-    //                         .borrow_mut()
-    //                         .errors_mut()
-    //                         .remove(name.as_str());
-    //                 }
-    //                 Err(errors) => {
-    //                     cloned_validation_errors
-    //                         .borrow_mut()
-    //                         .errors_mut()
-    //                         .retain(|key, _| key != &name);
-    //                     for (field_name, error) in errors.errors() {
-    //                         if field_name == &name {
-    //                             cloned_validation_errors
-    //                                 .borrow_mut()
-    //                                 .errors_mut()
-    //                                 .insert(field_name, error.clone());
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     })
-    // };
     let remember_me = use_selector(|state: &PopupStore| state.persistent_data.remember_me);
 
     let handle_rememeber_me_input = Callback::from({
@@ -101,6 +69,7 @@ pub fn login_page(_props: &Props) -> Html {
         }
     });
     let _is_loading = use_selector(|state: &PopupStore| state.page_loading);
+    let login_status = use_selector(|state: &PopupStore| state.login_status.clone());
     let on_submit = {
         let cloned_validation_errors = validation_errors.clone();
         let user_id = user_id.clone();
@@ -130,10 +99,13 @@ pub fn login_page(_props: &Props) -> Html {
             };
         })
     };
-    debug!("user_id: {:?}", *user_id);
 
     html! {
         <>
+            if *login_status == LoginStatus::LoginFailed || *login_status==LoginStatus::LoginError{
+                <p>{"login failed"}</p>
+            }
+
             <div class="mt-4">
                            <h3 class="relative top-3 text-xl font-medium text-gray-900 dark:text-white">{ "Login" }</h3>
                            <form
