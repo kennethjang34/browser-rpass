@@ -14,20 +14,11 @@ enum_dispatch="0.3.12"
 git2 = "0.17.1"
 locale_config = "0.3.0"
 wasm-bindgen= {workspace=true}
-js-sys = {workspace=true}
-wasm-bindgen-futures = {workspace=true}
 console_error_panic_hook ={workspace=true}
 serde={workspace=true,features = ["derive"]}
 serde_json = {workspace=true}
 yew = { workspace=true, features = ["csr"] }
 chrono = { version = "0.4.24", features = ["serde"] }
-gloo={workspace = true}
-gloo-utils = { workspace=true, features = ["serde"] }
-reqwasm = "0.5.0"
-validator = { version = "0.16.0", features = ["derive"] }
-yewdux = {workspace=true}
-yew-router = {workspace=true}
-serde-wasm-bindgen = { workspace =true}
 browser-rpass = { path = "../"}
 rand = {workspace=true}
 getrandom={workspace=true,features=["js"]}
@@ -38,22 +29,6 @@ fern={workspace=true,features=["colored"]}
 log={workspace=true}
 hex = "0.4.3"
 humantime = "2.1.0"
-
-[dependencies.web-sys]
-version = "^0.3"
-features = [
-    "console",
-    "Window",
-	"Document",
-	"HtmlElement",
-	"HtmlDocument",
-	"HtmlInputElement",
-	"HtmlTextAreaElement",
-	"Navigator",
-	"Clipboard",
-]
-
-
 
 [dependencies.config]
 version = "0.11.0"

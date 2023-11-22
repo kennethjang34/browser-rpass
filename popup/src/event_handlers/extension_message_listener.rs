@@ -1,12 +1,12 @@
 use browser_rpass::{
     request::SessionEventType,
-    response::{MessageEnum, RequestEnum, ResponseEnumTrait},
-    store::MESSAGE_ACKNOWLEDGEMENTS_POP_UP,
+    response::{LoginResponse, MessageEnum, RequestEnum, ResponseEnumTrait},
+    store::{MESSAGE_ACKNOWLEDGEMENTS_POP_UP, MESSAGE_CONTEXT_POPUP},
     types::Resource,
     Port,
 };
 use gloo_utils::format::JsValueSerdeExt;
-use log::info;
+use log::{debug, error, info};
 use serde_json::json;
 use wasm_bindgen::{prelude::Closure, JsValue};
 use wasm_bindgen_futures::spawn_local;
@@ -29,6 +29,7 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                         spawn_local(async move {
                             request_cb(response, port2.clone()).await;
                         });
+                    } else {
                     }
                 }
                 MessageEnum::Message(request) => match request.clone() {
@@ -38,6 +39,7 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                         let event_type = &event_request.event_type;
                         let data = event_request.data.clone().unwrap_or(json!({}));
                         let meta = request.session_event.clone().meta.unwrap_or(json!({}));
+                        let contexts = MESSAGE_CONTEXT_POPUP.lock().unwrap();
 
                         let resource = event_request.resource.unwrap_or(vec![]);
                         match event_type {
@@ -48,6 +50,18 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                         .unwrap(),
                                     data,
                                 ));
+                            }
+                            &SessionEventType::LoginError => {
+                                let context = contexts
+                                    .get(event_request.acknowledgement.as_ref().unwrap())
+                                    .unwrap();
+                                let user_id = context
+                                    .get("user_id")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string();
+                                dispatch.apply(LoginAction::LoginError(data, user_id));
                             }
                             &SessionEventType::Logout => {
                                 dispatch.apply(LoginAction::Logout(data));
@@ -118,10 +132,9 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                 },
             },
             Err(e) => {
-                log!(
+                error!(
                     "error happend while parsing:{:?}. Error message: {:?}",
-                    msg,
-                    e
+                    msg, e
                 );
             }
         }

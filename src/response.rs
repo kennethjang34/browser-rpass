@@ -113,7 +113,18 @@ pub struct ErrorResponse {
     pub message: Option<String>,
     pub code: Option<ErrorCode>,
 }
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GenericError {
+    pub acknowledgement: Option<String>,
+    pub data: Value,
+    pub status: Status,
+}
 impl Into<JsValue> for ErrorResponse {
+    fn into(self) -> JsValue {
+        <JsValue as JsValueSerdeExt>::from_serde(&self).unwrap()
+    }
+}
+impl Into<JsValue> for GenericError {
     fn into(self) -> JsValue {
         <JsValue as JsValueSerdeExt>::from_serde(&self).unwrap()
     }
@@ -170,6 +181,9 @@ impl ResponseEnumTrait for ErrorResponse {
         }
         data.into()
     }
+    fn get_status(&self) -> Status {
+        Status::Error
+    }
 }
 macro_rules! response_enum_trait_impl {
     ($($t:ty)*) => ($(
@@ -184,6 +198,9 @@ macro_rules! response_enum_trait_impl {
         self.acknowledgement = acknowledgement;
     }
 
+    fn get_status(&self) -> Status{
+        self.status.clone().into()
+    }
         }
 
     )*)
@@ -191,6 +208,7 @@ macro_rules! response_enum_trait_impl {
 response_enum_trait_impl!(GetResponse);
 response_enum_trait_impl!(FetchResponse);
 response_enum_trait_impl!(LoginResponse);
+response_enum_trait_impl!(GenericError);
 response_enum_trait_impl!(SearchResponse);
 response_enum_trait_impl!(CreateResponse);
 response_enum_trait_impl!(LogoutResponse);
@@ -198,6 +216,7 @@ response_enum_trait_impl!(LogoutResponse);
 response_enum_trait_impl!(InitResponse);
 response_enum_trait_impl!(DeleteResponse);
 response_enum_trait_impl!(EditResponse);
+// response_enum_trait_impl!(GenericError);
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[enum_dispatch(ResponseEnumTrait,Into<JsValue>)]
@@ -222,6 +241,8 @@ pub enum ResponseEnum {
     EditResponse(EditResponse),
     #[serde(rename = "delete_response")]
     DeleteResponse(DeleteResponse),
+    #[serde(rename = "generic_error")]
+    GenericError(GenericError),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -236,6 +257,8 @@ pub trait ResponseEnumTrait: Debug {
     fn get_acknowledgement(&self) -> Option<String>;
     fn get_data(&self) -> Value;
     fn set_acknowledgement(&mut self, acknowledgement: Option<String>);
+    fn get_status(&self) -> Status;
+
     // fn get_response_type(&self) -> String;
 }
 

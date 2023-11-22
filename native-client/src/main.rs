@@ -2,7 +2,7 @@ use browser_rpass::{request::*, response::*, types::Resource};
 #[allow(warnings)]
 use hex::FromHex;
 use log::*;
-use serde_json::json;
+use serde_json::{json, error};
 
 use rpass::{
     crypto::CryptoImpl,
@@ -163,9 +163,9 @@ fn main() -> pass::Result<()> {
     if let Ok(request) = serde_json::from_value::<RequestEnum>(received_message.clone()) {
         match request {
             RequestEnum::Init(request) => {
-            let stores=handle_init_request(request)?;
-            thread::sleep(time::Duration::from_millis(200));
-            listen_to_native_messaging(stores)
+                let stores=handle_init_request(request)?;
+                thread::sleep(time::Duration::from_millis(200));
+                listen_to_native_messaging(stores)
             }
             _ => {
                 let err_msg=format!("The first message json must have 'init' as key and initialization values as its value. Received message: {:?}",request);
@@ -222,7 +222,7 @@ fn check_passphrase(
         .unwrap()
         .verify_passphrase(user_id, passphrase)
 }
-fn handle_get_request(request: GetRequest, store: &PasswordStoreType) -> pass::Result<()> {
+fn handle_get_request(request: GetRequest, store: &PasswordStoreType) -> pass::Result<GetResponse> {
     let resource = request.resource;
     let acknowledgement = request.acknowledgement;
     if let Some(header) = request.header {
@@ -273,9 +273,9 @@ fn handle_get_request(request: GetRequest, store: &PasswordStoreType) -> pass::R
                             }
                         }
                     };
-                    let json = serde_json::to_string(&get_response).unwrap();
-                    send_message(&encode_message(&json));
-                    return Ok(());
+                    // let json = serde_json::to_string(&get_response).unwrap();
+                    // send_message(&encode_message(&json));
+                    return Ok(get_response);
                 }
                 Resource::Password => {
                     let encrypted_password = &search(&store.clone(), &id).unwrap()[0];
@@ -302,10 +302,10 @@ fn handle_get_request(request: GetRequest, store: &PasswordStoreType) -> pass::R
                                 }
                             }
                     };
-                    let json = serde_json::to_string(&get_response).unwrap();
-                    let encoded = encode_message(&json.to_string());
-                    send_message(&encoded);
-                    return Ok(());
+                    // let json = serde_json::to_string(&get_response).unwrap();
+                    // let encoded = encode_message(&json.to_string());
+                    // send_message(&encoded);
+                    return Ok(get_response);
                 }
                 Resource::Account => {
                     let encrypted_password_entry = get_entry(&*store.lock()?.lock()?, &id);
@@ -345,10 +345,10 @@ fn handle_get_request(request: GetRequest, store: &PasswordStoreType) -> pass::R
                             }
                         }
                     };
-                    let json = serde_json::to_string(&get_response).unwrap();
-                    let encoded = encode_message(&json.to_string());
-                    send_message(&encoded);
-                    return Ok(());
+                    // let json = serde_json::to_string(&get_response).unwrap();
+                    // let encoded = encode_message(&json.to_string());
+                    // send_message(&encoded);
+                    return Ok(get_response);
                 }
                 _ => {
                     return Err(pass::Error::from(
@@ -365,7 +365,7 @@ fn handle_get_request(request: GetRequest, store: &PasswordStoreType) -> pass::R
         return Err(pass::Error::from("header must be provided for credential"));
     }
 }
-fn handle_search_request(request: SearchRequest, store: &PasswordStoreType) -> pass::Result<()> {
+fn handle_search_request(request: SearchRequest, store: &PasswordStoreType) -> pass::Result<SearchResponse> {
     if let Some(header) = request.header {
         if let Some(passphrase) = header.get("passphrase").cloned() {
             let resource = request.resource;
@@ -403,9 +403,7 @@ fn handle_search_request(request: SearchRequest, store: &PasswordStoreType) -> p
                             }
                         }
                     };
-                    let json = serde_json::to_string(&search_response).unwrap();
-                    send_message(&encode_message(&json));
-                    return Ok(());
+                    return Ok(search_response);
                 }
                 Resource::Account => {
                     let encrypted_password_entries = &search(&store.clone(), &query).unwrap();
@@ -446,10 +444,7 @@ fn handle_search_request(request: SearchRequest, store: &PasswordStoreType) -> p
                             }
                         }
                     };
-                    let json = serde_json::to_string(&search_response).unwrap();
-                    let encoded = encode_message(&json.to_string());
-                    send_message(&encoded);
-                    return Ok(());
+                    return Ok(search_response);
                 }
                 _ => {
                     return Err(pass::Error::from(
@@ -466,7 +461,7 @@ fn handle_search_request(request: SearchRequest, store: &PasswordStoreType) -> p
         return Err(pass::Error::from("header must be provided for credential"));
     }
 }
-fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pass::Result<()> {
+fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pass::Result<FetchResponse> {
     if let Some(header) = request.header {
         if let Some(passphrase) = header.get("passphrase") {
             let path = request.path.as_ref();
@@ -504,9 +499,7 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
                             }
                         }
                     };
-                    let json = serde_json::to_string(&fetch_response).unwrap();
-                    send_message(&encode_message(&json));
-                    return Ok(());
+                    return Ok(fetch_response);
                 }
                 Resource::Password => {
                     let encrypted_passwords =
@@ -540,10 +533,7 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
                             }
                         }
                     };
-                    let json = serde_json::to_string(&fetch_response).unwrap();
-                    let encoded = encode_message(&json.to_string());
-                    send_message(&encoded);
-                    return Ok(());
+                    return Ok(fetch_response)
                 }
                 Resource::Account => {
                     let encrypted_password_entries =
@@ -585,10 +575,7 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
                             }
                         }
                     };
-                    let json = serde_json::to_string(&fetch_response).unwrap();
-                    let encoded = encode_message(&json.to_string());
-                    send_message(&encoded);
-                    return Ok(());
+                    return Ok(fetch_response);
                 }
                 _ => {
                     error!("requsted resource: {:?} not supported", resource);
@@ -606,38 +593,38 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
         return Err(pass::Error::from("header must be provided for credential"));
     }
 }
-fn handle_edit_request(request: EditRequest, store: &PasswordStoreType) -> pass::Result<()> {
+fn handle_edit_request(request: EditRequest, store: &PasswordStoreType) -> pass::Result<EditResponse> {
     if let Some(header) = request.header {
         if let Some(passphrase) = header.get("passphrase").cloned() {
             let value = request.value;
             let resource = request.resource;
             match resource {
-                Resource::Password => {
-                    let username = request.id;
-                    let path = request.domain.unwrap_or("".to_string());
-                    let value = value.as_str().unwrap_or("");
-                    change_password(
-                        value,
-                        &(path + "/" + &username),
-                        store.clone(),
-                        Some(passphrase),
-                        )
-                        .expect("Failed to change password");
-                    Ok(())
-                }
-                Resource::Username => {
-                    let username = request.id;
-                    let path = request.domain.unwrap_or("".to_string());
-                    let value = value.as_str().unwrap_or("");
-                    do_rename_file(
-                        &(path.clone() + "/" + &username),
-                        &(path.clone() + "/" + value),
-                        store.clone(),
-                        Some(passphrase),
-                        )
-                        .expect("Failed to rename file");
-                    Ok(())
-                }
+                // Resource::Password => {
+                //     let username = request.id;
+                //     let path = request.domain.unwrap_or("".to_string());
+                //     let value = value.as_str().unwrap_or("");
+                //     change_password(
+                //         value,
+                //         &(path + "/" + &username),
+                //         store.clone(),
+                //         Some(passphrase),
+                //         )
+                //         .expect("Failed to change password");
+                // Ok(())
+                // }
+                // Resource::Username => {
+                //     let username = request.id;
+                //     let path = request.domain.unwrap_or("".to_string());
+                //     let value = value.as_str().unwrap_or("");
+                //     do_rename_file(
+                //         &(path.clone() + "/" + &username),
+                //         &(path.clone() + "/" + value),
+                //         store.clone(),
+                //         Some(passphrase),
+                //         )
+                //         .expect("Failed to rename file");
+                // Ok(())
+                // }
                 Resource::Account =>{
                     let domain = value.get("domain").map(|d|d.as_str().unwrap().to_owned());
                     let username = value.get("username").map(|d|d.as_str().unwrap().to_owned());
@@ -661,12 +648,12 @@ fn handle_edit_request(request: EditRequest, store: &PasswordStoreType) -> pass:
                         status: Status::Success,
                         resource: Resource::Account,
                         id:request.id,
-                       meta:None,
+                        meta:None,
                     };
-                    let json = serde_json::to_string(&edit_response).unwrap();
-                    let encoded = encode_message(&json.to_string());
-                    send_message(&encoded);
-                    Ok(())
+                    // let json = serde_json::to_string(&edit_response).unwrap();
+                    // let encoded = encode_message(&json.to_string());
+                    // send_message(&encoded);
+                    Ok(edit_response)
                 },
                 _ => {
                     return Err(pass::Error::from(
@@ -764,73 +751,74 @@ fn handle_init_request(request: InitRequest) -> pass::Result<StoreListType> {
         let mut config_file_dir = config_file_location.clone();
         config_file_dir.pop();
         if let Err(err) = std::fs::create_dir_all(config_file_dir) {
-        error!("{:?}",err);
+            error!("{:?}",err);
             return Err(pass::Error::from(err));
         }
         if let Err(err) = pass::save_config(stores.clone(), &config_file_location) {
-        error!("{:?}",err);
+            error!("{:?}",err);
             return Err(err)
         }
     }
     Ok(stores)
 }
 fn handle_login_request(request: LoginRequest,stores: &StoreListType) -> pass::Result<PasswordStoreType> {
-        let username = request.username;
-        let passphrase = request.passphrase;
-        let store={
-                let stores_locked=stores.lock()?;
-                let filtered=stores_locked.iter().filter(|s|s.lock().unwrap().get_name()==&username).collect::<Vec<_>>();
-                filtered[0].clone()
-        };
-        let store: PasswordStoreType = Arc::new(Mutex::new(store));
-        let res = store.lock()?.lock()?.reload_password_list();
-        if let Err(err) = res {
-            return Err(err);
+    let user_id = request.username;
+    let passphrase = request.passphrase;
+    let store={
+        let stores_locked=stores.lock()?;
+        let filtered=stores_locked.iter().filter(|s|s.lock().unwrap().get_name()==&user_id).collect::<Vec<_>>();
+        if filtered.len()==0{
+            return Err(Error::GenericDyn(format!("No store found for username: {}",user_id)));
         }
+        filtered[0].clone()
+    };
+    let store: PasswordStoreType = Arc::new(Mutex::new(store));
+    let res = store.lock()?.lock()?.reload_password_list();
+    if let Err(err) = res {
+        return Err(err);
+    }
 
-        // verify that the git config is correct
-        if !store.lock()?.lock()?.has_configured_username() {
+    // verify that the git config is correct
+    if !store.lock()?.lock()?.has_configured_username() {
+        Err(Error::GenericDyn(
+                "Git user.name and user.name must be configured".to_string(),
+                ))?;
+    }
+    for password in &store.lock()?.lock()?.passwords {
+        if password.is_in_git == pass::RepositoryStatus::NotInRepo {
             Err(Error::GenericDyn(
-                    "Git user.name and user.name must be configured".to_string(),
+                    format!("Password entry: {:?}  not found in the current store",password).to_string(),
                     ))?;
         }
-        for password in &store.lock()?.lock()?.passwords {
-            if password.is_in_git == pass::RepositoryStatus::NotInRepo {
-                Err(Error::GenericDyn(
-                        format!("Password entry: {:?}  not found in the current store",password).to_string(),
-                ))?;
-            }
+    }
+    let verified = check_passphrase(&store.clone(), Some(user_id), &passphrase);
+    // let acknowledgement = request.acknowledgement;
+    // let status = {
+    if let Ok(verified) = verified {
+        if verified {
+            // Status::Success
+            return Ok(store);
+        } else {
+            // Status::Failure
+            return Err(Error::GenericDyn(
+                    "Failed to verify passphrase".to_string(),
+                    ));
         }
-        let verified = check_passphrase(&store.clone(), Some(username), &passphrase);
-        let acknowledgement = request.acknowledgement;
-        let status = {
-            if let Ok(verified) = verified {
-                if verified {
-                    Status::Success
-                } else {
-                    Status::Failure
-                }
-            } else {
-                Status::Error
-            }
-        };
-        let json = serde_json::json!({"status": status,"acknowledgement": acknowledgement.unwrap_or("".to_string()),});
-        let json = serde_json::to_string(&json).unwrap();
-        let encoded = encode_message(&json.to_string());
-        thread::sleep(time::Duration::from_millis(200));
-        send_message(&encoded);
-        return Ok(store);
+    } else {
+        return Err(Error::GenericDyn(
+                "Failed to verify passphrase".to_string()));
+    }
 }
 fn handle_logout_request(request:LogoutRequest,store: &PasswordStoreType)->pass::Result<()>{
     let acknowledgement = request.acknowledgement;
     let status = Status::Success;
-    let json = serde_json::json!({"status": status,"acknowledgement": acknowledgement.unwrap_or("".to_string()),});
-    let json = serde_json::to_string(&json).unwrap();
-    let encoded = encode_message(&json.to_string());
-    send_message(&encoded);
+    // let json = serde_json::json!({"status": status,"acknowledgement": acknowledgement.unwrap_or("".to_string()),});
+    // let json = serde_json::to_string(&json).unwrap();
+    // let encoded = encode_message(&json.to_string());
+    // send_message(&encoded);
     Ok(())
 }
-fn handle_create_request(request: CreateRequest, store: &PasswordStoreType) -> pass::Result<()> {
+fn handle_create_request(request: CreateRequest, store: &PasswordStoreType) -> pass::Result<CreateResponse> {
     if let Some(header) = request.header {
         if let Some(passphrase) = header.get("passphrase") {
             let username = request.username;
@@ -879,10 +867,10 @@ fn handle_create_request(request: CreateRequest, store: &PasswordStoreType) -> p
                         resource: Resource::Account,
                         status,
                     };
-                    let json = serde_json::to_string(&create_response).unwrap();
-                    let encoded = encode_message(&json.to_string());
-                    send_message(&encoded);
-                    return Ok(());
+                    // let json = serde_json::to_string(&create_response).unwrap();
+                    // let encoded = encode_message(&json.to_string());
+                    // send_message(&encoded);
+                    return Ok(create_response);
                 }
                 _ => {
                     todo!()
@@ -897,7 +885,7 @@ fn handle_create_request(request: CreateRequest, store: &PasswordStoreType) -> p
         return Err(pass::Error::from("header must be provided for credential"));
     }
 }
-fn handle_delete_request(request: DeleteRequest, store: &PasswordStoreType) -> pass::Result<()> {
+fn handle_delete_request(request: DeleteRequest, store: &PasswordStoreType) -> pass::Result<DeleteResponse> {
     if let Some(header) = request.header {
         if let Some(passphrase) = header.get("passphrase").cloned() {
             let id = request.id;
@@ -918,10 +906,7 @@ fn handle_delete_request(request: DeleteRequest, store: &PasswordStoreType) -> p
                     .unwrap_or_default(),
                     status,
             };
-            let json = serde_json::to_string(&delete_response).unwrap();
-            let encoded = encode_message(&json.to_string());
-            send_message(&encoded);
-            Ok(())
+            Ok(delete_response)
         } else {
             return Err(pass::Error::from(
                     "passphrase must be provided for credential",
@@ -941,80 +926,304 @@ fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()> {
             continue;
         }
         let received_message = received_message_res.unwrap();
-        let request_result={if let Ok(request) = serde_json::from_value::<RequestEnum>(received_message) {
-            if let Some(store)=store_opt.as_ref(){
-                match request.clone() {
-                    RequestEnum::Get(request) => handle_get_request(request, store),
-                    RequestEnum::Search(request) => handle_search_request(request, store),
-                    RequestEnum::Fetch(request) => handle_fetch_request(request, store),
-                    RequestEnum::Init(request) => {
-                        let init_res=handle_init_request(request);
-                        if init_res.is_ok(){
-                            stores=init_res.unwrap();
-                            Ok(())
-                        }else{
-                            Err(init_res.unwrap_err())
+        if let Ok(request) = serde_json::from_value::<RequestEnum>(received_message.clone()) {
+            let request_result={
+                if let Some(store)=store_opt.as_ref(){
+                    match request.clone() {
+                        RequestEnum::Get(request) => {
+                            let response= handle_get_request(request.clone(), store);
+                            if response.is_ok(){
+                                let response=ResponseEnum::GetResponse(response.unwrap());
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Ok(response)
+
+                            }else{
+                                let response=
+                                    ResponseEnum::GetResponse(GetResponse{
+                                        status:Status::Failure,
+                                        acknowledgement:request.acknowledgement.clone(),
+                                        data:json!({"error_message": response.unwrap_err(), "request":request}),
+                                        resource:Resource::Password,
+                                        meta:None,
+                                    });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Err(response)
+                            }
                         }
-                    },
-                    RequestEnum::Login(request) => {
-                        let store_res=handle_login_request(request,&stores);
-                        if store_res.is_ok(){
-                            store_opt=Some(store_res.unwrap());
-                            Ok(())
-                        }else{
-                            Err(store_res.unwrap_err())
+                        RequestEnum::Search(request) => {
+                            let response= handle_search_request(request.clone(), store);
+                            if response.is_ok(){
+                                let response=response.unwrap();
+                                let response=ResponseEnum::SearchResponse(response);
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Ok(response)
+
+                            }else{
+                                let response=
+                                    ResponseEnum::SearchResponse(SearchResponse{
+                                        status:Status::Failure,
+                                        acknowledgement:request.acknowledgement.clone(),
+                                        data:vec![],
+                                        resource:request.resource,
+                                        meta:None,
+                                    });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Err(response)
+                            }
+                        },
+                        RequestEnum::Fetch(request) => {
+                            let response= handle_fetch_request(request.clone(), store);
+                            if response.is_ok(){
+                                let response=response.unwrap();
+                                let response=ResponseEnum::FetchResponse(response);
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Ok(response)
+
+                            }else{
+                                let response=
+                                    ResponseEnum::FetchResponse(FetchResponse{
+                                        status:Status::Failure,
+                                        acknowledgement:request.acknowledgement.clone(),
+                                        data:serde_json::Value::Null,
+                                        resource:request.resource,
+                                        meta:None,
+                                    });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Err(response)
+                            }
                         }
-                    },
-                    RequestEnum::Logout(request) => {
-                        let res=handle_logout_request(request,store);
-                        if res.is_ok(){
-                            store_opt=None;
-                        Ok(())
-                        }else{
-                            Err(res.unwrap_err())
+                        RequestEnum::Init(request) => {
+                            let response=handle_init_request(request);
+                            if response.is_ok(){
+                                stores=response.unwrap();
+                                let response=ResponseEnum::InitResponse(InitResponse{
+                                    status:Status::Success,
+                                    acknowledgement:None,
+                                    data:serde_json::Value::Null,
+                                });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Ok(response)
+                            }else{
+                                let response=ResponseEnum::InitResponse(InitResponse{
+                                    status:Status::Failure,
+                                    acknowledgement:None,
+                                    data:json!({"error_message": response.unwrap_err()}),
+                                });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Err(response)
+                            }
+                        },
+                        RequestEnum::Login(request) => {
+                            let store_res=handle_login_request(request.clone(),&stores);
+                            if store_res.is_ok(){
+                                store_opt=Some(store_res.unwrap());
+                                let response=
+                                    ResponseEnum::LoginResponse(
+                                        LoginResponse{
+                                            status:Status::Success,
+                                            acknowledgement:request.acknowledgement.clone(),
+                                            data:serde_json::Value::Null,
+                                        });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Ok(response)
+                            }else{
+                                let response=
+                                    ResponseEnum::LoginResponse(
+                                        LoginResponse{
+                                            status:Status::Failure,
+                                            acknowledgement:request.acknowledgement.clone(),
+                                            data:json!({"error_message": store_res.unwrap_err()}),
+                                        });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Err(response)
+                            }
+                        },
+                        RequestEnum::Logout(request) => {
+                            let res=handle_logout_request(request.clone(),store);
+                            if res.is_ok(){
+                                store_opt=None;
+                                let response=
+                                    ResponseEnum::LogoutResponse(
+                                        LogoutResponse{
+                                            status:Status::Success,
+                                            acknowledgement:request.acknowledgement.clone(),
+                                            data:serde_json::Value::Null,
+                                        });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Ok(response)
+                            }else{
+                                let error_response=LogoutResponse{
+                                    status:Status::Failure,
+                                    acknowledgement:request.acknowledgement.clone(),
+                                    data:json!({"error_message": res.unwrap_err()}),
+                                };
+                                let json = serde_json::to_string(&error_response).unwrap();
+                                send_message(&encode_message(&json));
+                                Err(ResponseEnum::LogoutResponse(error_response))
+                            }
+                        },
+                        RequestEnum::Create(request) => {
+                            let response=handle_create_request(request.clone(), store);
+                            if response.is_ok(){
+                                let create_response=ResponseEnum::CreateResponse(response.unwrap());
+                                let json = serde_json::to_string(&create_response).unwrap();
+                                let encoded = encode_message(&json.to_string());
+                                send_message(&encoded);
+                                Ok(create_response)
+                            }else{
+                                let response=
+                                    ResponseEnum::CreateResponse(
+                                        CreateResponse{
+                                            status:Status::Failure,
+                                            acknowledgement:request.acknowledgement.clone(),
+                                            data:json!({"error_message": response.unwrap_err(), "request":request}),
+                                            resource:request.resource,
+                                            meta:None,
+                                        });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Err(response)
+                            }
+                        },
+                        RequestEnum::Delete(request) => {
+                            let response=handle_delete_request(request.clone(), store);
+                            if response.is_ok(){
+                                let response=ResponseEnum::DeleteResponse(response.unwrap());
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Ok(response)
+                            }else{
+                                let response=
+                                    ResponseEnum::DeleteResponse(DeleteResponse{
+                                        status:Status::Failure,
+                                        acknowledgement:request.acknowledgement.clone(),
+                                        data:json!({"error_message": response.unwrap_err(), "request":request}),
+                                    });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Err(response)
+                            }
+                        },
+                        RequestEnum::Edit(request) => {
+                            let response=handle_edit_request(request.clone(), store);
+                            if response.is_ok(){
+                                let response=ResponseEnum::EditResponse(response.unwrap());
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Ok(response)
+                            }else{
+                                let response=
+                                    ResponseEnum::EditResponse(EditResponse{
+                                        id:request.id.clone(),
+                                        status:Status::Failure,
+                                        acknowledgement:request.acknowledgement.clone(),
+                                        data:json!({"error_message": response.unwrap_err(), "request":request}),
+                                        resource:request.resource,
+                                        meta:None,
+                                    });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Err(response)
+                            }
+                        },
+                        _ => {
+                            Err(
+                                ResponseEnum::GenericError(
+                                    GenericError{
+                                        status:Status::Failure,
+                                        acknowledgement:request.get_acknowledgement(),
+                                        data:json!({"error_message": "Unknown request", "request":request})
+                                    }
+                                    )
+                               )
+                                // Err(pass::Error::Generic("Unknown request"))
                         }
-                    },
-                    RequestEnum::Create(request) => handle_create_request(request, store),
-                    RequestEnum::Delete(request) => handle_delete_request(request, store),
-                    RequestEnum::Edit(request) => handle_edit_request(request, store),
-                    _ => {
-                        Err(pass::Error::Generic("Unknown request"))
+                    }
+                }else {
+                    match request.clone() {
+                        RequestEnum::Init(request) => {
+                            let response=handle_init_request(request.clone());
+                            if response.is_ok(){
+                                stores=response.unwrap();
+                                let response=ResponseEnum::InitResponse(InitResponse{
+                                    status:Status::Success,
+                                    acknowledgement:request.acknowledgement.clone(),
+                                    data:serde_json::Value::Null,
+                                });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Ok(response)
+                            }else{
+                                let response=ResponseEnum::InitResponse(InitResponse{
+                                    status:Status::Failure,
+                                    acknowledgement:request.acknowledgement.clone(),
+                                    data:json!({"error_message": response.unwrap_err()}),
+                                });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Err(response)
+                            }
+                        },
+                        RequestEnum::Login(request) => {
+                            let store_res=handle_login_request(request.clone(),&stores);
+                            if store_res.is_ok(){
+                                store_opt=Some(store_res.unwrap());
+                                let response=
+                                    ResponseEnum::LoginResponse(
+                                        LoginResponse{
+                                            status:Status::Success,
+                                            acknowledgement:request.acknowledgement.clone(),
+                                            data:serde_json::Value::Null,
+                                        });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Ok(response)
+                            }else{
+                                let response=
+                                    ResponseEnum::LoginResponse(
+                                    LoginResponse{
+                                    status:Status::Failure,
+                                    acknowledgement:request.acknowledgement.clone(),
+                                    data:json!({"error_message": store_res.unwrap_err()}),
+                                });
+                                let json = serde_json::to_string(&response).unwrap();
+                                send_message(&encode_message(&json));
+                                Err(response)
+                            }
+                        },
+                        _ => {
+                            error!("Only login request could be accepted when no store has been set. Request was: {:?}", request);
+                            Err(
+                                ResponseEnum::GenericError(
+                                    GenericError{
+                                        status:Status::Failure,
+                                        acknowledgement:request.get_acknowledgement(),
+                                        data:json!({"error_message": "Only login request could be accepted when no store has been set", "request":request})
+                                    }
+                                    )
+                               )
+                        }
                     }
                 }
-            }else {
-                match request.clone() {
-                    RequestEnum::Init(request) => {
-                        let init_res=handle_init_request(request);
-                        if init_res.is_ok(){
-                            stores=init_res.unwrap();
-                            Ok(())
-                        }else{
-                            Err(init_res.unwrap_err())
-                        }
-                    },
-                    RequestEnum::Login(request) => {
-                        let store_res=handle_login_request(request,&stores);
-                        if store_res.is_ok(){
-                            store_opt=Some(store_res.unwrap());
-                            Ok(())
-                        }else{
-                            Err(store_res.unwrap_err())
-                        }
-                    },
-                    _ => {
-                        error!("Only login request could be accepted when no store has been set. Request was: {:?}", request);
-                        Err(pass::Error::Generic("Only login request could be accepted when no store has been set"))
-                    }
-                }
+            };
+            if let Err(error)=request_result{
+                error!("Failed to handle request: {request} {error}", request=request,error=error);
+                let json = serde_json::to_string(&error).unwrap();
+                send_message(&encode_message(&json));
             }
         } else {
-            Err(pass::Error::Generic("Failed to parse message"))
-        }
-        };
-        if request_result.is_err(){
-            error!("Error: {:?}", request_result.unwrap_err());
-            continue;
-        }else{
+            error!("Failed to parse message: {:?}", received_message);
         }
     }
 }
@@ -1038,32 +1247,32 @@ fn update_entry(
     let old_name=parent.to_string()+"/"+path.file_stem().unwrap().to_str().unwrap();
     let entry=get_entry(&*store.lock().unwrap().lock().unwrap(), &old_name).unwrap();
     let new_name={
-    if let Some(new_name)=new_name.as_ref(){
-        if let Some(domain)=domain.as_ref(){
-            let name=domain.to_owned()+"/"+new_name;
+        if let Some(new_name)=new_name.as_ref(){
+            if let Some(domain)=domain.as_ref(){
+                let name=domain.to_owned()+"/"+new_name;
+                if name != old_name{
+                    Some(name)
+                }else{
+                    None
+                }
+            }else{
+                let name=path.parent().unwrap().file_stem().unwrap().to_str().unwrap().to_string()+"/"+new_name;
+                if name != old_name{
+                    Some(name)
+                }else{
+                    None
+                }
+            }
+        }else if domain.is_some(){
+            let name=domain.unwrap()+"/"+path.file_stem().unwrap().to_str().unwrap();
             if name != old_name{
                 Some(name)
             }else{
                 None
             }
-        }else{
-            let name=path.parent().unwrap().file_stem().unwrap().to_str().unwrap().to_string()+"/"+new_name;
-            if name != old_name{
-                Some(name)
-            }else{
-                None
-            }
-        }
-    }else if domain.is_some(){
-        let name=domain.unwrap()+"/"+path.file_stem().unwrap().to_str().unwrap();
-        if name != old_name{
-            Some(name)
         }else{
             None
         }
-    }else{
-        None
-    }
     };
     if new_name.is_some(){
         do_rename_file(&old_name, &new_name.clone().unwrap(), store.clone(), passphrase.clone())?;
@@ -1073,12 +1282,12 @@ fn update_entry(
         id=old_name;
     }
     let res=if let Some(password) = password {
-       change_password(
+        change_password(
             &password,
             &id,
             store.clone(),
             passphrase.clone(),
-        )
+            )
     } 
     else {
         Ok(())
@@ -1327,19 +1536,19 @@ pub fn setup_logger() -> std::result::Result<(), fern::InitError> {
     .chain(std::io::stderr())
         .chain(
             fern::Dispatch::new().level(LevelFilter::Warn).chain(
-            fern::log_file(format!(
-                    "{}/rpass/browser-rpass/native-client/logs/output-{}.log",
-                    home,
-                    chrono::offset::Local::now()
-                    ))?))
+                fern::log_file(format!(
+                        "{}/rpass/browser-rpass/native-client/logs/output-{}.log",
+                        home,
+                        chrono::offset::Local::now()
+                        ))?))
         .chain(
             fern::Dispatch::new().level(LevelFilter::Warn).chain(
-            std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(format!("{}/rpass/browser-rpass/native-client/logs/output.log",home))?,
-            ))
+                std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(format!("{}/rpass/browser-rpass/native-client/logs/output.log",home))?,
+                ))
         .apply()?;
     Ok(())
 }

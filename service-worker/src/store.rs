@@ -1,8 +1,10 @@
 use crate::event_handlers::native_message_handler::process_native_message;
 pub use crate::Resource;
 use crate::{api, StorageStatus};
-use browser_rpass::request::{RequestEnumTrait, SessionEventType};
-use browser_rpass::response::{CreateResponse, EditResponse, FetchResponse};
+use browser_rpass::request::{LoginRequest, LogoutRequest, RequestEnumTrait, SessionEventType};
+use browser_rpass::response::{
+    CreateResponse, EditResponse, FetchResponse, LogoutResponse, ResponseEnum, ResponseEnumTrait,
+};
 use browser_rpass::store;
 use browser_rpass::types::Account;
 use browser_rpass::{dbg, StorageArea};
@@ -38,9 +40,9 @@ use yewdux::{
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SessionAction {
     Login,
-    LoginError,
+    LoginError(LoginRequest),
     Logout,
-    LogoutError,
+    LogoutError(LogoutResponse),
     DataFetched(FetchResponse),
     DataLoading(Option<String>),
     DataCreated(CreateResponse),
@@ -73,16 +75,9 @@ fn native_port_disconnect_handler(_port: Port) {
     }
 }
 fn native_port_message_handler(msg: String) {
-    match serde_json::from_slice::<serde_json::Value>(&msg.as_bytes()) {
-        Ok(parsed_response) => {
-            let acknowledgement = parsed_response.get("acknowledgement").cloned().unwrap();
-            let acknowledgement = acknowledgement.as_str().unwrap();
-            let _ = process_native_message(
-                parsed_response,
-                NATIVE_PORT.lock().borrow().clone(),
-                REQUEST_MAP.lock().unwrap().get(acknowledgement),
-                Some(json!({"acknowledgement":acknowledgement})),
-            );
+    match serde_json::from_slice::<Value>(&msg.as_bytes()) {
+        Ok(parsed_json) => {
+            let _ = process_native_message(parsed_json, NATIVE_PORT.lock().borrow().clone(), None);
         }
         Err(e) => {
             error!(
@@ -212,6 +207,11 @@ impl Reducer<SessionStore> for SessionActionWrapper {
     fn apply(self, store: Rc<SessionStore>) -> Rc<SessionStore> {
         let meta = self.meta;
         let mut extension_port_name: Option<String> = None;
+        let acknowledgement = meta
+            .as_ref()
+            .and_then(|meta| meta.get("acknowledgement"))
+            .and_then(|ack| ack.as_str())
+            .map(|ack| ack.to_owned());
         let session_action = self.action;
         let mut clear_ports = false;
         let (session_store, session_event) = match session_action {
@@ -250,23 +250,33 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         meta,
                         resource: Some(vec![Resource::Auth]),
                         is_global: true,
+                        acknowledgement,
                     }),
                 )
             }
-            SessionAction::LoginError => (
-                SessionStore {
-                    user: (store.user.0.clone(), None),
-                    ..store.deref().clone()
-                }
-                .into(),
-                Some(SessionEvent {
-                    event_type: SessionEventType::LoginError,
-                    data: None,
-                    meta,
-                    resource: Some(vec![Resource::Auth]),
-                    is_global: true,
-                }),
-            ),
+            SessionAction::LoginError(request) => {
+                let request_acknowledgement = request.get_acknowledgement();
+                if let Some(ref request_acknowledgement) = request_acknowledgement {
+                    extension_port_name =
+                        PORT_ID_MAP.lock().unwrap().remove(request_acknowledgement);
+                };
+
+                (
+                    SessionStore {
+                        user: (store.user.0.clone(), None),
+                        ..store.deref().clone()
+                    }
+                    .into(),
+                    Some(SessionEvent {
+                        event_type: SessionEventType::LoginError,
+                        data: None,
+                        meta,
+                        resource: Some(vec![Resource::Auth]),
+                        is_global: false,
+                        acknowledgement: request_acknowledgement,
+                    }),
+                )
+            }
             SessionAction::Logout => {
                 if (*store).user.1.is_some() {
                     clear_ports = true;
@@ -283,6 +293,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             meta,
                             resource: Some(vec![Resource::Auth]),
                             is_global: true,
+                            acknowledgement,
                         }),
                     )
                 } else {
@@ -315,6 +326,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             meta,
                             resource: Some(vec![resource]),
                             is_global: true,
+                            acknowledgement,
                         }),
                     )
                 }
@@ -329,6 +341,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         meta,
                         resource: Some(vec![resource]),
                         is_global: true,
+                        acknowledgement,
                     }),
                 ),
             },
@@ -357,6 +370,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 meta,
                                 resource: Some(vec![resource]),
                                 is_global: true,
+                                acknowledgement,
                             }),
                         )
                     }
@@ -371,6 +385,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             meta,
                             resource: Some(vec![resource]),
                             is_global: true,
+                            acknowledgement,
                         }),
                     ),
                 }
@@ -415,6 +430,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 meta,
                                 resource: Some(vec![resource]),
                                 is_global: true,
+                                acknowledgement,
                             }),
                         )
                     }
@@ -429,6 +445,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             meta,
                             resource: Some(vec![resource]),
                             is_global: true,
+                            acknowledgement,
                         }),
                     ),
                 }
@@ -461,6 +478,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 meta: Some(meta),
                                 resource: Some(vec![resource]),
                                 is_global: true,
+                                acknowledgement,
                             }),
                         }
                     };
@@ -517,6 +535,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 meta,
                                 resource: Some(vec![resource]),
                                 is_global: false,
+                                acknowledgement,
                             }),
                             _ => None,
                         };

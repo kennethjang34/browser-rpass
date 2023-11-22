@@ -1,7 +1,7 @@
 use browser_rpass::{
     dbg,
-    request::SessionEvent,
-    response::{MessageEnum, RequestEnum},
+    request::{SessionEvent, SessionEventType},
+    response::{LoginResponse, MessageEnum, RequestEnum},
     Port,
 };
 use gloo_utils::format::JsValueSerdeExt;
@@ -45,11 +45,11 @@ pub fn broadcast_session_event(session_event: SessionEvent) {
         }
     }
 }
-pub fn whisper_session_event(session_event: SessionEvent, port: &Port) {
-    let message = MessageEnum::Message(RequestEnum::create_session_event_request(
+pub fn whisper_session_event(mut session_event: SessionEvent, port: &Port) {
+    let msg = MessageEnum::Message(RequestEnum::create_session_event_request(
         None,
-        session_event.clone(),
+        session_event,
         None,
     ));
-    port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&message).unwrap());
+    port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&msg).unwrap());
 }

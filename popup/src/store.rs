@@ -65,6 +65,22 @@ pub enum StoreStatus {
     Failure,
     Error,
 }
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
+pub enum LoginStatus {
+    LoginFailed,
+    LoggedIn,
+    LoggedOut,
+    #[default]
+    Idle,
+    Loading,
+    LoginSuccess,
+    LoginError,
+    LogoutSuccess,
+    LogoutError,
+    LogoutFailed,
+}
+
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct StoreData {
     pub accounts: Mrc<Vec<Rc<Account>>>,
@@ -84,6 +100,7 @@ pub struct PopupStore {
     pub alert_input: AlertInput,
     pub verified: bool,
     pub status: StoreStatus,
+    pub login_status: LoginStatus,
     pub data: StoreData,
     pub path: Option<String>,
 }
@@ -91,7 +108,7 @@ pub struct PopupStore {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum LoginAction {
     LoginStarted(String, Value),
-    LoginError(Value),
+    LoginError(Value, String),
     LoginSucceeded(Value),
     LoginFailed(Value),
     LogoutSucceeded(Value),
@@ -99,6 +116,7 @@ pub enum LoginAction {
     LogoutStarted(Value),
     Logout(Value),
     Login(String, Value),
+    LoginIdle,
     RememberMe(bool),
 }
 
@@ -281,23 +299,35 @@ impl Reducer<PopupStore> for LoginAction {
                     user_id: Some(user_id),
                     remember_me: store.persistent_data.remember_me,
                 },
+                login_status: LoginStatus::Loading,
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LoginError(data) => PopupStore {
+            LoginAction::LoginIdle => PopupStore {
                 page_loading: false,
-                status: StoreStatus::Error,
+                login_status: LoginStatus::Idle,
                 ..store.deref().clone()
+            }
+            .into(),
+            LoginAction::LoginError(data, user_id) => {
+                debug!("LoginError: {:?}", user_id);
+                PopupStore {
+                    page_loading: false,
+                    login_status: LoginStatus::LoginError,
+                    ..store.deref().clone()
+                }
             }
             .into(),
             LoginAction::LoginSucceeded(data) => PopupStore {
                 page_loading: false,
                 verified: true,
+                login_status: LoginStatus::LoginSuccess,
                 ..store.deref().clone()
             }
             .into(),
             LoginAction::LoginFailed(data) => PopupStore {
                 page_loading: false,
+                login_status: LoginStatus::LoginFailed,
                 ..store.deref().clone()
             }
             .into(),
@@ -312,7 +342,7 @@ impl Reducer<PopupStore> for LoginAction {
                     },
                     remember_me: store.persistent_data.remember_me,
                 },
-                status: StoreStatus::Success,
+                login_status: LoginStatus::LogoutSuccess,
                 data: StoreData {
                     accounts: Mrc::new(vec![]),
                     ..store.deref().clone().data
@@ -322,12 +352,13 @@ impl Reducer<PopupStore> for LoginAction {
             .into(),
             LoginAction::LogoutFailed(data) => PopupStore {
                 page_loading: false,
-                status: StoreStatus::Failure,
+                login_status: LoginStatus::LogoutFailed,
                 ..store.deref().clone()
             }
             .into(),
             LoginAction::LogoutStarted(data) => PopupStore {
                 page_loading: true,
+                login_status: LoginStatus::Loading,
                 ..store.deref().clone()
             }
             .into(),
@@ -342,6 +373,7 @@ impl Reducer<PopupStore> for LoginAction {
                         None
                     },
                 },
+                login_status: LoginStatus::LoggedOut,
                 data: StoreData {
                     accounts: Mrc::new(vec![]),
                     ..store.deref().clone().data
@@ -357,26 +389,12 @@ impl Reducer<PopupStore> for LoginAction {
                         remember_me: store.persistent_data.remember_me,
                         user_id: Some(user_id),
                     },
+                    login_status: LoginStatus::LoggedIn,
                     ..store.deref().clone()
                 }
             }
             .into(),
             LoginAction::RememberMe(remember_me) => {
-                PopupStore {
-                    persistent_data: PersistentStoreData {
-                        remember_me,
-                        user_id: if remember_me {
-                            store.persistent_data.user_id.clone()
-                        } else {
-                            None
-                        },
-                    },
-                    ..store.deref().clone()
-                }
-            }
-            .into(),
-            LoginAction::RememberMe(remember_me) => {
-                debug!("remember_me changed: {:?}", remember_me);
                 PopupStore {
                     persistent_data: PersistentStoreData {
                         remember_me,

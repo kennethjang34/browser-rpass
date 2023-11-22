@@ -31,10 +31,10 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
     let meta = Some(json!({"requester_port_id":extension_port.name()}));
     wasm_bindgen_futures::spawn_local({
         let mut request = request.clone();
-        let acknowledgement = request.get_acknowledgement().unwrap().clone();
+        let session_event_acknowledgement = request.get_acknowledgement().unwrap().clone();
         let extension_port = extension_port.clone();
         if extension_port.name().is_empty() {
-            let acknowledgement = acknowledgement.clone();
+            let acknowledgement = session_event_acknowledgement.clone();
             extension_port.set_name(acknowledgement.clone());
             PORT_ID_MAP
                 .lock()
@@ -64,17 +64,18 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                             meta,
                             resource: None,
                             is_global: false,
+                            acknowledgement: Some(session_event_acknowledgement.clone()),
                         }
                     };
                     let message = MessageEnum::Message(RequestEnum::create_session_event_request(
-                        Some(acknowledgement.clone()),
+                        Some(session_event_acknowledgement.clone()),
                         mock_session_event.clone(),
                         None,
                     ));
                     PORT_ID_MAP
                         .lock()
                         .unwrap()
-                        .insert(acknowledgement.clone(), extension_port.name());
+                        .insert(session_event_acknowledgement.clone(), extension_port.name());
                     extension_port
                         .post_message(<JsValue as JsValueSerdeExt>::from_serde(&message).unwrap());
                 }
@@ -120,7 +121,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                         PORT_ID_MAP
                             .lock()
                             .unwrap()
-                            .insert(acknowledgement.clone(), extension_port.name());
+                            .insert(session_event_acknowledgement.clone(), extension_port.name());
                         native_port.post_message(
                             <JsValue as JsValueSerdeExt>::from_serde(&logout_request).unwrap(),
                         );
@@ -133,7 +134,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                         PORT_ID_MAP
                             .lock()
                             .unwrap()
-                            .insert(acknowledgement.clone(), extension_port.name());
+                            .insert(session_event_acknowledgement.clone(), extension_port.name());
                         native_port.post_message(
                             <JsValue as JsValueSerdeExt>::from_serde(&create_request).unwrap(),
                         );
@@ -146,7 +147,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                         PORT_ID_MAP
                             .lock()
                             .unwrap()
-                            .insert(acknowledgement.clone(), extension_port.name());
+                            .insert(session_event_acknowledgement.clone(), extension_port.name());
                         native_port.post_message(
                             <JsValue as JsValueSerdeExt>::from_serde(&edit_request).unwrap(),
                         );
@@ -159,7 +160,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                         PORT_ID_MAP
                             .lock()
                             .unwrap()
-                            .insert(acknowledgement.clone(), extension_port.name());
+                            .insert(session_event_acknowledgement.clone(), extension_port.name());
                         native_port.post_message(
                             <JsValue as JsValueSerdeExt>::from_serde(&delete_request).unwrap(),
                         );
@@ -188,10 +189,10 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                                         request.get_acknowledgement(),
                                     ),
                                 });
-                                PORT_ID_MAP
-                                    .lock()
-                                    .unwrap()
-                                    .insert(acknowledgement.clone(), extension_port.name());
+                                PORT_ID_MAP.lock().unwrap().insert(
+                                    session_event_acknowledgement.clone(),
+                                    extension_port.name(),
+                                );
                                 REQUEST_MAP.lock().unwrap().insert(
                                     native_request_acknowledgement.clone(),
                                     request.clone(),
@@ -221,6 +222,9 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                                         meta,
                                         resource: Some(vec![resource]),
                                         is_global: true,
+                                        acknowledgement: Some(
+                                            session_event_acknowledgement.clone(),
+                                        ),
                                     }
                                 };
                                 let message = MessageEnum::Message(
@@ -267,7 +271,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                 PORT_ID_MAP
                     .lock()
                     .unwrap()
-                    .insert(acknowledgement.clone(), extension_port.name());
+                    .insert(session_event_acknowledgement.clone(), extension_port.name());
                 native_port.post_message(
                     <JsValue as JsValueSerdeExt>::from_serde(&login_request).unwrap(),
                 );

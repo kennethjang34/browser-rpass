@@ -32,6 +32,7 @@ pub struct SessionEvent {
     pub meta: Option<Value>,
     pub resource: Option<Vec<Resource>>,
     pub is_global: bool,
+    pub acknowledgement: Option<String>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SessionEventWrapper {
