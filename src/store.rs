@@ -16,6 +16,10 @@ lazy_static! {
     pub static ref MESSAGE_ACKNOWLEDGEMENTS_NATIVE: Mutex<HashMap<String, Vec<Box<dyn FnOnce(&[u8], Port) -> Result<(), String> + Send>>>> =
         Mutex::new(HashMap::new());
 }
+// lazy_static! {
+//     pub static ref MESSAGE_ACKNOWLEDGEMENTS_POP_UP: Mutex<HashMap<String, AsyncCallback>> =
+//         Mutex::new(HashMap::new());
+// }
 lazy_static! {
     pub static ref MESSAGE_ACKNOWLEDGEMENTS_POP_UP: Mutex<HashMap<String, AsyncCallback>> =
         Mutex::new(HashMap::new());

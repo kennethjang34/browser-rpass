@@ -2,7 +2,9 @@ use crate::event_handlers::native_message_handler::process_native_message;
 pub use crate::Resource;
 use crate::{api, StorageStatus};
 use browser_rpass::request::{LoginRequest, LogoutRequest, RequestEnumTrait, SessionEventType};
-use browser_rpass::response::{CreateResponse, EditResponse, FetchResponse};
+use browser_rpass::response::{
+    CreateResponse, EditResponse, FetchResponse, LogoutResponse, ResponseEnum, ResponseEnumTrait,
+};
 use browser_rpass::store;
 use browser_rpass::types::Account;
 use browser_rpass::{dbg, StorageArea};
@@ -40,7 +42,7 @@ pub enum SessionAction {
     Login,
     LoginError(LoginRequest),
     Logout,
-    LogoutError(LogoutRequest),
+    LogoutError(LogoutResponse),
     DataFetched(FetchResponse),
     DataLoading(Option<String>),
     DataCreated(CreateResponse),
@@ -73,20 +75,9 @@ fn native_port_disconnect_handler(_port: Port) {
     }
 }
 fn native_port_message_handler(msg: String) {
-    match serde_json::from_slice::<serde_json::Value>(&msg.as_bytes()) {
-        Ok(parsed_response) => {
-            let acknowledgement = parsed_response.get("acknowledgement").cloned().unwrap();
-            let acknowledgement = acknowledgement.as_str().unwrap();
-            let _ = process_native_message(
-                parsed_response,
-                NATIVE_PORT.lock().borrow().clone(),
-                REQUEST_MAP
-                    .lock()
-                    .unwrap()
-                    .get(acknowledgement)
-                    .map(|req| req.clone()),
-                Some(json!({"acknowledgement":acknowledgement})),
-            );
+    match serde_json::from_slice::<Value>(&msg.as_bytes()) {
+        Ok(parsed_json) => {
+            let _ = process_native_message(parsed_json, NATIVE_PORT.lock().borrow().clone(), None);
         }
         Err(e) => {
             error!(
