@@ -103,6 +103,8 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                             }
                             &SessionEventType::CreationFailed => {
                                 let resource = resource[0].clone();
+                                debug!("creation failed for resource: {:?}", resource);
+                                debug!("request: {:?}", request);
                                 match resource {
                                     Resource::Account => {
                                         dispatch.apply(DataAction::ResourceCreationFailed(

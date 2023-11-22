@@ -57,12 +57,22 @@ use yewdux::prelude::*;
 use crate::Account;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
-pub enum StoreStatus {
+pub enum StoreDataStatus {
     #[default]
     Idle,
     Loading,
-    Success,
-    Failure,
+    CreationStarted,
+    CreationSuccess,
+    CreationFailed,
+    DeletionStarted,
+    DeletionSuccess,
+    DeletionFailed,
+    EditionStarted,
+    EditionSuccess,
+    EditionFailed,
+    FetchStarted,
+    FetchSuccess,
+    FetchFailed,
     Error,
 }
 
@@ -99,7 +109,7 @@ pub struct PopupStore {
     pub page_loading: bool,
     pub alert_input: AlertInput,
     pub verified: bool,
-    pub status: StoreStatus,
+    pub data_status: StoreDataStatus,
     pub login_status: LoginStatus,
     pub data: StoreData,
     pub path: Option<String>,
@@ -157,17 +167,20 @@ impl Reducer<PopupStore> for DataAction {
         match self {
             DataAction::ResourceCreationStarted(_resource, _data) => PopupStore {
                 page_loading: true,
+                data_status: StoreDataStatus::CreationStarted,
                 ..state.deref().clone()
             }
             .into(),
             DataAction::ResourceEditionStarted(_resource, _data) => PopupStore {
                 page_loading: true,
+                data_status: StoreDataStatus::EditionStarted,
                 ..state.deref().clone()
             }
             .into(),
             DataAction::ResourceDeletionStarted(_resource, _data) => {
                 PopupStore {
                     page_loading: true,
+                    data_status: StoreDataStatus::DeletionStarted,
                     ..state.deref().clone()
                 }
             }
@@ -187,6 +200,7 @@ impl Reducer<PopupStore> for DataAction {
                             accounts: Mrc::new(accounts),
                             ..state_data
                         },
+                        data_status: StoreDataStatus::FetchSuccess,
                         ..state.deref().clone()
                     }
                     .into()
@@ -201,11 +215,11 @@ impl Reducer<PopupStore> for DataAction {
                     let mut state_data = state.data.clone();
                     let accounts = state_data.accounts.clone();
                     accounts.borrow_mut().push(Rc::new(account));
-
                     state_data.accounts = accounts;
                     PopupStore {
                         page_loading: false,
                         data: state_data,
+                        data_status: StoreDataStatus::CreationSuccess,
                         ..state.deref().clone()
                     }
                     .into()
@@ -228,6 +242,7 @@ impl Reducer<PopupStore> for DataAction {
                     PopupStore {
                         page_loading: false,
                         data: state_data,
+                        data_status: StoreDataStatus::EditionSuccess,
                         ..state.deref().clone()
                     }
                     .into()
@@ -239,6 +254,7 @@ impl Reducer<PopupStore> for DataAction {
             },
             DataAction::ResourceFetchStarted(_resource) => PopupStore {
                 page_loading: true,
+                data_status: StoreDataStatus::FetchStarted,
                 ..state.deref().clone()
             }
             .into(),
@@ -254,6 +270,7 @@ impl Reducer<PopupStore> for DataAction {
                         PopupStore {
                             page_loading: false,
                             data: state_data,
+                            data_status: StoreDataStatus::DeletionSuccess,
                             ..state.deref().clone()
                         }
                         .into()
@@ -274,6 +291,7 @@ impl Reducer<PopupStore> for DataAction {
             DataAction::ResourceCreationFailed(resource, _session_event_wrapper) => {
                 PopupStore {
                     page_loading: false,
+                    data_status: StoreDataStatus::CreationFailed,
                     ..state.deref().clone()
                 }
             }
@@ -281,11 +299,23 @@ impl Reducer<PopupStore> for DataAction {
             DataAction::ResourceEditionFailed(resource, _session_event_wrapper) => {
                 PopupStore {
                     page_loading: false,
+                    data_status: StoreDataStatus::EditionFailed,
                     ..state.deref().clone()
                 }
             }
             .into(),
-            _ => state,
+            DataAction::ResourceDeletionFailed(resource, _session_event_wrapper) => PopupStore {
+                page_loading: false,
+                data_status: StoreDataStatus::DeletionFailed,
+                ..state.deref().clone()
+            }
+            .into(),
+            DataAction::ResourceEdited(resource, _data) => PopupStore {
+                page_loading: true,
+                data_status: StoreDataStatus::EditionSuccess,
+                ..state.deref().clone()
+            }
+            .into(),
         }
     }
 }
