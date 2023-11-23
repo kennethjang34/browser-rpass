@@ -1,9 +1,9 @@
 use crate::{
-    api::extension_api::{create_account, fetch_accounts, logout},
+    api::extension_api::{fetch_accounts, logout},
     pages::account_page::AccountPage,
     pages::login_page::LoginPage,
     store::PopupStore,
-    Account,
+    store::StoreDataStatus,
 };
 use gloo_utils::window;
 use log::*;
@@ -43,6 +43,7 @@ pub fn home_page(_props: &Props) -> Html {
         },
         verified.clone(),
     );
+    let store_status = use_selector(|state: &PopupStore| state.data_status.clone());
     html! {
                 <div tabindex="-1" aria-hidden="true" style="width: 600px; height: 600px" class=" top-0 left-0 right-0 z-50 overflow-hidden md:inset-0"
                 >
@@ -65,15 +66,32 @@ pub fn home_page(_props: &Props) -> Html {
         </div>
     </div>
             }
-                            <div style={if *loading{
-                                "opacity: 0.5; pointer-events: none"
-                            }
-                            else{
-                                "opacity: 1; height:90%;"
-                            }}>
+                if *store_status == StoreDataStatus::FetchFailed{
+                    <div class="absolute flex items-center justify-center rounded-lg  overflow-hidden p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 z-50"
+                        style="left: 50%; top:50%;transform: translate(-50%,-50%);" role="alert">
+                        <svg class="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
+                        </svg>
+                        <span class="sr-only">{"info"}</span>
+                        <div>
+                        <span class="font-medium">{"Error!"}</span> {" Loading Failed"}
+                        </div>
+                    </div>
+                }
+                <div style={
+                    "height:90%;".to_owned()+
+                    {
+                        if *loading || *store_status == StoreDataStatus::FetchFailed{
+                            "opacity: 0.5; pointer-events: none"
+                        }
+                        else{
+                            "opacity: 1;"
+                        }
+                    }
+                }>
                 if *verified{
-                    <AccountPage user_id={(*user_id).clone()} path={(*path).clone()}/>
-                    <button type="button" class="fixed my-3 bottom-0 right-0 text-red-700 hover:text-white border border-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-3 dark:border-red-500 dark:text-red-500 dark:hover:text-white dark:hover:bg-red-600 dark:focus:ring-red-900" onclick={on_logout_click}>{"logout"}</button>
+                        <AccountPage user_id={(*user_id).clone()} path={(*path).clone()}/>
+                        <button type="button" class="fixed my-3 bottom-0 right-0 text-red-700 hover:text-white border border-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-3 dark:border-red-500 dark:text-red-500 dark:hover:text-white dark:hover:bg-red-600 dark:focus:ring-red-900" onclick={on_logout_click}>{"logout"}</button>
                 }
                 else{
                         <LoginPage />
