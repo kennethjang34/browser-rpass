@@ -1,10 +1,13 @@
 use crate::components::edit_account_popup::EditAccountPopup;
+use crate::store::DataAction;
+use crate::store::PopupStore;
 use crate::Account;
 use crate::Resource;
 use log::*;
 use std::rc::Rc;
 use yew;
 use yew::prelude::*;
+use yewdux::dispatch::Dispatch;
 
 use crate::api::extension_api::delete_resource;
 
@@ -34,10 +37,12 @@ pub fn account_entry_list_component(props: &AccountEntryListProps) -> Html {
             show_edit_account.set(Some(account.clone()));
         }
     });
+    let popup_store_dispatch = Dispatch::<PopupStore>::new();
     let close_edit_account_popup = {
         let show_edit_account = show_edit_account.clone();
         Callback::from(move |_: MouseEvent| {
             show_edit_account.set(None);
+            popup_store_dispatch.apply(DataAction::Idle);
         })
     };
     let account_list_component = props
@@ -48,7 +53,7 @@ pub fn account_entry_list_component(props: &AccountEntryListProps) -> Html {
         .map(|(i, account)| {
             let delete_account = delete_account.clone();
             let id = account.id.clone();
-            let account2 = account.clone();
+            let account = account.clone();
             let on_edit_account = on_edit_account.clone();
             html! {
             <>
@@ -71,7 +76,7 @@ pub fn account_entry_list_component(props: &AccountEntryListProps) -> Html {
                     onclick={
                         move |e:MouseEvent|{delete_account.emit(
                                 (
-                                e,account2.clone())
+                                e,account.clone())
                     )}
                     }
                     class="font-medium text-blue-600 dark:text-blue-500 hover:underline">{ "Delete" }</a>
