@@ -145,6 +145,7 @@ pub enum DataAction {
     ResourceEditionStarted(Resource, Value),
     ResourceCreationStarted(Resource, Value),
     ResourceFetched(Resource, Value, Option<Value>),
+    Idle,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -313,6 +314,12 @@ impl Reducer<PopupStore> for DataAction {
             DataAction::ResourceEdited(resource, _data) => PopupStore {
                 page_loading: true,
                 data_status: StoreDataStatus::EditionSuccess,
+                ..state.deref().clone()
+            }
+            .into(),
+            DataAction::Idle => PopupStore {
+                page_loading: false,
+                data_status: StoreDataStatus::Idle,
                 ..state.deref().clone()
             }
             .into(),
