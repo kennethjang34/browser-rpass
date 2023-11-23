@@ -52,7 +52,6 @@ pub fn edit_account_popup(props: &Props) -> Html {
             edit_account(account.id.clone(), domain, username, password);
         }
     });
-    let edition_status = use_selector(|state: &PopupStore| state.data_status.clone());
     let on_reveal = {
         let reveal_password = reveal_password.clone();
         Callback::from(move |e: MouseEvent| {
@@ -133,7 +132,7 @@ pub fn edit_account_popup(props: &Props) -> Html {
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                         {"Edit Account"}
                         </h3>
-                if *edition_status == StoreDataStatus::EditionFailed {
+                if *store_status == StoreDataStatus::EditionFailed {
                     <div id="toast-danger" class="flex absolute right-0 items-center w-full max-w-xs p-4 mr-5 my-4 text-gray-500 bg-white rounded-lg shadow dark:text-gray-400 dark:bg-gray-800" role="alert">
                         <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-red-500 bg-red-100 rounded-lg dark:bg-red-800 dark:text-red-200">
                         <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
@@ -141,7 +140,7 @@ pub fn edit_account_popup(props: &Props) -> Html {
                         </svg>
                         <span class="sr-only">{"Error icon"}</span>
                         </div>
-                        <div class="ms-3 text-sm font-normal">{"edition failed"}</div>
+                        <div class="ms-3 text-sm font-normal">{"Edition Failed"}</div>
                         <button type="button" onclick={
                             close_error
                         } class="ms-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8 dark:text-gray-500 dark:hover:text-white dark:bg-gray-800 dark:hover:bg-gray-700" data-dismiss-target="#toast-danger" aria-label="Close">
