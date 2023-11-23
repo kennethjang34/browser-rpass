@@ -22,66 +22,70 @@ pub struct Props {
 
 #[function_component(AccountPage)]
 pub fn account_page(props: &Props) -> Html {
-    let account_selector = use_selector(|state: &PopupStore| state.data.accounts.clone());
     let search_string = use_state(|| String::new());
     let path = props.path.clone();
-    let accounts = {
-        if search_string.is_empty() {
-            let mut result: BTreeMap<isize, Vec<Rc<Account>>> = BTreeMap::new();
-            let mut non_matched: Vec<Rc<Account>> = vec![];
-            account_selector
-                .borrow()
-                .iter()
-                .cloned()
-                .for_each(|account| {
-                    let domain = account.domain.as_ref();
-                    let path = path.clone().unwrap_or("".to_owned());
-                    let m_res = best_match(&path, domain.unwrap_or(&String::new()));
-                    if let Some(m_res) = m_res {
-                        let score = m_res.score();
-                        result
-                            .entry(score)
-                            .and_modify(|ls| ls.push(account.clone()))
-                            .or_insert(vec![account.clone()]);
-                    } else {
-                        non_matched.push(account);
+    let account_selector = use_selector_with_deps(
+        |state: &PopupStore, (search_string, path)| {
+            let accounts = state.data.accounts.clone();
+            let accounts = {
+                if search_string.is_empty() {
+                    let mut result: BTreeMap<isize, Vec<Rc<Account>>> = BTreeMap::new();
+                    let mut non_matched: Vec<Rc<Account>> = vec![];
+                    accounts.borrow().iter().cloned().for_each(|account| {
+                        let domain = account.domain.as_ref();
+                        let path = path.clone().unwrap_or("".to_owned());
+                        let m_res = best_match(&path, domain.unwrap_or(&String::new()));
+                        if let Some(m_res) = m_res {
+                            let score = m_res.score();
+                            result
+                                .entry(score)
+                                .and_modify(|ls| ls.push(account.clone()))
+                                .or_insert(vec![account.clone()]);
+                        } else {
+                            non_matched.push(account);
+                        }
+                    });
+                    let mut result_vec: Vec<Rc<Account>> = vec![];
+                    for vac in result.values() {
+                        for v in vac {
+                            result_vec.push((*v).clone());
+                        }
                     }
-                });
-            let mut result_vec: Vec<Rc<Account>> = vec![];
-            for vac in result.values() {
-                for v in vac {
-                    result_vec.push((*v).clone());
+                    for v in non_matched {
+                        result_vec.push(v.clone());
+                    }
+                    result_vec
+                } else {
+                    let mut search_result: BTreeMap<isize, Vec<Rc<Account>>> = BTreeMap::new();
+                    let account_data: Vec<Rc<Account>> =
+                        accounts.borrow().iter().cloned().collect();
+                    for account in account_data {
+                        let account_id = &account.id;
+                        let result = best_match(&search_string, account_id);
+                        if let Some(result) = result {
+                            let score = result.score();
+                            // following is to avoid cloning
+                            search_result
+                                .entry(score)
+                                .and_modify(|ls| ls.push(account.clone()))
+                                .or_insert_with(|| vec![account.clone()]);
+                        }
+                    }
+                    let mut result_vec: Vec<Rc<Account>> = vec![];
+                    for vac in search_result.into_values() {
+                        for v in vac {
+                            result_vec.push(v);
+                        }
+                    }
+                    result_vec
                 }
-            }
-            for v in non_matched {
-                result_vec.push(v.clone());
-            }
-            result_vec
-        } else {
-            let mut search_result: BTreeMap<isize, Vec<Rc<Account>>> = BTreeMap::new();
-            let account_data: Vec<Rc<Account>> =
-                account_selector.borrow().iter().cloned().collect();
-            for account in account_data {
-                let account_id = &account.id;
-                let result = best_match(&search_string, account_id);
-                if let Some(result) = result {
-                    let score = result.score();
-                    // following is to avoid cloning
-                    search_result
-                        .entry(score)
-                        .and_modify(|ls| ls.push(account.clone()))
-                        .or_insert_with(|| vec![account.clone()]);
-                }
-            }
-            let mut result_vec: Vec<Rc<Account>> = vec![];
-            for vac in search_result.into_values() {
-                for v in vac {
-                    result_vec.push(v);
-                }
-            }
-            result_vec
-        }
-    };
+            };
+            accounts
+        },
+        (search_string.clone(), path.clone()),
+    );
+    // debug!("account_selector: {:?}", account_selector.borrow().len());
+    // debug!("accounts: {:?}", accounts);
     let on_search = Callback::from({
         let search_string = search_string.clone();
         move |event: InputEvent| {
@@ -140,7 +144,7 @@ pub fn account_page(props: &Props) -> Html {
                             </tr>
                         </thead>
                         <tbody class="block overflow-y-auto w-full" style="height:15rem;">
-                            <AccountEntryList accounts={Rc::new(accounts)}/>
+                            <AccountEntryList accounts={account_selector}/>
                         </tbody>
                     </table>
                     </div>
