@@ -103,21 +103,21 @@ pub fn edit_account_popup(props: &Props) -> Html {
         })
     };
     let store_status = use_selector(|state: &PopupStore| state.data_status.clone());
-    let popup_store_dispatch = Dispatch::<PopupStore>::new();
+    let store_dispatch = Dispatch::<PopupStore>::new();
     use_effect_with_deps(
         {
-            let popup_store_dispatch = popup_store_dispatch.clone();
+            let store_dispatch = store_dispatch.clone();
             move |(store_status, handle_close): &(Rc<StoreDataStatus>, Callback<MouseEvent>)| {
                 if **store_status == StoreDataStatus::EditionSuccess {
                     handle_close.emit(MouseEvent::new("click").unwrap());
-                    popup_store_dispatch.apply(DataAction::Idle);
+                    store_dispatch.apply(DataAction::Idle);
                 }
             }
         },
         (store_status.clone(), props.handle_close.clone()),
     );
     let close_error = {
-        let dispatch = popup_store_dispatch.clone();
+        let dispatch = store_dispatch.clone();
         Callback::from(move |_| dispatch.apply(DataAction::Idle))
     };
     html! {
