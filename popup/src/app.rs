@@ -14,23 +14,12 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen_futures;
 use yew;
 use yew::prelude::*;
-use yewdux::{dispatch, functional::use_selector, prelude::Dispatch};
-
-// #[derive(Properties, PartialEq, Clone, Default, Debug)]
-// pub struct Props {
-//     pub saved_state: Option<PopupStore>,
-// }
+use yewdux::{functional::use_selector, prelude::Dispatch};
 
 #[function_component]
 pub fn App() -> Html {
-    // trace!("App");
+    trace!("App");
     let dispatch = Dispatch::<PopupStore>::new();
-    // if let Some(saved_state) = &props.saved_state {
-    //     dispatch.set(saved_state.clone());
-    // }
-    // debug!("props: {:?}", props);
-
-    debug!("state: {:?}", dispatch.get());
     let verified = use_selector(|state: &PopupStore| state.verified.clone());
     use_effect_with_deps(
         {
