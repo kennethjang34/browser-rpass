@@ -44,7 +44,7 @@ pub fn home_page(_props: &Props) -> Html {
         verified.clone(),
     );
     html! {
-                <div tabindex="-1" aria-hidden="true" style="width: 500px; height: 500px" class=" top-0 left-0 right-0 z-50 overflow-hidden md:inset-0"
+                <div tabindex="-1" aria-hidden="true" style="width: 600px; height: 600px" class=" top-0 left-0 right-0 z-50 overflow-hidden md:inset-0"
                 >
                    <div class="w-full h-full">
                       <div class="relative w-full h-full max-w-full max-h-full">
@@ -69,7 +69,7 @@ pub fn home_page(_props: &Props) -> Html {
                                 "opacity: 0.5; pointer-events: none"
                             }
                             else{
-                                "opacity: 1;"
+                                "opacity: 1; height:90%;"
                             }}>
                 if *verified{
                     <AccountPage user_id={(*user_id).clone()} path={(*path).clone()}/>
