@@ -107,13 +107,9 @@ pub fn edit_account_popup(props: &Props) -> Html {
     use_effect_with_deps(
         {
             let popup_store_dispatch = popup_store_dispatch.clone();
-            let username_input = username_input.clone();
-            let password_input = password_input.clone();
             move |(store_status, handle_close): &(Rc<StoreDataStatus>, Callback<MouseEvent>)| {
                 if **store_status == StoreDataStatus::EditionSuccess {
                     handle_close.emit(MouseEvent::new("click").unwrap());
-                    popup_store_dispatch.apply(DataAction::Idle);
-                } else if **store_status == StoreDataStatus::EditionFailed {
                     popup_store_dispatch.apply(DataAction::Idle);
                 }
             }

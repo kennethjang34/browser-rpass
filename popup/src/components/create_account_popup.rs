@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{
     api::extension_api::create_account,
     store::{DataAction, PopupStore, StoreDataStatus},
@@ -35,16 +37,26 @@ pub fn create_account_popup(props: &Props) -> Html {
                 username_input.value(),
                 password_input.value(),
             );
-            username_input.set_value("");
-            password_input.set_value("");
         }
     });
     let store_status = use_selector(|state: &PopupStore| state.data_status.clone());
-    let popup_store_dispatch = Dispatch::<PopupStore>::new();
+    let store_dispatch = Dispatch::<PopupStore>::new();
     let close_error = {
-        let dispatch = popup_store_dispatch.clone();
+        let dispatch = store_dispatch.clone();
         Callback::from(move |_| dispatch.apply(DataAction::Idle))
     };
+    use_effect_with_deps(
+        {
+            let dispatch = store_dispatch.clone();
+            move |(store_status, handle_close): &(Rc<StoreDataStatus>, Callback<MouseEvent>)| {
+                if **store_status == StoreDataStatus::CreationSuccess {
+                    handle_close.emit(MouseEvent::new("click").unwrap());
+                    dispatch.apply(DataAction::Idle);
+                }
+            }
+        },
+        (store_status.clone(), props.handle_close.clone()),
+    );
     html! {
 
         <div id="create-account-popup" tabindex="-1" aria-hidden="true" class="overflow-y-auto overflow-x-hidden shadow-lg fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">

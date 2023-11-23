@@ -1,6 +1,6 @@
 use crate::components::account_entry_list::AccountEntryList;
 use crate::components::create_account_popup::CreateAccountPopup;
-use crate::store::PopupStore;
+use crate::store::{DataAction, PopupStore};
 use browser_rpass::types::Account;
 #[allow(unused_imports)]
 use log::*;
@@ -108,10 +108,13 @@ pub fn account_page(props: &Props) -> Html {
             show_create_account_popup.set(value);
         })
     };
+    let popup_store_dispatch = Dispatch::<PopupStore>::new();
+
     let close_create_account_popup = {
         let show_create_account_popup = show_create_account_popup.clone();
         Callback::from(move |_: MouseEvent| {
             show_create_account_popup.set(false);
+            popup_store_dispatch.apply(DataAction::Idle);
         })
     };
     html! {
