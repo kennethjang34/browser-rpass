@@ -302,11 +302,11 @@ impl Reducer<SessionStore> for SessionActionWrapper {
             }
             SessionAction::DataDeleted(resource, data) => match resource.clone() {
                 Resource::Account => {
-                    let account_deleted = serde_json::from_value::<Account>(data.clone()).unwrap();
+                    let map = data.as_object().unwrap();
+                    let deleted_id = map.get("id").unwrap().as_str().unwrap().to_owned();
+                    // let account_deleted = serde_json::from_value::<Account>(data.clone()).unwrap();
                     let mut account_vec = store.data.accounts.borrow_mut();
-                    let index = account_vec
-                        .iter()
-                        .position(|ac| account_deleted.id == ac.id);
+                    let index = account_vec.iter().position(|ac| deleted_id == ac.id);
                     if let Some(index) = index {
                         account_vec.remove(index);
                     } else {
