@@ -809,7 +809,7 @@ fn handle_create_request(request: CreateRequest, store: &PasswordStoreType) -> p
                     let (status,data) = match create_entry(
                         Some(username.clone()),
                         value.as_str().map(|s| s.to_owned()),
-                        Some(domain.clone() + "/" + &username),
+                        Some(domain.clone()),
                         store.clone(),
                         None,
                         Some(passphrase.clone()),
