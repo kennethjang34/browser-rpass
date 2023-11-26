@@ -2,14 +2,14 @@ use browser_rpass::{request::*, response::*, types::Resource};
 #[allow(warnings)]
 use hex::FromHex;
 use log::*;
-use serde_json::{json, error, Value};
+use serde_json::{json , Value};
 
 use rpass::{
     crypto::CryptoImpl,
     pass::PasswordStore,
     pass::{self, Error, PasswordEntry, Result},
 };
-use std::{time::SystemTime, path::{Path, Ancestors}};
+use std::{time::SystemTime};
 
 use fern::colors::{Color, ColoredLevelConfig};
 use serde::Serialize;
@@ -24,19 +24,6 @@ use std::{
 type PasswordStoreType = Arc<Mutex<Arc<Mutex<PasswordStore>>>>;
 /// The list of stores that the user have.
 type StoreListType = Arc<Mutex<Vec<Arc<Mutex<PasswordStore>>>>>;
-fn _copy(id: &str, store: PasswordStoreType) -> pass::Result<String> {
-    let entry = match _get_entries(id, store.clone()) {
-        Ok(entries) => entries[0].clone(),
-        Err(err) => {
-            return Err(err);
-        }
-    };
-    let decrypted = entry.secret(&*store.lock()?.lock()?, None);
-    if decrypted.is_ok() {
-    } else {
-    }
-    return decrypted;
-}
 /// Validates the config for password stores.
 /// Returns a list of paths that the new store wizard should be run for
 fn _validate_stores_config(settings: &config::Config, home: &Option<PathBuf>) -> Vec<PathBuf> {
@@ -611,53 +598,27 @@ fn handle_edit_request(request: EditRequest, store: &PasswordStoreType) -> pass:
             let value = request.value;
             let resource = request.resource;
             match resource {
-                // Resource::Password => {
-                //     let username = request.id;
-                //     let path = request.domain.unwrap_or("".to_string());
-                //     let value = value.as_str().unwrap_or("");
-                //     change_password(
-                //         value,
-                //         &(path + "/" + &username),
-                //         store.clone(),
-                //         Some(passphrase),
-                //         )
-                //         .expect("Failed to change password");
-                // Ok(())
-                // }
-                // Resource::Username => {
-                //     let username = request.id;
-                //     let path = request.domain.unwrap_or("".to_string());
-                //     let value = value.as_str().unwrap_or("");
-                //     do_rename_file(
-                //         &(path.clone() + "/" + &username),
-                //         &(path.clone() + "/" + value),
-                //         store.clone(),
-                //         Some(passphrase),
-                //         )
-                //         .expect("Failed to rename file");
-                // Ok(())
-                // }
                 Resource::Account =>{
                     let domain = value.get("domain").map(|d|d.as_str().unwrap().to_owned());
                     let username = value.get("username").map(|d|d.as_str().unwrap().to_owned());
                     let password = value.get("password").map(|d|d.as_str().unwrap().to_owned());
-                    let updated_entry=update_entry(
+                    let updated_data=update_entry(
                         &(request.id),
                         domain.clone(),
                         username.clone(),password.clone(),
                         store.clone(),
                         Some(passphrase.clone())
-                    )?;
-                    debug!("updated entry: {:?}",updated_entry);
-                    //for now, we are using file path instead of account id to update the entry.
-                    //TODO we need to make use account id instead of file path in the future.
-                    // let updated_entry=get_entry(&*store.lock()?.lock()?, &file_path_for_temp_id).unwrap();
-                    if let Ok(mut entry_data)=serde_json::from_str(&updated_entry.secret(&*store.lock()?.lock()?, Some(passphrase.clone())).unwrap()){
-                        let entry_meta = serde_json::to_value(&updated_entry).unwrap();
-                        merge_json(&mut entry_data, &entry_meta);
+                        );
+                    if let Ok(updated_data)=updated_data{
+                        debug!("updated_data: {:?}",updated_data);
+                        // let updated_entry=get_entry(&*store.lock()?.lock()?, &request.id).unwrap();
+                        // let entry_meta = serde_json::to_value(&updated_entry).unwrap();
+                        // let secret=updated_entry.secret(&*store.lock()?.lock()?, Some(passphrase.clone())).unwrap();
+                        // let mut entry_data = serde_json::from_str::<serde_json::Value>(&secret).unwrap();
+                        // merge_json(&mut entry_data, &entry_meta);
                         let edit_response = EditResponse {
                             acknowledgement: request.acknowledgement,
-                            data:entry_data,
+                            data:updated_data,
                             status: Status::Success,
                             resource: Resource::Account,
                             id:request.id,
@@ -909,7 +870,6 @@ fn handle_delete_request(request: DeleteRequest, store: &PasswordStoreType) -> p
                 if let Ok(entry_data) =
                     delete_entry(store.clone(), &(id), Some(passphrase.clone()))
                     {
-                        // merge_json(&mut entry_data, &serde_json::to_value(&entry).unwrap());
                         (Status::Success, Some(entry_data))
                     } else {
                         (Status::Failure, None)
@@ -1209,11 +1169,11 @@ fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()> {
                             }else{
                                 let response=
                                     ResponseEnum::LoginResponse(
-                                    LoginResponse{
-                                    status:Status::Failure,
-                                    acknowledgement:request.acknowledgement.clone(),
-                                    data:json!({"error_message": store_res.unwrap_err()}),
-                                });
+                                        LoginResponse{
+                                            status:Status::Failure,
+                                            acknowledgement:request.acknowledgement.clone(),
+                                            data:json!({"error_message": store_res.unwrap_err()}),
+                                        });
                                 let json = serde_json::to_string(&response).unwrap();
                                 send_message(&encode_message(&json));
                                 Err(response)
@@ -1245,37 +1205,62 @@ fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()> {
     }
 }
 
-fn update_entry(
-        id: &str,
-        domain: Option<String>,
-        new_name: Option<String>,
-        password: Option<String>,
-        store: PasswordStoreType,
-        passphrase: Option<String>,
-    ) -> pass::Result<PasswordEntry> {
-    let id=id.to_string();
-    if new_name.is_some(){
-        update_username(&id, &new_name.unwrap(), store.clone(), passphrase.clone())?;
-    }
-    if domain.is_some(){
-        update_entry_item(&id, "domain", &domain.unwrap(), store.clone(), passphrase.clone())?;
-    }
-    let res=if let Some(password) = password {
-        update_entry_item(
-            &id,
-            "password",
-            &password,
-            store.clone(),
-            passphrase.clone(),
-        )
+// return updated values
+fn insert_into_entry(
+    id: &str,
+    content: serde_json::Value,
+    store: PasswordStoreType,
+    passphrase: Option<String>,
+    ) -> pass::Result<Value> {
+    let entry=get_entry(&*store.lock().unwrap().lock().unwrap(), &id).unwrap();
+    let secret=entry.secret(&*store.lock().unwrap().lock().unwrap(), passphrase.clone()).unwrap();
+    let mut updated_values=serde_json::Map::<String,Value>::new();
+    if let Ok(mut previous)=serde_json::from_str::<Value>(&secret){
+        let entry_data=previous.as_object_mut().unwrap();
+        for (key,value) in content.as_object().unwrap(){
+            if let Some(old)=entry_data.get(key).cloned(){
+                if &old!=value{
+                    updated_values.insert(key.to_string(),json!({"old":old,"new":value}));
+                }
+            }
+            entry_data.insert(key.to_string(),value.clone());
+        }
+        if overwrite_entry_file(id, &serde_json::to_string(entry_data).unwrap(), store, passphrase).is_ok(){
+            Ok(updated_values.into())
+        }else{
+            Err(pass::Error::Generic("Failed to update entry content"))
+        }
     }else{
-        Ok(None)
+        Err(pass::Error::Generic("Failed to parse entry content"))
     }
-    ;
-    // Ok(())
-    res.map(|_| get_entry(&*store.lock().unwrap().lock().unwrap(), &id).unwrap())
 }
-fn update_entry_item(id:&str, key:&str, value:&str, store: PasswordStoreType, passphrase: Option<String>) -> pass::Result<Option<String>> {
+fn update_entry(
+    id: &str,
+    domain: Option<String>,
+    new_name: Option<String>,
+    password: Option<String>,
+    store: PasswordStoreType,
+    passphrase: Option<String>,
+    ) -> pass::Result<Value> {
+    let id=id.to_string();
+    let mut json=serde_json::Map::<String,Value>::new();
+    if let Some(new_name)=new_name{
+        json.insert("username".to_string(),serde_json::Value::String(new_name.clone()));
+    }
+    if let Some(domain)=domain{
+        json.insert("domain".to_string(),serde_json::Value::String(domain.clone()));
+    }
+    if let Some(password) = password {
+        json.insert("password".to_string(),serde_json::Value::String(password.clone()));
+    }
+    if json.is_empty(){
+        return Err(pass::Error::Generic("Nothing to update"));
+    }else{
+    }
+    return insert_into_entry(&id, json.into(), store, passphrase);
+}
+#[allow(dead_code)]
+fn update_entry_field(id:&str, key:&str, value:&str, store: PasswordStoreType, passphrase: Option<String>) -> pass::Result<Option<String>> {
     let entry=get_entry(&*store.lock().unwrap().lock().unwrap(), &id).unwrap();
     let secret=entry.secret(&*store.lock().unwrap().lock().unwrap(), passphrase.clone()).unwrap();
     if let Ok(mut content)=serde_json::from_str::<Value>(&secret){
@@ -1284,7 +1269,7 @@ fn update_entry_item(id:&str, key:&str, value:&str, store: PasswordStoreType, pa
             if let Some(existing)=existing.as_str().map(|v|{v.to_string()}){
                 content.as_object_mut().unwrap().insert(key.to_string(),serde_json::Value::String(value.to_string()));
                 let content=serde_json::to_string(&content).unwrap();
-                update_entry_content(&id,&content, store, passphrase)?;
+                overwrite_entry_file(&id,&content, store, passphrase)?;
                 Ok(Some(existing))
             }else{
                 Err(pass::Error::GenericDyn(format!("existing entry content is in wrong format. Value is not of String type. Existing value: {:?}",existing.to_string()).to_string()))
@@ -1292,15 +1277,12 @@ fn update_entry_item(id:&str, key:&str, value:&str, store: PasswordStoreType, pa
         }else{
             content.as_object_mut().unwrap().insert(key.to_string(),serde_json::Value::String(value.to_string()));
             let content=serde_json::to_string(&content).unwrap();
-            update_entry_content(&id,&content, store, passphrase)?;
+            overwrite_entry_file(&id,&content, store, passphrase)?;
             return Ok(None);
         }
     }else{
         Err(pass::Error::Generic("Failed to parse entry content"))
     }
-}
-fn update_username(id:&str,new_name: &str,store: PasswordStoreType, passphrase: Option<String>) -> pass::Result<Option<String>> {
-    update_entry_item(id, "username", new_name, store, passphrase)
 }
 fn do_rename_file(
     old_name: &str,
@@ -1315,48 +1297,48 @@ fn do_rename_file(
     res.map(|_| ())
 }
 
-fn _create_password_entry(
+// fn _create_password_entry(
+//     password: Option<String>,
+//     path: Option<String>,
+//     store: PasswordStoreType,
+//     note: Option<String>,
+//     ) -> pass::Result<PasswordEntry> {
+//     if password.is_none() {
+//         return Err(pass::Error::Generic(
+//                 "No password is given. Password must be passed to create_password_entry",
+//                 ));
+//     }
+//     let mut password = password.unwrap();
+//     if password.is_empty() {
+//         return Err(pass::Error::Generic(
+//                 "Password is empty, not saving anything",
+//                 ));
+//     }
+//     if path.is_none() {
+//         return Err(pass::Error::Generic(
+//                 "No path given. Path must be passed to create_password_entry",
+//                 ));
+//     }
+//     let path = path.unwrap();
+//     if path.is_empty() {
+//         return Err(pass::Error::Generic("Path is empty, not saving anything"));
+//     }
+//     if password.contains("otpauth://") {
+//         error!("It seems like you are trying to save a TOTP code to the password store. This will reduce your 2FA solution to just 1FA, do you want to proceed?");
+//     }
+//
+//     if let Some(note) = note {
+//         password = format!("{password}\n{note}");
+//     }
+    // _new_password_save(path.as_ref(), password.as_ref(), store)
+// }
+fn create_entry(
+    username: Option<String>,
     password: Option<String>,
-    path: Option<String>,
+    domain: Option<String>,
     store: PasswordStoreType,
     note: Option<String>,
-    ) -> pass::Result<PasswordEntry> {
-    if password.is_none() {
-        return Err(pass::Error::Generic(
-                "No password is given. Password must be passed to create_password_entry",
-                ));
-    }
-    let mut password = password.unwrap();
-    if password.is_empty() {
-        return Err(pass::Error::Generic(
-                "Password is empty, not saving anything",
-                ));
-    }
-    if path.is_none() {
-        return Err(pass::Error::Generic(
-                "No path given. Path must be passed to create_password_entry",
-                ));
-    }
-    let path = path.unwrap();
-    if path.is_empty() {
-        return Err(pass::Error::Generic("Path is empty, not saving anything"));
-    }
-    if password.contains("otpauth://") {
-        error!("It seems like you are trying to save a TOTP code to the password store. This will reduce your 2FA solution to just 1FA, do you want to proceed?");
-    }
-
-    if let Some(note) = note {
-        password = format!("{password}\n{note}");
-    }
-    _new_password_save(path.as_ref(), password.as_ref(), store)
-}
-fn create_entry(
-        username: Option<String>,
-        password: Option<String>,
-        domain: Option<String>,
-        store: PasswordStoreType,
-        note: Option<String>,
-        passphrase: Option<String>,
+    passphrase: Option<String>,
     ) -> pass::Result<PasswordEntry> {
     if password.is_none() {
         return Err(pass::Error::Generic(
@@ -1371,8 +1353,8 @@ fn create_entry(
     }
     if domain.is_none() {
         return Err(pass::Error::Generic(
-            "No path given. Path must be passed to create_password_entry",
-        ));
+                "No path given. Path must be passed to create_password_entry",
+                ));
     }
     let id = uuid::Uuid::new_v4().to_string();
     // if path.is_empty() {
@@ -1392,22 +1374,11 @@ fn create_entry(
 
     create_entry_file(id.as_ref(), content.as_ref(), store, passphrase)
 }
-fn _new_password_save(
-    path: &str,
-    password: &str,
-    store: PasswordStoreType,
-    ) -> pass::Result<PasswordEntry> {
-    let entry = store
-        .lock()?
-        .lock()?
-        .new_password_file(path.as_ref(), password.as_ref());
-    entry
-}
 fn create_entry_file(
-        id: &str,
-        json_string: &str,
-        store: PasswordStoreType,
-        passphrase: Option<String>,
+    id: &str,
+    json_string: &str,
+    store: PasswordStoreType,
+    passphrase: Option<String>,
     ) -> pass::Result<PasswordEntry> {
     let entry = store.lock()?.lock()?.new_password_file_with_passphrase(
         id.as_ref(),
@@ -1417,11 +1388,11 @@ fn create_entry_file(
     entry
 }
 
-fn update_entry_content(
-        entry_id: &str,
-        content: &str,
-        store: PasswordStoreType,
-        passphrase: Option<String>,
+fn overwrite_entry_file(
+    entry_id: &str,
+    content: &str,
+    store: PasswordStoreType,
+    passphrase: Option<String>,
     ) -> pass::Result<()> {
     let password_entry_opt = get_entry(&*store.lock()?.lock()?, entry_id);
     if password_entry_opt.is_none() {
