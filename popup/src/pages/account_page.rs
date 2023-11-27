@@ -22,10 +22,12 @@ pub struct Props {
 
 #[function_component(AccountPage)]
 pub fn account_page(props: &Props) -> Html {
+    trace!("account page");
     let search_string = use_state(|| String::new());
     let path = props.path.clone();
     let account_selector = use_selector_with_deps(
         |state: &PopupStore, (search_string, path)| {
+            trace!("inside selector function");
             let accounts = state.data.accounts.clone();
             let accounts = {
                 if search_string.is_empty() {
@@ -84,8 +86,6 @@ pub fn account_page(props: &Props) -> Html {
         },
         (search_string.clone(), path.clone()),
     );
-    // debug!("account_selector: {:?}", account_selector.borrow().len());
-    // debug!("accounts: {:?}", accounts);
     let on_search = Callback::from({
         let search_string = search_string.clone();
         move |event: InputEvent| {

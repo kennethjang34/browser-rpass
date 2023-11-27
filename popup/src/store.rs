@@ -136,8 +136,7 @@ pub enum DataAction {
     Init(Value),
     ResourceDeleted(Resource, Value),
     ResourceCreated(Resource, Value),
-    ResourceEdited(Resource, Value),
-    ResourceEdited_temp(Resource, Value, String),
+    ResourceEdited(Resource, Value, String),
     ResourceDeletionFailed(Resource, Value),
     ResourceEditionFailed(Resource, SessionEventWrapper),
     ResourceCreationFailed(Resource, SessionEventWrapper),
@@ -213,10 +212,10 @@ impl Reducer<PopupStore> for DataAction {
             DataAction::ResourceCreated(resource, data) => match resource {
                 Resource::Account => {
                     let account = serde_json::from_value::<Account>(data.clone()).unwrap();
-                    let mut state_data = state.data.clone();
-                    let accounts = state_data.accounts.clone();
-                    accounts.borrow_mut().push(Rc::new(account));
-                    state_data.accounts = accounts;
+                    let state_data = state.data.clone();
+                    let mut accounts = state_data.accounts.borrow_mut();
+                    accounts.push(Rc::new(account));
+                    drop(accounts);
                     PopupStore {
                         page_loading: false,
                         data: state_data,
@@ -230,16 +229,14 @@ impl Reducer<PopupStore> for DataAction {
                 }
                 .into(),
             },
-            DataAction::ResourceEdited_temp(resource, data, id) => match resource {
+            DataAction::ResourceEdited(resource, data, id) => match resource {
                 Resource::Account => {
                     let account = serde_json::from_value::<Account>(data.clone()).unwrap();
-                    //TODO
-                    // let id = account.id.clone();
                     let state_data = state.data.clone();
-                    let accounts = state_data.accounts.clone();
-                    let mut accounts = accounts.borrow_mut();
+                    let mut accounts = state_data.accounts.borrow_mut();
                     let idx = accounts.iter().position(|ac| ac.id == id).unwrap();
                     accounts[idx] = Rc::new(account);
+                    drop(accounts);
                     PopupStore {
                         page_loading: false,
                         data: state_data,
@@ -309,12 +306,6 @@ impl Reducer<PopupStore> for DataAction {
             DataAction::ResourceDeletionFailed(resource, _session_event_wrapper) => PopupStore {
                 page_loading: false,
                 data_status: StoreDataStatus::DeletionFailed,
-                ..state.deref().clone()
-            }
-            .into(),
-            DataAction::ResourceEdited(resource, _data) => PopupStore {
-                page_loading: true,
-                data_status: StoreDataStatus::EditionSuccess,
                 ..state.deref().clone()
             }
             .into(),
