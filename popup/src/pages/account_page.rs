@@ -60,8 +60,8 @@ pub fn account_page(props: &Props) -> Html {
                     let account_data: Vec<Rc<Account>> =
                         accounts.borrow().iter().cloned().collect();
                     for account in account_data {
-                        let account_id = &account.id;
-                        let result = best_match(&search_string, account_id);
+                        let account_username = &account.username;
+                        let result = best_match(&search_string, account_username);
                         if let Some(result) = result {
                             let score = result.score();
                             // following is to avoid cloning
