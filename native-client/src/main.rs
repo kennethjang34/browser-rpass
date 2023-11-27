@@ -2,7 +2,7 @@ use browser_rpass::{request::*, response::*, types::Resource};
 #[allow(warnings)]
 use hex::FromHex;
 use log::*;
-use serde_json::{json , Value};
+use serde_json::{json , Value, Map};
 
 use rpass::{
     crypto::CryptoImpl,
@@ -24,6 +24,7 @@ use std::{
 type PasswordStoreType = Arc<Mutex<Arc<Mutex<PasswordStore>>>>;
 /// The list of stores that the user have.
 type StoreListType = Arc<Mutex<Vec<Arc<Mutex<PasswordStore>>>>>;
+static CUSTOM_FIELD_PREFIX: &str = "custom_";
 /// Validates the config for password stores.
 /// Returns a list of paths that the new store wizard should be run for
 fn _validate_stores_config(settings: &config::Config, home: &Option<PathBuf>) -> Vec<PathBuf> {
@@ -536,8 +537,6 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
                                 .secret(locked_store, Some(passphrase.clone())){
                                     let decrypted=serde_json::from_str::<serde_json::Value>(&decrypted).unwrap();
                                     merge_json(&mut json_value,&decrypted);
-                                    debug!("decrypted password entry: {:?}",decrypted);
-                                    debug!("json_value: {:?}",json_value);
                                 }
                             json_value
                         })
@@ -546,7 +545,7 @@ fn handle_fetch_request(request: FetchRequest, store: &PasswordStoreType) -> pas
                         if let Ok(data) = serde_json::to_value(decrypted_password_entries.clone()) {
                             FetchResponse {
                                 data: data.as_array().unwrap().clone().into(),
-                                meta: Some(json!({"path":path.clone()})),
+                                meta: Some(json!({"path":path.clone(), "custom_field_prefix":CUSTOM_FIELD_PREFIX})),
                                 resource,
                                 acknowledgement: acknowledgement.clone(),
                                 status: Status::Success,
@@ -602,20 +601,17 @@ fn handle_edit_request(request: EditRequest, store: &PasswordStoreType) -> pass:
                     let domain = value.get("domain").map(|d|d.as_str().unwrap().to_owned());
                     let username = value.get("username").map(|d|d.as_str().unwrap().to_owned());
                     let password = value.get("password").map(|d|d.as_str().unwrap().to_owned());
+                    let custom_fields= value.get("custom_fields").map(|d|d.as_object().unwrap().clone());
                     let updated_data=update_entry(
                         &(request.id),
                         domain.clone(),
                         username.clone(),password.clone(),
+                        custom_fields,
                         store.clone(),
                         Some(passphrase.clone())
-                        );
+                    );
                     if let Ok(updated_data)=updated_data{
                         debug!("updated_data: {:?}",updated_data);
-                        // let updated_entry=get_entry(&*store.lock()?.lock()?, &request.id).unwrap();
-                        // let entry_meta = serde_json::to_value(&updated_entry).unwrap();
-                        // let secret=updated_entry.secret(&*store.lock()?.lock()?, Some(passphrase.clone())).unwrap();
-                        // let mut entry_data = serde_json::from_str::<serde_json::Value>(&secret).unwrap();
-                        // merge_json(&mut entry_data, &entry_meta);
                         let edit_response = EditResponse {
                             acknowledgement: request.acknowledgement,
                             data:updated_data,
@@ -810,6 +806,7 @@ fn handle_create_request(request: CreateRequest, store: &PasswordStoreType) -> p
                         Some(username.clone()),
                         value.as_str().map(|s| s.to_owned()),
                         Some(domain.clone()),
+                        None,
                         store.clone(),
                         None,
                         Some(passphrase.clone()),
@@ -1239,6 +1236,7 @@ fn update_entry(
     domain: Option<String>,
     new_name: Option<String>,
     password: Option<String>,
+    custom_fields: Option<Map<String,Value>>,
     store: PasswordStoreType,
     passphrase: Option<String>,
     ) -> pass::Result<Value> {
@@ -1252,6 +1250,11 @@ fn update_entry(
     }
     if let Some(password) = password {
         json.insert("password".to_string(),serde_json::Value::String(password.clone()));
+    }
+    if let Some(custom_fields)=custom_fields{
+        for (key,value) in custom_fields{
+            json.insert(CUSTOM_FIELD_PREFIX.to_owned()+&key,value);
+        }
     }
     if json.is_empty(){
         return Err(pass::Error::Generic("Nothing to update"));
@@ -1336,6 +1339,7 @@ fn create_entry(
     username: Option<String>,
     password: Option<String>,
     domain: Option<String>,
+    custom_fields: Option<Map<String,Value>>,
     store: PasswordStoreType,
     note: Option<String>,
     passphrase: Option<String>,
@@ -1363,15 +1367,24 @@ fn create_entry(
     if password.contains("otpauth://") {
         error!("It seems like you are trying to save a TOTP code to the password store. This will reduce your 2FA solution to just 1FA, do you want to proceed?");
     }
+    // let mut json=json!({
+    //         "username":username,
+    //         "password":password,
+    //         "domain":domain,
+    //         "note":note,
+    //     });
+    let mut json=serde_json::Map::<String,Value>::new();
+    json.insert("username".to_string(),serde_json::Value::from(username.clone()));
+    json.insert("password".to_string(),serde_json::Value::from(password.clone()));
+    json.insert("domain".to_string(),serde_json::Value::from(domain.clone()));
+    json.insert("note".to_string(),serde_json::Value::from(note.clone()));
+    for (key,value) in custom_fields.unwrap_or_default(){
+        json.insert(CUSTOM_FIELD_PREFIX.to_owned()+&key,value);
+    }
     let content=
         serde_json::to_string(
-            &json!({
-                "username":username,
-                "password":password,
-                "domain":domain,
-                "note":note,
-            })).unwrap();
-
+            &json
+            ).unwrap();
     create_entry_file(id.as_ref(), content.as_ref(), store, passphrase)
 }
 fn create_entry_file(
