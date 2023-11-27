@@ -263,11 +263,12 @@ impl Reducer<PopupStore> for DataAction {
                 let state_data = state.data.clone();
                 match resource {
                     Resource::Account => {
-                        let account = serde_json::from_value::<Account>(data.clone()).unwrap();
+                        let map = data.as_object().unwrap();
+                        let deleted_id = map.get("id").unwrap().as_str().unwrap().to_owned();
                         state_data
                             .accounts
                             .borrow_mut()
-                            .retain(|ac| account.id != ac.id);
+                            .retain(|ac| deleted_id != ac.id);
                         PopupStore {
                             page_loading: false,
                             data: state_data,

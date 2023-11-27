@@ -302,11 +302,11 @@ impl Reducer<SessionStore> for SessionActionWrapper {
             }
             SessionAction::DataDeleted(resource, data) => match resource.clone() {
                 Resource::Account => {
-                    let account_deleted = serde_json::from_value::<Account>(data.clone()).unwrap();
+                    let map = data.as_object().unwrap();
+                    let deleted_id = map.get("id").unwrap().as_str().unwrap().to_owned();
+                    // let account_deleted = serde_json::from_value::<Account>(data.clone()).unwrap();
                     let mut account_vec = store.data.accounts.borrow_mut();
-                    let index = account_vec
-                        .iter()
-                        .position(|ac| account_deleted.id == ac.id);
+                    let index = account_vec.iter().position(|ac| deleted_id == ac.id);
                     if let Some(index) = index {
                         account_vec.remove(index);
                     } else {
@@ -395,8 +395,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 match resource {
                     Resource::Account => {
                         let data_payload = edit_response.data.clone();
-                        let account: Rc<Account> =
-                            Rc::new(serde_json::from_value(data_payload).unwrap());
+                        let updated_data = data_payload.as_object().unwrap();
+                        // let account: Rc<Account> =
+                        //     Rc::new(serde_json::from_value(data_payload).unwrap());
                         let current_state_data = &store.data;
                         let mut account_vec = current_state_data.accounts.borrow_mut();
                         // TODO make sure edit_response.id is same as account.id. it is not the
@@ -410,11 +411,42 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             serde_json::to_value(account_id.clone()).unwrap(),
                         );
                         let meta = Some(meta);
-                        let index = account_vec
+                        let account_idx = account_vec
                             .iter()
-                            .position(|ac| account_id == ac.id)
+                            .position(|ac| ac.id == account_id)
                             .unwrap();
-                        account_vec[index] = account.clone();
+                        let account = account_vec.get_mut(account_idx).unwrap();
+                        let new_account: &mut Account = Rc::make_mut(account);
+                        for (key, value) in updated_data {
+                            if let Some(new_value) = value.get("new") {
+                                match key.as_str() {
+                                    "username" => {
+                                        new_account.username =
+                                            new_value.as_str().unwrap().to_owned();
+                                    }
+                                    "password" => {
+                                        new_account.password =
+                                            Some(new_value.as_str().unwrap().to_owned());
+                                    }
+                                    "domain" => {
+                                        new_account.domain =
+                                            Some(new_value.as_str().unwrap().to_owned());
+                                    }
+                                    "path" => {
+                                        new_account.path =
+                                            Some(new_value.as_str().unwrap().to_owned());
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        // account_vec[account_idx] = new_account;
+
+                        // let index = account_vec
+                        //     .iter()
+                        //     .position(|ac| account_id == ac.id)
+                        //     .unwrap();
+                        // account_vec[index] = account.clone();
                         (
                             SessionStore {
                                 data: StoreData {
@@ -426,7 +458,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             .into(),
                             Some(SessionEvent {
                                 event_type: SessionEventType::Update,
-                                data: Some(serde_json::to_value(account).unwrap()),
+                                data: Some(serde_json::to_value(new_account).unwrap()),
                                 meta,
                                 resource: Some(vec![resource]),
                                 is_global: true,
