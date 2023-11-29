@@ -183,7 +183,7 @@ pub fn account_page(props: &Props) -> Html {
                         </tbody>
                     </table>
                     </div>
-                    <button  class="bg-white block dark:bg-gray-800 dark:focus:ring-gray-800 dark:hover:bg-gray-600 relative focus:outline-none focus:ring-4 focus:ring-gray-50 font-medium hover:bg-gray-50 px-5 py-2.5 rounded-lg text-center text-sm text-blue-600 dark:text-blue-500 my-4" type="button" onclick={on_create_account}>
+                    <button  class="bg-white block dark:bg-gray-800 dark:focus:ring-gray-800 dark:hover:bg-gray-600 relative focus:outline-none focus:ring-gray-50 font-medium hover:bg-gray-50 px-5 py-2.5 rounded-lg text-center text-sm text-blue-600 dark:text-blue-500 my-4" type="button" onclick={on_create_account}>
                     {"Create Account"}
     </button>
                     if *show_create_account_popup{
