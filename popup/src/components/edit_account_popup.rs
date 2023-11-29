@@ -24,13 +24,15 @@ pub struct Props {
 pub fn edit_account_popup(props: &Props) -> Html {
     let reveal_password = use_state(|| false);
     let account = props.account.clone();
-    let password_input = use_state(|| account.password.clone().unwrap());
+    let password_input = use_state(|| account.password.clone().unwrap_or_default());
     let username_input = use_state(|| account.username.clone());
+    let note_input = use_state(|| account.note.clone().unwrap_or_default());
     let domain_input = use_state(|| account.domain.clone().unwrap());
     let on_edit_submit = Callback::from({
         let account = account.clone();
         let password_input = password_input.clone();
         let username_input = username_input.clone();
+        let note_input = note_input.clone();
         let domain_input = domain_input.clone();
         move |event: SubmitEvent| {
             event.prevent_default();
@@ -49,7 +51,12 @@ pub fn edit_account_popup(props: &Props) -> Html {
             } else {
                 Some((*password_input).clone())
             };
-            edit_account(account.id.clone(), domain, username, password);
+            let note = if (*note_input).is_empty() {
+                None
+            } else {
+                Some((*note_input).clone())
+            };
+            edit_account(account.id.clone(), domain, username, password, note);
         }
     });
     let on_reveal = {
@@ -65,6 +72,20 @@ pub fn edit_account_popup(props: &Props) -> Html {
         Callback::from(move |event: InputEvent| {
             event.prevent_default();
             password_input.set(
+                event
+                    .target()
+                    .unwrap()
+                    .dyn_into::<HtmlInputElement>()
+                    .unwrap()
+                    .value(),
+            );
+        })
+    };
+    let on_note_input = {
+        let note_input = note_input.clone();
+        Callback::from(move |event: InputEvent| {
+            event.prevent_default();
+            note_input.set(
                 event
                     .target()
                     .unwrap()
@@ -157,8 +178,8 @@ pub fn edit_account_popup(props: &Props) -> Html {
                     <form onsubmit={on_edit_submit} class="p-4 md:p-5">
                         <div class="grid gap-4 mb-4 grid-cols-2">
                             <div class="col-span-2">
-                                <label for="user-id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{"User ID"}</label>
-                                <input type="text" name="user-id" id="user-id" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="User ID" required={true} value={(*username_input).clone()} oninput={on_username_input.clone()}/>
+                                <label for="username" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{"Username"}</label>
+                                <input type="text" name="username" id="username" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="User ID" required={true} value={(*username_input).clone()} oninput={on_username_input.clone()}/>
                             </div>
                             if !*reveal_password {
                                 <div class="col-span-2 sm:col-span-1">
@@ -189,8 +210,12 @@ pub fn edit_account_popup(props: &Props) -> Html {
                                 </div>
                             }
                             <div class="col-span-2 sm:col-span-1">
-                                <label for="url" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{ "URL" }</label>
+                                <label for="url" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{ "Domain/URL" }</label>
                                 <input type="text" name="url" id="url" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="URL" required={true} value={(*domain_input).clone()}  oninput={on_domain_input.clone()}/>
+                            </div>
+                            <div class="col-span-2">
+                                <label for="note" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{"Note"}</label>
+                                <input type="text" name="note" id="note" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="User ID" required={false} value={(*note_input).clone()} oninput={on_note_input.clone()}/>
                             </div>
                         </div>
                         <button type="submit" class="text-white inline-flex items-center bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">

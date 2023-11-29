@@ -1,6 +1,7 @@
 use core::fmt;
 use enum_dispatch::enum_dispatch;
 use gloo_utils::format::JsValueSerdeExt;
+use log::debug;
 use serde_json::Value;
 use serde_variant::to_variant_name;
 use std::collections::HashMap;
@@ -121,9 +122,11 @@ pub struct InitRequest {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", rename = "create")]
 pub struct CreateRequest {
-    pub username: String,
+    pub username: Option<String>,
     pub resource: Resource,
-    pub domain: String,
+    pub note: Option<String>,
+    pub custom_fields: Option<HashMap<String, Value>>,
+    pub domain: Option<String>,
     pub value: Value,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
@@ -247,8 +250,10 @@ impl RequestEnum {
         })
     }
     pub fn create_create_request(
-        username: String,
-        path: String,
+        username: Option<String>,
+        domain: Option<String>,
+        note: Option<String>,
+        custom_fields: Option<HashMap<String, Value>>,
         resource: Resource,
         value: Value,
         acknowledgement: Option<String>,
@@ -256,8 +261,10 @@ impl RequestEnum {
     ) -> RequestEnum {
         RequestEnum::Create(CreateRequest {
             username,
-            domain: path,
+            domain,
             resource,
+            note,
+            custom_fields,
             value,
             acknowledgement: {
                 if acknowledgement.is_some() {

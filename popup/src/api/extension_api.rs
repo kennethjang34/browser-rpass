@@ -56,16 +56,23 @@ pub fn logout() {
         .post_message(<JsValue as JsValueSerdeExt>::from_serde(&logout_request).unwrap());
 }
 
-pub fn create_account(path: String, username: String, password: String) -> String {
+pub fn create_account(
+    domain: Option<String>,
+    username: Option<String>,
+    password: Option<String>,
+    note: Option<String>,
+) -> String {
     let dispatch = Dispatch::<PopupStore>::new();
-    dispatch.apply(DataAction::ResourceDeletionStarted(
+    dispatch.apply(DataAction::ResourceCreationStarted(
         Resource::Account,
-        json!({"path": path, "username": username, "password": password}),
+        json!({"username": username, "password": password, "domain": domain, "note": note}),
     ));
     let acknowledgement = create_request_acknowledgement();
     let create_request = RequestEnum::create_create_request(
         username.clone(),
-        path.clone(),
+        domain.clone(),
+        note.clone(),
+        None,
         Resource::Account,
         password.clone().into(),
         Some(acknowledgement.clone()),
@@ -83,6 +90,7 @@ pub fn edit_account(
     domain: Option<String>,
     username: Option<String>,
     password: Option<String>,
+    note: Option<String>,
 ) -> String {
     let dispatch = Dispatch::<PopupStore>::new();
     let mut payload = json!({"id": id});
@@ -91,6 +99,12 @@ pub fn edit_account(
             .as_object_mut()
             .unwrap()
             .insert("username".into(), Value::String(username.clone()));
+    }
+    if let Some(note) = note.as_ref() {
+        payload
+            .as_object_mut()
+            .unwrap()
+            .insert("note".into(), Value::String(note.clone()));
     }
     if let Some(domain) = domain.as_ref() {
         payload
@@ -113,7 +127,7 @@ pub fn edit_account(
         id,
         Resource::Account,
         domain.clone(),
-        json!({"username": username, "password": password,"domain": domain}),
+        json!({"username": username, "password": password,"domain": domain, "note": note}),
         Some(acknowledgement.clone()),
         None,
     );

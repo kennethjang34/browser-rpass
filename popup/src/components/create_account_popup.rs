@@ -23,19 +23,23 @@ pub fn create_account_popup(props: &Props) -> Html {
     let password_input_ref = NodeRef::default();
     let username_input_ref = NodeRef::default();
     let domain_input_ref = NodeRef::default();
+    let note_input_ref = NodeRef::default();
     let on_create_submit = Callback::from({
         let password_input_ref = password_input_ref.clone();
         let username_input_ref = username_input_ref.clone();
         let domain_input_ref = domain_input_ref.clone();
+        let note_input_ref = note_input_ref.clone();
         move |event: SubmitEvent| {
             event.prevent_default();
             let password_input = password_input_ref.cast::<HtmlInputElement>().unwrap();
             let username_input = username_input_ref.cast::<HtmlInputElement>().unwrap();
             let domain_input = domain_input_ref.cast::<HtmlInputElement>().unwrap();
+            let note_input = note_input_ref.cast::<HtmlInputElement>().unwrap();
             create_account(
-                domain_input.value(),
-                username_input.value(),
-                password_input.value(),
+                Some(domain_input.value()),
+                Some(username_input.value()),
+                Some(password_input.value()),
+                Some(note_input.value()),
             );
         }
     });
@@ -103,8 +107,12 @@ pub fn create_account_popup(props: &Props) -> Html {
                                 <input type="password" name="password" id="password" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Password" required={true} ref={password_input_ref}/>
                             </div>
                             <div class="col-span-2 sm:col-span-1">
-                                <label for="url" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{ "URL" }</label>
+                                <label for="url" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{ "Domain" }</label>
                                 <input type="text" name="url" id="url" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="URL" required={true} value={props.domain.clone().unwrap()} ref={domain_input_ref}/>
+                            </div>
+                            <div class="col-span-2 sm:col-span-1">
+                                <label for="url" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{ "Note" }</label>
+                                <input type="text" name="url" id="url" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Note" required={false}  ref={note_input_ref}/>
                             </div>
                         </div>
                         <button type="submit" class="text-white inline-flex items-center bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">

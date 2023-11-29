@@ -14,6 +14,7 @@ pub struct Account {
     pub path: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
+    pub note: Option<String>,
     #[serde(flatten)]
     pub custom_fields: Option<HashMap<String, Value>>,
 }

@@ -136,8 +136,6 @@ pub fn process_native_message(
         }
         ResponseEnum::EditResponse(edit_response) => {
             dbg!(&json_msg);
-            // let edit_response: EditResponse =
-            //     serde_json::from_value::<EditResponse>(json_msg).unwrap();
             let response = ResponseEnum::EditResponse(edit_response.clone());
             let status = &edit_response.status;
             match status {

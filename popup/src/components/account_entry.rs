@@ -27,6 +27,7 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
     };
     let username = &account.username;
     let domain = &account.domain;
+    let note = &account.note;
     let copy_domain = {
         let domain = domain.clone();
         Callback::from({
@@ -138,6 +139,21 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                     </span>
                                     </div>
                             }
+                        </div>
+                    </td>
+                    <td scope="row" class="px-3 py-2 font-medium bold text-gray-900 whitespace-nowrap dark:text-white">
+                        <div>
+                            <div style="width: 5rem;" class="group overflow-x-auto">
+                                <span class="select-all">
+                                // <span class="cursor-copy select-all"  onclick={copy_username.clone()} >
+                                {
+                                    note.clone()
+                                 }
+                                </span>
+                                // <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto">
+                                    // {"click to copy username"}
+                                // </span>
+                            </div>
                         </div>
                     </td>
                 </>

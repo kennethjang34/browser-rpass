@@ -396,14 +396,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     Resource::Account => {
                         let data_payload = edit_response.data.clone();
                         let updated_data = data_payload.as_object().unwrap();
-                        // let account: Rc<Account> =
-                        //     Rc::new(serde_json::from_value(data_payload).unwrap());
                         let current_state_data = &store.data;
                         let mut account_vec = current_state_data.accounts.borrow_mut();
-                        // TODO make sure edit_response.id is same as account.id. it is not the
-                        // same in the current implementation
-                        // response.id is previous domain+username, but account.id is new
-                        // domain+new username
                         let account_id = edit_response.id.clone();
                         let mut meta = meta.unwrap_or(json!({}));
                         meta.as_object_mut().unwrap().insert(
@@ -418,6 +412,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         let account = account_vec.get_mut(account_idx).unwrap();
                         let new_account: &mut Account = Rc::make_mut(account);
                         for (key, value) in updated_data {
+                            //TODO compare through each field's string value, rather than manually
+                            //checking each field with string literal
                             if let Some(new_value) = value.get("new") {
                                 match key.as_str() {
                                     "username" => {
@@ -432,6 +428,10 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                         new_account.domain =
                                             Some(new_value.as_str().unwrap().to_owned());
                                     }
+                                    "note" => {
+                                        new_account.note =
+                                            Some(new_value.as_str().unwrap().to_owned());
+                                    }
                                     "path" => {
                                         new_account.path =
                                             Some(new_value.as_str().unwrap().to_owned());
@@ -440,13 +440,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 }
                             }
                         }
-                        // account_vec[account_idx] = new_account;
-
-                        // let index = account_vec
-                        //     .iter()
-                        //     .position(|ac| account_id == ac.id)
-                        //     .unwrap();
-                        // account_vec[index] = account.clone();
                         (
                             SessionStore {
                                 data: StoreData {

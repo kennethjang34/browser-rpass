@@ -171,6 +171,11 @@ pub fn account_page(props: &Props) -> Html {
                                     "Password"
                                 }
                                 </th>
+                                <th scope="col" class="px-3 py-2" style="display: inline-block; margin-left: 3rem">
+                                {
+                                    "Note"
+                                }
+                                </th>
                             </tr>
                         </thead>
                         <tbody class="block overflow-y-auto w-full" style="height:15rem;">
