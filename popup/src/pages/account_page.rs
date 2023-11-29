@@ -158,7 +158,7 @@ pub fn account_page(props: &Props) -> Html {
                             </button>
                         </div>
                     }
-                    <table class="dark:text-gray-400 relative rtl:text-right text-gray-500 text-left text-sm w-full top-3" border="1">
+                    <table class="dark:text-gray-400 relative rtl:text-right text-gray-500 text-left text-sm w-full top-3" style="table-layout: fixed" border="1">
                         <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 block">
                             <tr>
                                 <th scope="col" class="px-3 py-2" style="display: inline-block; margin-left: 3rem">
@@ -176,6 +176,8 @@ pub fn account_page(props: &Props) -> Html {
                                     "Note"
                                 }
                                 </th>
+                                <th></th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody class="block overflow-y-auto w-full" style="height:15rem;">
