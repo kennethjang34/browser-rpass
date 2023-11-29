@@ -143,7 +143,7 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                     </td>
                     <td scope="row" class="px-3 py-2 font-medium bold text-gray-900 whitespace-nowrap dark:text-white">
                         <div>
-                            <div style="width: 5rem;" class="group overflow-x-auto">
+                            <div style="width: 5rem;" class="group overflow-x-auto text-center">
                                 <span class="select-all">
                                 // <span class="cursor-copy select-all"  onclick={copy_username.clone()} >
                                 {
