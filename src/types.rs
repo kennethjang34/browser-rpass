@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use serde;
 
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq, Clone)]
 pub struct Account {
     pub username: String,
@@ -11,7 +14,10 @@ pub struct Account {
     pub path: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
+    #[serde(flatten)]
+    pub custom_fields: Option<HashMap<String, Value>>,
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Resource {
     #[serde(rename = "password")]

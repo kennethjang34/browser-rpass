@@ -611,7 +611,6 @@ fn handle_edit_request(request: EditRequest, store: &PasswordStoreType) -> pass:
                         Some(passphrase.clone())
                     );
                     if let Ok(updated_data)=updated_data{
-                        debug!("updated_data: {:?}",updated_data);
                         let edit_response = EditResponse {
                             acknowledgement: request.acknowledgement,
                             data:updated_data,
@@ -762,14 +761,10 @@ fn handle_login_request(request: LoginRequest,stores: &StoreListType) -> pass::R
         }
     }
     let verified = check_passphrase(&store.clone(), Some(user_id), &passphrase);
-    // let acknowledgement = request.acknowledgement;
-    // let status = {
     if let Ok(verified) = verified {
         if verified {
-            // Status::Success
             return Ok(store);
         } else {
-            // Status::Failure
             return Err(Error::GenericDyn(
                     "Failed to verify passphrase".to_string(),
                     ));
@@ -779,17 +774,12 @@ fn handle_login_request(request: LoginRequest,stores: &StoreListType) -> pass::R
                 "Failed to verify passphrase".to_string()));
     }
 }
-fn handle_logout_request(request:LogoutRequest,store: &PasswordStoreType)->pass::Result<()>{
-    let acknowledgement = request.acknowledgement;
-    let status = Status::Success;
-    // let json = serde_json::json!({"status": status,"acknowledgement": acknowledgement.unwrap_or("".to_string()),});
-    // let json = serde_json::to_string(&json).unwrap();
-    // let encoded = encode_message(&json.to_string());
-    // send_message(&encoded);
+fn handle_logout_request(request:LogoutRequest,_store: &PasswordStoreType)->pass::Result<()>{
+    let _acknowledgement = request.acknowledgement;
+    let _status = Status::Success;
     Ok(())
 }
 fn handle_create_request(request: CreateRequest, store: &PasswordStoreType) -> pass::Result<CreateResponse> {
-    debug!("handle_create_request: {:?}",request);
     if let Some(header) = request.header {
         if let Some(passphrase) = header.get("passphrase") {
             let username = request.username;
@@ -817,7 +807,6 @@ fn handle_create_request(request: CreateRequest, store: &PasswordStoreType) -> p
                                 merge_json(&mut entry_data, &entry_meta);
                                 status = Status::Success;
                                 data = entry_data;
-                                debug!("created password entry: {:?}",data);
                                 (status,data)
 
                             }
@@ -861,7 +850,6 @@ fn handle_delete_request(request: DeleteRequest, store: &PasswordStoreType) -> p
     if let Some(header) = request.header.clone() {
         if let Some(passphrase) = header.get("passphrase").cloned() {
             let id = request.id.clone();
-            debug!("handle_delete_request: {:?}",request);
             let acknowledgement = request.acknowledgement;
             let (status, data) = {
                 if let Ok(entry_data) =
@@ -872,7 +860,6 @@ fn handle_delete_request(request: DeleteRequest, store: &PasswordStoreType) -> p
                         (Status::Failure, None)
                     }
             };
-            debug!("deleted password entry: {:?}",data);
             let delete_response = DeleteResponse {
                 acknowledgement,
                 data: data
