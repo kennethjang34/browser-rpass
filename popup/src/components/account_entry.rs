@@ -98,9 +98,10 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                         </div>
                     </td>
                     <td class="px-3 py-2 font-medium" style="min-width: 9rem;">
-                            <div class="relative">
+                            // <div class="relative">
+                        <div style="display: flex; justify-items:center; align-items:center">
                             if *reveal_password {
-                                <div style="width: 6rem;">
+                                <div style="width: 4.5rem;">
                                     <div class="group overflow-x-auto cursor-copy" style="max-width: fit-content;">
                                     <span onclick={copy_pw.clone()}>
                                         {password.clone()}
@@ -108,8 +109,8 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                     {bottom_tooltip_span("click to copy password")}
                                     </div>
                                     </div>
-                                <div class="group">
-                                    <span onclick={on_reveal} class="absolute cursor-pointer top-1/2 ms-4" style="transform: translateY(-50%); left:3.5rem;">
+                                <div class="group" style="margin-left: 0.8rem">
+                                    <span onclick={on_reveal} class="cursor-pointer" style="transform: translateY(-50%);">
                                         <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 18">
                                             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1.933 10.909A4.357 4.357 0 0 1 1 9c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 19 9c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M2 17 18 1m-5 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
                                         </svg>
@@ -118,7 +119,7 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                 </div>
                             } else
                             {
-                                <div style="width: 6rem;">
+                                <div style="width: 4.5rem;">
                                     <div class="group overflow-x-auto cursor-copy" style="max-width: fit-content;">
                                     <span onclick={copy_pw.clone()}>
                                         {"**********"}
@@ -126,8 +127,10 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                     {bottom_tooltip_span("click to copy password")}
                                     </div>
                                     </div>
-                                    <div class="group">
-                                    <span onclick={on_reveal} class="absolute cursor-pointer top-1/2 ms-4" style="transform: translateY(-50%); left:3.5rem;">
+                                    // <div class="group">
+                                <div class="group" style="margin-left: 0.8rem">
+                                    // <span onclick={on_reveal} class="absolute cursor-pointer top-1/2 ms-4" style="transform: translateY(-50%); left:3.5rem;">
+                                    <span onclick={on_reveal} class="cursor-pointer" style="transform: translateY(-50%);">
                                         <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 14">
                                             <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
                                               <path d="M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
@@ -141,7 +144,8 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                         </div>
                     </td>
                     <td scope="row" class="px-3 py-2 font-medium bold text-gray-900 whitespace-nowrap dark:text-white">
-                        <div>
+                        // <div>
+                        <div style="display: flex; justify-items:center; align-items:center">
                             <div style="width: 5rem;" class="group overflow-x-auto text-center">
                                 <span class="select-all">
                                 {
