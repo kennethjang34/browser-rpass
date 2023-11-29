@@ -66,6 +66,17 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
             }
         })
     };
+    let bottom_tooltip_span = move |text| -> Html {
+        html! {
+            <div
+                style="min-width: fit-content;border-color: brown;left: 0.3rem;padding: 0.3rem;bottom: 1.3rem;border-width: medium;border-style: ridge;"
+                class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto dark:text-white"
+                >
+                {text}
+            </div>
+        }
+    };
+
     html! {
         <>
                     <td scope="row" class="px-3 py-2 font-medium bold text-gray-900 whitespace-nowrap dark:text-white">
@@ -74,9 +85,7 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                 <span class="cursor-copy text-gray-500 text-xs font-normal select-all" onclick={copy_domain.clone()}>
                                     {domain.as_ref().unwrap_or(&"".to_string())}
                                 </span>
-                                <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto">
-                                    {"click to copy domain"}
-                                </span>
+                                    {bottom_tooltip_span("click to copy domain")}
                             </div>
                             <div style="width: 12rem;" class="group overflow-x-auto">
                                 <span class="cursor-copy select-all"  onclick={copy_username.clone()} >
@@ -84,9 +93,7 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                     username.clone()
                                  }
                                 </span>
-                                <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto">
-                                    {"click to copy username"}
-                                </span>
+                                    {bottom_tooltip_span("click to copy username")}
                             </div>
                         </div>
                     </td>
@@ -98,9 +105,7 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                     <span onclick={copy_pw.clone()}>
                                         {password.clone()}
                                     </span>
-                                    <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto dark:text-white">
-                                        {"click to copy password"}
-                                    </span>
+                                    {bottom_tooltip_span("click to copy password")}
                                     </div>
                                     </div>
                                 <div class="group">
@@ -109,9 +114,7 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1.933 10.909A4.357 4.357 0 0 1 1 9c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 19 9c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M2 17 18 1m-5 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
                                         </svg>
                                     </span>
-                                    <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto dark:text-white">
-                                        {"click to hide password"}
-                                    </span>
+                                    {bottom_tooltip_span("click to hide password")}
                                 </div>
                             } else
                             {
@@ -120,9 +123,7 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                     <span onclick={copy_pw.clone()}>
                                         {"**********"}
                                     </span>
-                                    <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto dark:text-white">
-                                        {"click to copy password"}
-                                    </span>
+                                    {bottom_tooltip_span("click to copy password")}
                                     </div>
                                     </div>
                                     <div class="group">
@@ -134,9 +135,7 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                             </g>
                                         </svg>
                                     </span>
-                                    <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto dark:text-white">
-                                        {"click to reveal password"}
-                                    </span>
+                                    {bottom_tooltip_span("click to reveal password")}
                                     </div>
                             }
                         </div>
@@ -145,14 +144,10 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                         <div>
                             <div style="width: 5rem;" class="group overflow-x-auto text-center">
                                 <span class="select-all">
-                                // <span class="cursor-copy select-all"  onclick={copy_username.clone()} >
                                 {
                                     note.clone()
                                  }
                                 </span>
-                                // <span class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto">
-                                    // {"click to copy username"}
-                                // </span>
                             </div>
                         </div>
                     </td>
