@@ -79,15 +79,16 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
 
     html! {
         <>
-                    <td scope="row" class="px-3 py-2 font-medium bold text-gray-900 whitespace-nowrap dark:text-white">
-                        <div>
-                            <div style="max-width: fit-content;" class="group text-xs overflow-x-hidden">
+                    <th scope="row" class="px-3 py-2 font-medium bold text-gray-900 whitespace-nowrap dark:text-white">
+                        // <div>
+                            <div style="justify-self: center; width: 90%;">
+                            <div style="justify-self:center;" class="group text-xs overflow-x-hidden">
                                 <span class="cursor-copy text-gray-500 text-xs font-normal select-all" onclick={copy_domain.clone()}>
                                     {domain.as_ref().unwrap_or(&"".to_string())}
                                 </span>
                                     {bottom_tooltip_span("click to copy domain")}
                             </div>
-                            <div style="width: 12rem;" class="group overflow-x-auto">
+                            <div class="group overflow-x-auto" style="overflow-x: auto;">
                                 <span class="cursor-copy select-all"  onclick={copy_username.clone()} >
                                 {
                                     username.clone()
@@ -96,12 +97,12 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                     {bottom_tooltip_span("click to copy username")}
                             </div>
                         </div>
-                    </td>
-                    <td class="px-3 py-2 font-medium" style="min-width: 9rem;">
-                            <div class="relative">
+                    </th>
+                    <td scope="row" class="py-2 font-medium">
+                        <div style="display: grid; grid-template-columns: 5rem 1.5rem; justify-content:center; grid-auto-flow: column;">
                             if *reveal_password {
-                                <div style="width: 6rem;">
-                                    <div class="group overflow-x-auto cursor-copy" style="max-width: fit-content;">
+                                <div style="justify-self: center; width: 90%;margin-right: 1rem;">
+                                    <div class="group overflow-x-auto cursor-copy" style="justify-self:center;">
                                     <span onclick={copy_pw.clone()}>
                                         {password.clone()}
                                     </span>
@@ -109,7 +110,7 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                     </div>
                                     </div>
                                 <div class="group">
-                                    <span onclick={on_reveal} class="absolute cursor-pointer top-1/2 ms-4" style="transform: translateY(-50%); left:3.5rem;">
+                                    <span onclick={on_reveal} class="cursor-pointer" style="transform: translateY(-50%);">
                                         <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 18">
                                             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1.933 10.909A4.357 4.357 0 0 1 1 9c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 19 9c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M2 17 18 1m-5 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
                                         </svg>
@@ -118,16 +119,16 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                                 </div>
                             } else
                             {
-                                <div style="width: 6rem;">
-                                    <div class="group overflow-x-auto cursor-copy" style="max-width: fit-content;">
+                                <div style="justify-self: center; width: 90%;margin-right: 1rem;">
+                                    <div class="group overflow-x-auto cursor-copy" style="justify-self:center;">
                                     <span onclick={copy_pw.clone()}>
-                                        {"**********"}
+                                        {"************"}
                                     </span>
                                     {bottom_tooltip_span("click to copy password")}
                                     </div>
                                     </div>
                                     <div class="group">
-                                    <span onclick={on_reveal} class="absolute cursor-pointer top-1/2 ms-4" style="transform: translateY(-50%); left:3.5rem;">
+                                    <span onclick={on_reveal} class="cursor-pointer" style="transform: translateY(-50%);">
                                         <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 14">
                                             <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
                                               <path d="M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
@@ -141,8 +142,10 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                         </div>
                     </td>
                     <td scope="row" class="px-3 py-2 font-medium bold text-gray-900 whitespace-nowrap dark:text-white">
+                        // <div>
+                        // <div style="display: flex; justify-content:center; align-items:center">
                         <div>
-                            <div style="width: 5rem;" class="group overflow-x-auto text-center">
+                            <div class="group overflow-x-auto text-center">
                                 <span class="select-all">
                                 {
                                     note.clone()
