@@ -125,10 +125,20 @@ pub fn account_page(props: &Props) -> Html {
         let dispatch = store_dispatch.clone();
         Callback::from(move |_| dispatch.apply(DataAction::Idle))
     };
+    let table_header_element = move |text: &str| -> Html {
+        html! {
+        // <th scope="col" class="px-3 py-2" style="display: inline-block; margin-left: 4.3rem;">
+        <th scope="col">
+            {
+            text
+            }</th>
+        }
+    };
+    let table_headers = ["username", "password", "note", "", ""];
     html! {
             <>
                 <div class="relative overflow-hidden shadow-md sm:rounded-lg w-full h-full">
-                <div class="w-full top-2.5" style="border-bottom:outset; height: 80%; display: table-header-group;">
+                <div class="w-full top-2.5" style="border-bottom:outset; height: 80%;">
                     <label for="table-search" class="sr-only">{"Search"}</label>
                     <div class="relative mt-10" style="margin-bottom:1rem;">
                         <div class="absolute inset-y-0 rtl:inset-r-0 start-0 flex items-center ps-3 pointer-events-none">
@@ -158,29 +168,22 @@ pub fn account_page(props: &Props) -> Html {
                             </button>
                         </div>
                     }
-                    <table class="dark:text-gray-400 relative rtl:text-right text-gray-500 text-left text-sm w-full top-3" style="table-layout: fixed" border="1">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 block">
+                    <table class="dark:text-gray-400 relative rtl:text-right text-gray-500 text-left text-sm w-full top-3"  style="table-layout:fixed;" border="1">
+                            <colgroup>
+                            <col  span="1" class="px-3 py-2" style="width: 8rem;"/>
+                            <col  span="1" class="px-3 py-2" style="width: 5rem;"/>
+                            <col  span="1" class="px-3 py-2" style="width: 8rem;"/>
+                            <col  span="1" class="px-3 py-2" style="width: 4rem;"/>
+                            <col  span="1" class="px-3 py-2" style="width: 4rem;"/>
+                            </colgroup>
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 w-full">
                             <tr>
-                                <th scope="col" class="px-3 py-2" style="display: inline-block; margin-left: 3rem">
                                 {
-                                    "Username"
+                                    table_headers.iter().map(|header| table_header_element(header)).collect::<Html>()
                                 }
-                                </th>
-                                <th scope="col" class="px-3 py-2" style="display: inline-block; margin-left: 5.5rem; margin-right:0.5rem;">
-                                {
-                                    "Password"
-                                }
-                                </th>
-                                <th scope="col" class="px-3 py-2" style="display: inline-block; margin-left: 3rem">
-                                {
-                                    "Note"
-                                }
-                                </th>
-                                <th></th>
-                                <th></th>
                             </tr>
                         </thead>
-                        <tbody class="block overflow-y-auto w-full" style="height:15rem;">
+                        <tbody>
                             <AccountEntryList accounts={account_selector}/>
                         </tbody>
                     </table>
