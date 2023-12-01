@@ -139,8 +139,8 @@ pub fn account_page(props: &Props) -> Html {
                 <div class="relative overflow-hidden shadow-md sm:rounded-lg w-full h-full">
                 <div class="w-full top-2.5" style="border-bottom:outset; height: 80%;">
                     <label for="table-search" class="sr-only">{"Search"}</label>
-                    <div class="relative mt-10" style="margin-bottom:1rem;">
-                        <div class="absolute inset-y-0 rtl:inset-r-0 start-0 flex items-center ps-3 pointer-events-none">
+                    <div class="relative mt-10 px-1" style="margin-bottom:1rem;">
+                        <div class="absolute inset-y-0 rtl:inset-r-0 start-0 flex items-center ps-4 pointer-events-none">
                             <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
                                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
                             </svg>
@@ -167,13 +167,13 @@ pub fn account_page(props: &Props) -> Html {
                             </button>
                         </div>
                     }
-                    <table class="dark:text-gray-400 relative rtl:text-right text-gray-500 text-left text-sm w-full top-3"  style="table-layout:fixed;" border="1">
+                    <table class="dark:text-gray-400 relative rtl:text-right text-gray-500 text-left text-sm w-full top-3" border="1">
                             <colgroup>
-                            <col  span="1" class="px-3 py-2" style="width: 8rem;"/>
-                            <col  span="1" class="px-3 py-2" style="width: 5rem;"/>
-                            <col  span="1" class="px-3 py-2" style="width: 8rem;"/>
-                            <col  span="1" class="px-3 py-2" style="width: 4rem;"/>
-                            <col  span="1" class="px-3 py-2" style="width: 4rem;"/>
+                            <col  span="1" />
+                            <col  span="1" />
+                            <col  span="1"/>
+                            <col  span="1"/>
+                            <col  span="1"/>
                             </colgroup>
                         <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 w-full">
                             <tr>
@@ -187,7 +187,7 @@ pub fn account_page(props: &Props) -> Html {
                         </tbody>
                     </table>
                     </div>
-                    <button  class="bg-white block dark:bg-gray-800 dark:focus:ring-gray-800 dark:hover:bg-gray-600 relative focus:outline-none focus:ring-gray-50 font-medium hover:bg-gray-50 px-5 py-2.5 rounded-lg text-center text-sm text-blue-600 dark:text-blue-500 my-4" type="button" onclick={on_create_account}>
+                    <button  class={classes!(String::from("bg-white block dark:bg-gray-800 dark:focus:ring-gray-800 dark:hover:bg-gray-600 relative focus:outline-none focus:ring-gray-50 font-medium hover:bg-gray-50 px-5 py-2.5 rounded-lg text-center text-sm text-blue-600 dark:text-blue-500 my-4"))} type="button" onclick={on_create_account}>
                     {"Create Account"}
     </button>
                     if *show_create_account_popup{

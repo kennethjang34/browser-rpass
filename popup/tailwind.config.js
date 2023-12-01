@@ -1,14 +1,21 @@
+/** @type {import('tailwindcss').Config} */
 module.exports = {
-  mode: "jit",
   content: {
-    files: ["src/**/*.rs", "index.html", "./node_modules/flowbite/**/*.js"],
+    relative: true,
+    files: ["./src/**/*.rs", "./index.html", "./node_modules/flowbite/**/*.js"],
   },
-  darkMode: "media", // 'media' or 'class'
+  darkMode: "class",
   theme: {
     extend: {},
   },
   variants: {
     extend: {},
   },
-  plugins: [require("flowbite/plugin")],
+  plugins: [
+    require("tailwindcss"),
+    require("autoprefixer"),
+    require("@tailwindcss/forms"),
+    require("@tailwindcss/typography"),
+    require("flowbite/plugin"),
+  ],
 };

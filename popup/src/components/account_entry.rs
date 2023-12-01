@@ -69,27 +69,76 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
     let bottom_tooltip_span = move |text| -> Html {
         html! {
             <div
-                style="min-width: fit-content;border-color: brown;left: 0.3rem;padding: 0.3rem;bottom: 1.3rem;border-width: medium;border-style: ridge;"
-                class="group-hover:opacity-100 transition-opacity bg-gray-800 px-1 text-sm text-gray-100 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto dark:text-white"
+                style="min-width: fit-content; left: 0.3rem;padding: 0.3rem;bottom: 1.3rem;border-width: thin;border-style: dashed;"
+                class="transition-opacity px-1  text-sm  border-gray-800 dark:border-gray-400 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto text-black dark:text-white
+peer-hover:opacity-100 
+                "
                 >
                 {text}
             </div>
         }
     };
+    let opened_eye_icon = html! { <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 14">
+    <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+        <path d="M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
+        <path d="M10 13c4.97 0 9-2.686 9-6s-4.03-6-9-6-9 2.686-9 6 4.03 6 9 6Z"/>
+        </g>
+        </svg> };
+    let closed_eye_icon = html! {
+        <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 18">
+            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1.933 10.909A4.357 4.357 0 0 1 1 9c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 19 9c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M2 17 18 1m-5 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+        </svg>
+    };
+    let password_cell = |revealed: bool| -> Html {
+        let (eye_tooltip_text, password_text, eye_icon) = if revealed {
+            (
+                "click to hide password",
+                password.clone().unwrap_or_default(),
+                closed_eye_icon,
+            )
+        } else {
+            (
+                "click to reveal password",
+                "************".to_string(),
+                opened_eye_icon,
+            )
+        };
+        html! {
+            <>
+                <div class="account-password-cell">
+                    // <div class="group overflow-x-auto cursor-copy" style="justify-self:center;">
+                    <div class="overflow-x-auto cursor-copy" style="justify-self:center;">
+                        <span class="peer" onclick={copy_pw.clone()}>
+                        // <span onclick={copy_pw.clone()}>
+                            {password_text}
+                        </span>
+                    {bottom_tooltip_span("click to copy password")}
+                    </div>
+                </div>
+                // <div class="group">
+                <div>
+                    // <span onclick={on_reveal} class="cursor-pointer" style="transform: translateY(-50%);">
+                    <span onclick={on_reveal} class="cursor-pointer peer" style="transform: translateY(-50%);">
+                        {eye_icon}
+                    </span>
+                    {bottom_tooltip_span(eye_tooltip_text)}
+                </div>
+            </>
+        }
+    };
 
     html! {
         <>
-                    <th scope="row" class="px-3 py-2 font-medium bold text-gray-900 whitespace-nowrap dark:text-white">
-                        // <div>
-                            <div style="justify-self: center; width: 90%;">
-                            <div style="justify-self:center;" class="group text-xs overflow-x-hidden">
-                                <span class="cursor-copy text-gray-500 text-xs font-normal select-all" onclick={copy_domain.clone()}>
+                    <th scope="row" class="font-medium bold text-gray-900 whitespace-nowrap dark:text-white">
+                            <div class="account-username-cell">
+                            <div class="account-domain">
+                                <span class="peer cursor-copy text-gray-500" onclick={copy_domain.clone()}>
                                     {domain.as_ref().unwrap_or(&"".to_string())}
                                 </span>
                                     {bottom_tooltip_span("click to copy domain")}
                             </div>
-                            <div class="group overflow-x-auto" style="overflow-x: auto;">
-                                <span class="cursor-copy select-all"  onclick={copy_username.clone()} >
+                            <div class="account-username">
+                                <span class="peer cursor-copy select-all"  onclick={copy_username.clone()} >
                                 {
                                     username.clone()
                                  }
@@ -99,54 +148,14 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
                         </div>
                     </th>
                     <td scope="row" class="py-2 font-medium">
-                        <div style="display: grid; grid-template-columns: 5rem 1.5rem; justify-content:center; grid-auto-flow: column;">
-                            if *reveal_password {
-                                <div style="justify-self: center; width: 90%;margin-right: 1rem;">
-                                    <div class="group overflow-x-auto cursor-copy" style="justify-self:center;">
-                                    <span onclick={copy_pw.clone()}>
-                                        {password.clone()}
-                                    </span>
-                                    {bottom_tooltip_span("click to copy password")}
-                                    </div>
-                                    </div>
-                                <div class="group">
-                                    <span onclick={on_reveal} class="cursor-pointer" style="transform: translateY(-50%);">
-                                        <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 18">
-                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1.933 10.909A4.357 4.357 0 0 1 1 9c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 19 9c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M2 17 18 1m-5 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
-                                        </svg>
-                                    </span>
-                                    {bottom_tooltip_span("click to hide password")}
-                                </div>
-                            } else
-                            {
-                                <div style="justify-self: center; width: 90%;margin-right: 1rem;">
-                                    <div class="group overflow-x-auto cursor-copy" style="justify-self:center;">
-                                    <span onclick={copy_pw.clone()}>
-                                        {"************"}
-                                    </span>
-                                    {bottom_tooltip_span("click to copy password")}
-                                    </div>
-                                    </div>
-                                    <div class="group">
-                                    <span onclick={on_reveal} class="cursor-pointer" style="transform: translateY(-50%);">
-                                        <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 14">
-                                            <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
-                                              <path d="M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
-                                              <path d="M10 13c4.97 0 9-2.686 9-6s-4.03-6-9-6-9 2.686-9 6 4.03 6 9 6Z"/>
-                                            </g>
-                                        </svg>
-                                    </span>
-                                    {bottom_tooltip_span("click to reveal password")}
-                                    </div>
-                            }
+                        <div class="password">
+                        {password_cell(*reveal_password)}
                         </div>
                     </td>
-                    <td scope="row" class="px-3 py-2 font-medium bold text-gray-900 whitespace-nowrap dark:text-white">
-                        // <div>
-                        // <div style="display: flex; justify-content:center; align-items:center">
+                    <td scope="row" class="font-medium text-gray-900 whitespace-nowrap dark:text-white">
                         <div>
-                            <div class="group overflow-x-auto text-center">
-                                <span class="select-all">
+                            <div class="overflow-x-auto text-center">
+                                <span class="peer select-all">
                                 {
                                     note.clone()
                                  }

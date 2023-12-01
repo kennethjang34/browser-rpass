@@ -3,3 +3,7 @@ pattern_preload = "<link rel=\"preload\" href=\"/popup_bg.wasm\" as=\"fetch\" ty
 pattern_script = "<script type=\"module\" src=\"/init_popup.js\"></script>"
 filehash = false
 
+# [[hooks]]
+# stage = "pre_build"
+# command = "tailwindcss"
+# command_arguments = ["-i", "assets/styles.css", "-o", "assets/compiled_styles.css"]

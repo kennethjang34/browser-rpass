@@ -13,6 +13,91 @@ tbody:before {
   line-height: 0.6em;
   color: transparent;
 }
+
+table {
+  table-layout: fixed;
+}
+
 thead > tr > th {
   text-align: center;
 }
+
+colgroup col:nth-child(1) {
+  width: 8rem;
+}
+
+colgroup col:nth-child(2) {
+  width: 5rem;
+}
+
+colgroup col:nth-child(3) {
+  width: 8rem;
+}
+
+colgroup col:nth-child(4) {
+  width: 4rem;
+}
+
+colgroup col:nth-child(5) {
+  width: 4rem;
+}
+
+div.account-username {
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  max-width: 100%;
+  width: -moz-fit-content;
+  width: fit-content;
+}
+
+div.account-domain {
+  padding-top: 0.25rem;
+  overflow-x: hidden;
+  justify-self: center;
+  max-width: 100%;
+  width: -moz-fit-content;
+  width: fit-content;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+div.account-domain > span {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 400;
+}
+
+div.account-username-cell {
+  justify-self: center;
+  width: 90%;
+  padding-left: 0.5rem;
+}
+
+colgroup col {
+}
+
+tbody > tr > td {
+  ing-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  padding-top: 0.5rem;
+  font-weight: 500;
+}
+
+div.account-password-cell {
+  justify-self: center;
+  width: 90%;
+  margin-right: 1rem;
+}
+
+div.password {
+  display: grid;
+  grid-template-columns: 5rem 1.5rem;
+  justify-content: center;
+  grid-auto-flow: column;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@tailwind variants;
+@config "../tailwind.config.js";

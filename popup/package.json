@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "flowbite": "^2.1.1",
+    "flowbite": "^2.2.0",
     "tailwind": "^4.0.0"
   },
   "devDependencies": {
