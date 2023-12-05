@@ -14,3 +14,4 @@ cp ./service-worker/pkg/service_worker_bg.wasm ./pkg
 cp ./content/pkg/content.js ./pkg 
 cp ./content/pkg/content_bg.wasm ./pkg
 cp ./manifest_v3.json ./pkg/manifest.json
+cp ./assets/tailwind.css ./pkg/tailwind.css

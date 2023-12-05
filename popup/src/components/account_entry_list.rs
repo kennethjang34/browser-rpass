@@ -1,4 +1,4 @@
-use crate::components::edit_account_popup::EditAccountPopup;
+use crate::components::EditAccountPopup;
 use crate::store::DataAction;
 use crate::store::PopupStore;
 use crate::Account;
@@ -56,41 +56,43 @@ pub fn account_entry_list_component(props: &AccountEntryListProps) -> Html {
             let account = account.clone();
             let on_edit_account = on_edit_account.clone();
             html! {
-            <>
                 <tr key={id.clone()} class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                     <AccountEntry id={i} account={account.clone()}></AccountEntry>
                     <td class="px-1 py-0.5" style="text-align:center;">
-                    <a href="#" 
-                    onclick={
-                        let account=account.clone();
-                        move |e:MouseEvent|{on_edit_account.emit(
-                                (
-                                e,account.clone()
-                                )
-                    )}
-                    }
-                    class="font-medium text-blue-600 dark:text-blue-500 hover:underline">{ "Edit" }</a>
+                        <a href="#" 
+                            onclick={
+                                let account=account.clone();
+                                move |e:MouseEvent|{
+                                    on_edit_account.emit((e,account.clone()))
+                                }
+                            }
+                            class="font-medium text-blue-600 dark:text-blue-500 hover:underline">
+                            { "Edit" }
+                        </a>
                     </td>
                     <td class="px-1 py-0.5" style="text-align:center;">
-                    <a href="#" 
-                    onclick={
-                        move |e:MouseEvent|{delete_account.emit(
-                                (
-                                e,account.clone())
-                    )}
-                    }
-                    class="font-medium text-blue-600 dark:text-blue-500 hover:underline">{ "Delete" }</a>
+                        <a href="#" 
+                            onclick={
+                                move |e:MouseEvent|{
+                                    delete_account.emit((e,account.clone()))
+                                }
+                            }
+                            class="font-medium text-red-600 dark:text-red-500 hover:underline">
+                            { "Delete" }
+                        </a>
                     </td>
                 </tr>
-            </>
             }
         })
         .collect::<Html>();
     html! {
         <>
-        {account_list_component}
-        if let Some(account) = (*show_edit_account).clone(){
-            <EditAccountPopup account={account.clone()} handle_close={close_edit_account_popup.clone()}/>
-        }
-    </>}
+            {account_list_component}
+            if let Some(account) = (*show_edit_account).clone(){
+                <div class="fullscreen-container">
+                    <EditAccountPopup account={account.clone()} handle_close={close_edit_account_popup.clone()}/>
+                </div>
+            }
+        </>
+    }
 }

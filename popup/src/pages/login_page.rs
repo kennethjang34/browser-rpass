@@ -1,21 +1,13 @@
 use crate::api::extension_api::login;
-// use crate::api::user_api::api_login_user;
-use crate::components::{form_input::FormInput, loading_button::LoadingButton};
-use browser_rpass::response::ResponseEnum;
-use browser_rpass::store::AsyncCallback;
+use crate::components::FormInput;
+use crate::store::{LoginAction, LoginStatus, PopupStore};
+#[allow(unused_imports)]
 use log::*;
 use serde_json::json;
-use wasm_bindgen::JsCast;
-use yew;
-// use router::{self, Route};
-use crate::store::{LoginAction, LoginStatus, PopupStore};
 use std::cell::RefCell;
-use std::future::Future;
-use std::ops::Deref;
-use std::pin::Pin;
 use std::rc::Rc;
+use yew;
 
-use browser_rpass::{log, Port};
 use serde;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationErrors};
