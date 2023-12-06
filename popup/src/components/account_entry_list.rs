@@ -3,6 +3,7 @@ use crate::store::DataAction;
 use crate::store::PopupStore;
 use crate::Account;
 use crate::Resource;
+#[allow(unused_imports)]
 use log::*;
 use std::rc::Rc;
 use yew;
@@ -56,10 +57,10 @@ pub fn account_entry_list_component(props: &AccountEntryListProps) -> Html {
             let account = account.clone();
             let on_edit_account = on_edit_account.clone();
             html! {
-                <tr key={id.clone()} class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                <tr key={id.clone()} class="table-row">
                     <AccountEntry id={i} account={account.clone()}></AccountEntry>
-                    <td class="px-1 py-0.5" style="text-align:center;">
-                        <a href="#" 
+                    <td class="px-1 py-0.5 text-center">
+                        <a href="#"
                             onclick={
                                 let account=account.clone();
                                 move |e:MouseEvent|{
@@ -70,8 +71,8 @@ pub fn account_entry_list_component(props: &AccountEntryListProps) -> Html {
                             { "Edit" }
                         </a>
                     </td>
-                    <td class="px-1 py-0.5" style="text-align:center;">
-                        <a href="#" 
+                    <td class="px-1 py-0.5 text-center">
+                        <a href="#"
                             onclick={
                                 move |e:MouseEvent|{
                                     delete_account.emit((e,account.clone()))

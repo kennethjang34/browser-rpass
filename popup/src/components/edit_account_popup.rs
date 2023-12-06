@@ -2,12 +2,11 @@ use std::rc::Rc;
 
 use crate::{
     api::extension_api::edit_account,
-    components::CloseButton,
-    components::EditIcon,
-    components::ErrorToast,
+    components::*,
     store::{DataAction, PopupStore, StoreData, StoreDataStatus},
 };
 use browser_rpass::types::Account;
+use gloo_utils::document;
 #[allow(unused_imports)]
 use log::*;
 use wasm_bindgen::JsCast;
@@ -144,8 +143,34 @@ pub fn edit_account_popup(props: &Props) -> Html {
         let dispatch = store_dispatch.clone();
         Callback::from(move |_| dispatch.apply(DataAction::Idle))
     };
+    let password_input_component = |revealed: bool| -> Html {
+        let (input_type, eye_tooltip_text, eye_icon) = if revealed {
+            ("text", "click to hide password", html! {<ClosedEyeIcon/>})
+        } else {
+            (
+                "password",
+                "click to reveal password",
+                html! {<OpenEyeIcon/>},
+            )
+        };
+        html! {
+            <div class="col-span-2 sm:col-span-1">
+                <label for="password" class="form-label">{ "Password" }</label>
+                <div class="relative">
+                    <input type={input_type} name="password" id="password" class="form-input" placeholder="Password" required={true} value={(*password_input).clone()} oninput={on_password_input.clone()} />
+                    <span onclick={on_reveal.clone()} class="absolute cursor-pointer right-2 top-1/2 peer" style="transform: translateY(-50%);">
+                        {eye_icon}
+                    </span>
+                    <Tooltip text={eye_tooltip_text.to_string()}
+                    class="tooltip fixed"
+                    style={format!("margin:-0.5rem;transform:translate(-100%,-100%);
+                                   top:{top};left:{left};",top="81%",left="100%")}/>
+                </div>
+            </div>
+        }
+    };
     html! {
-        <div id="edit-account-popup" tabindex="-1" aria-hidden="true" class="overflow-y-auto overflow-x-hidden shadow-lg fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0  max-h-full">
+        <div id="edit-account-popup" tabindex="-1" aria-hidden="true" class="overflow-y-auto overflow-x-hidden shadow-lg fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0  max-h-full" >
             <div class="relative w-full max-h-full">
                 <div class="relative bg-white rounded-lg shadow dark:bg-gray-900">
                     <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
@@ -156,7 +181,7 @@ pub fn edit_account_popup(props: &Props) -> Html {
                             <ErrorToast
                                 text={"Edition Failed"}
                                 on_close_button_clicked={close_error}
-                                class="absolute right-0 mr-5 my-4 max-w-xs"
+                                class="absolute right-0 mr-5 my-4"
                             />
                         }
                         <CloseButton onclick={&props.handle_close}/>
@@ -168,34 +193,7 @@ pub fn edit_account_popup(props: &Props) -> Html {
                                 <input type="text" name="username" id="username" class="form-input"
                                 placeholder="User ID" required={true} value={(*username_input).clone()} oninput={on_username_input.clone()}/>
                             </div>
-                            if !*reveal_password {
-                                <div class="col-span-2 sm:col-span-1">
-                                    <label for="password" class="form-label">{ "Password" }</label>
-                                    <div class="relative">
-                                    <input type="password" name="password" id="password" class="form-input" placeholder="Password" required={true} value={(*password_input).clone()} oninput={on_password_input} />
-                                    <span onclick={on_reveal} class="absolute cursor-pointer right-2 top-1/2" style="transform: translateY(-50%);">
-                                        <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 14">
-                                            <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
-                                              <path d="M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
-                                              <path d="M10 13c4.97 0 9-2.686 9-6s-4.03-6-9-6-9 2.686-9 6 4.03 6 9 6Z"/>
-                                            </g>
-                                        </svg>
-                                    </span>
-                                    </div>
-                                </div>
-                            }else{
-                                <div class="col-span-2 sm:col-span-1">
-                                    <label for="password" class="form-label">{ "Password" }</label>
-                                    <div class="relative">
-                                    <input type="text" name="password" id="password" class="form-input" placeholder="Password" required={true} value={(*password_input).clone()} oninput={on_password_input}/>
-                                    <span onclick={on_reveal} class="absolute cursor-pointer right-2 top-1/2" style="transform: translateY(-50%);">
-                                        <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 18">
-                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1.933 10.909A4.357 4.357 0 0 1 1 9c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 19 9c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M2 17 18 1m-5 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
-                                        </svg>
-                                    </span>
-                                    </div>
-                                </div>
-                            }
+                            {password_input_component(*reveal_password)}
                             <div class="col-span-2 sm:col-span-1">
                                 <label for="url" class="form-label">{ "Domain/URL" }</label>
                                 <input type="text" name="url" id="url" class="form-input" placeholder="URL" required={true} value={(*domain_input).clone()}  oninput={on_domain_input.clone()}/>

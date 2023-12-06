@@ -1,7 +1,7 @@
-use std::rc::Rc;
-
+use crate::components::*;
 use crate::Account;
 use browser_rpass::util::*;
+use std::rc::Rc;
 use wasm_bindgen_futures;
 use yew;
 
@@ -66,62 +66,35 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
             }
         })
     };
-    let bottom_tooltip_span = move |text| -> Html {
-        html! {
-            <div
-                style="min-width: fit-content; left: 0.3rem;padding: 0.3rem;bottom: 1.3rem;border-width: thin;border-style: dashed;"
-                class="transition-opacity px-1  text-sm  border-gray-800 dark:border-gray-400 rounded-md fixed left-0 bottom-0 translate-y-full opacity-0 m-4 mx-auto text-black dark:text-white
-peer-hover:opacity-100 
-                "
-                >
-                {text}
-            </div>
-        }
-    };
-    let opened_eye_icon = html! { <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 14">
-    <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
-        <path d="M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
-        <path d="M10 13c4.97 0 9-2.686 9-6s-4.03-6-9-6-9 2.686-9 6 4.03 6 9 6Z"/>
-        </g>
-        </svg> };
-    let closed_eye_icon = html! {
-        <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 18">
-            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1.933 10.909A4.357 4.357 0 0 1 1 9c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 19 9c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M2 17 18 1m-5 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
-        </svg>
-    };
     let password_cell = |revealed: bool| -> Html {
         let (eye_tooltip_text, password_text, eye_icon) = if revealed {
             (
                 "click to hide password",
                 password.clone().unwrap_or_default(),
-                closed_eye_icon,
+                html! {<ClosedEyeIcon/>},
             )
         } else {
             (
                 "click to reveal password",
                 "************".to_string(),
-                opened_eye_icon,
+                html! {<OpenEyeIcon/>},
             )
         };
         html! {
             <>
                 <div class="account-password-cell">
-                    // <div class="group overflow-x-auto cursor-copy" style="justify-self:center;">
-                    <div class="overflow-x-auto cursor-copy" style="justify-self:center;">
-                        <span class="peer" onclick={copy_pw.clone()}>
-                        // <span onclick={copy_pw.clone()}>
+                    <div class="overflow-x-auto" style="justify-self:center;">
+                        <span class="peer cursor-copy" onclick={copy_pw.clone()}>
                             {password_text}
                         </span>
-                    {bottom_tooltip_span("click to copy password")}
+                            <Tooltip text={"click to copy password".to_string()} class="bottom-tooltip"/>
                     </div>
                 </div>
-                // <div class="group">
                 <div>
-                    // <span onclick={on_reveal} class="cursor-pointer" style="transform: translateY(-50%);">
                     <span onclick={on_reveal} class="cursor-pointer peer" style="transform: translateY(-50%);">
                         {eye_icon}
                     </span>
-                    {bottom_tooltip_span(eye_tooltip_text)}
+                    <Tooltip text={eye_tooltip_text.to_string()} class="bottom-tooltip"/>
                 </div>
             </>
         }
@@ -135,7 +108,7 @@ peer-hover:opacity-100
                                 <span class="peer cursor-copy text-gray-500" onclick={copy_domain.clone()}>
                                     {domain.as_ref().unwrap_or(&"".to_string())}
                                 </span>
-                                    {bottom_tooltip_span("click to copy domain")}
+                                    <Tooltip text={"click to copy domain".to_string()} class="bottom-tooltip"/>
                             </div>
                             <div class="account-username">
                                 <span class="peer cursor-copy select-all"  onclick={copy_username.clone()} >
@@ -143,7 +116,7 @@ peer-hover:opacity-100
                                     username.clone()
                                  }
                                 </span>
-                                    {bottom_tooltip_span("click to copy username")}
+                                    <Tooltip text={"click to copy username".to_string()} class="bottom-tooltip"/>
                             </div>
                         </div>
                     </th>

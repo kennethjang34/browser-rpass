@@ -1,29 +1,22 @@
 mod account_entry;
 mod account_entry_list;
-mod alert;
 mod close_button;
 mod create_account_popup;
 mod edit_account_popup;
 mod error_toast;
 mod form_input;
-mod header;
-mod loading_button;
 mod loading_indicator;
 mod search_input;
-mod spinner;
 pub use account_entry::*;
 pub use account_entry_list::*;
-pub use alert::*;
 pub use close_button::*;
 pub use create_account_popup::*;
 pub use edit_account_popup::*;
 pub use error_toast::*;
 pub use form_input::*;
-pub use loading_button::*;
 pub use loading_indicator::*;
 pub use search_input::*;
-pub use spinner::*;
-use yew::{function_component, html, virtual_dom::VNode, Html};
+use yew::{function_component, html, AttrValue, Classes, Html, Properties};
 
 #[function_component(PlusSign)]
 pub fn plus_sign() -> Html {
@@ -43,5 +36,55 @@ pub fn edit_icon() -> Html {
                     C494.936,37.396,491.007,27.915,483.876,20.791z M466.61,56.897L257.457,266.05c-0.035,0.036-0.055,0.078-0.089,0.107
                     l-33.989,15.131L238.51,247.3c0.03-0.036,0.071-0.055,0.107-0.09L447.765,38.058c5.038-5.039,13.819-5.033,18.846,0.005
                     c2.518,2.51,3.905,5.855,3.905,9.414C470.516,51.036,469.127,54.38,466.61,56.897z"/>
+    </svg>}
+}
+
+#[function_component(OpenEyeIcon)]
+pub fn open_eye_icon() -> Html {
+    html! { <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 14">
+    <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+        <path d="M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
+        <path d="M10 13c4.97 0 9-2.686 9-6s-4.03-6-9-6-9 2.686-9 6 4.03 6 9 6Z"/>
+        </g>
+        </svg> }
+}
+#[function_component(ClosedEyeIcon)]
+pub fn closed_eye_icon() -> Html {
+    html! {
+        <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 18">
+            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1.933 10.909A4.357 4.357 0 0 1 1 9c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 19 9c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M2 17 18 1m-5 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+        </svg>
+    }
+}
+
+#[derive(Properties, PartialEq, Clone)]
+pub struct TooltipProps {
+    #[prop_or_default]
+    pub text: AttrValue,
+    #[prop_or_default]
+    pub style: AttrValue,
+    #[prop_or_default]
+    pub class: Classes,
+}
+#[function_component(Tooltip)]
+pub fn tooltip(props: &TooltipProps) -> Html {
+    html! {
+        <div
+            style={&props.style}
+            class={props.class.clone()}
+            >
+            {&props.text}
+        </div>
+    }
+}
+#[function_component(ErrorIcon)]
+pub fn error_icon() -> Html {
+    html! {
+
+    <svg class="flex-shrink-0 inline w-6 h-6 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 32 32">
+            <g>
+            <g id="Error_1_">
+                <g id="Error">
+                    <circle cx="16" cy="16" id="BG" r="16" style="fill:#D72828;"/><path d="M14.5,25h3v-3h-3V25z M14.5,6v13h3V6H14.5z" id="Exclamatory_x5F_Sign" style="fill:#E6E6E6;"/></g></g></g>
     </svg>}
 }

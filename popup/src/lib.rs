@@ -11,7 +11,6 @@ pub use gloo_utils::format::JsValueSerdeExt;
 #[warn(unused_imports)]
 use log::{self, *};
 use std::panic;
-use wasm_bindgen::prelude::*;
 use yewdux::dispatch::Dispatch;
 
 mod api;
