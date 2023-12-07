@@ -28,7 +28,7 @@
         "https://developer.mozilla.org/*"
       ],
       "js": ["run_content.js"],
-      "css": ["flowbite.min.css", "tailwind.css"]
+      "css": ["flowbite.min.css", "content_styles.css"]
     }
   ],
   "web_accessible_resources": [

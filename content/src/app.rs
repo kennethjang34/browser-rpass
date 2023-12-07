@@ -251,7 +251,7 @@ pub fn App(_props: &Props) -> Html {
                                 current_focus.set(None);
                             })
                         };
-                        let entry_element=html!(<div style="cursor: pointer; border: 3px solid black;" class="rpass-suggestion bg-gray-200 text-gray-700 block px-3 py-2 text-sm" onclick={on_suggestion_click}>{entry.username.clone()}</div>);
+                        let entry_element=html!(<div style=" border: 3px solid black;" class="cursor-pointer rpass-suggestion bg-gray-200 text-gray-700 block px-3 py-2 text-sm" onclick={on_suggestion_click}>{entry.username.clone()}</div>);
                         entry_element
                     }).collect::<Html>()}
             }
