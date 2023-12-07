@@ -10,21 +10,21 @@ edition = "2021"
 rpass={ path = "../.." }
 strum = "0.18.0"
 strum_macros = "0.18.0"
-enum_dispatch="0.3.12"
+enum_dispatch={workspace=true}
 git2 = "0.17.1"
 locale_config = "0.3.0"
 wasm-bindgen= {workspace=true}
 console_error_panic_hook ={workspace=true}
-serde={workspace=true,features = ["derive"]}
+serde={workspace=true}
 serde_json.workspace = true
-chrono = { version = "0.4.24", features = ["serde"] }
+chrono = { workspace=true }
 browser-rpass = { path = "../"}
 rand = {workspace=true}
-getrandom={workspace=true,features=["js"]}
+getrandom={workspace=true}
 typetag = {workspace=true}
 lazy_static = {workspace=true}
 url = {workspace=true}
-fern={workspace=true,features=["colored"]}
+fern={workspace=true}
 log={workspace=true, features=["max_level_trace", "release_max_level_warn"]}
 hex = "0.4.3"
 humantime = "2.1.0"
@@ -34,8 +34,8 @@ uuid = {version="1.6.1", features = ["v4","macro-diagnostics",]}
 version = "0.11.0"
 default-features = false
 features = ["toml"]
-[dev-dependencies]
-tempfile = "3.5.0"
-flate2 = "1.0.26"
-tar = "0.4.38"
-criterion = "0.4.0"
+# [dev-dependencies]
+# tempfile = "3.5.0"
+# flate2 = "1.0.26"
+# tar = "0.4.38"
+# criterion = "0.4.0"

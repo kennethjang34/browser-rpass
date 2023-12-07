@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 browser-rpass = { path = "../"}
@@ -14,7 +14,7 @@ serde = {workspace=true}
 serde_json = {workspace=true}
 serde-wasm-bindgen = {workspace=true}
 gloo = {workspace=true}
-gloo-utils = {workspace=true, features = ["serde"]}
+gloo-utils = {workspace=true}
 wasm-bindgen= {workspace=true}
 rand = {workspace=true}
 getrandom={workspace=true}
@@ -33,24 +33,14 @@ strum = {workspace=true}
 strum_macros = {workspace=true}
 yew-router = {workspace=true}
 once_cell = {workspace=true}
-log={workspace=true, features=["max_level_trace", "release_max_level_warn"]}
+log={workspace=true}
 fern={workspace=true}
 
 
-web-sys = {workspace=true, features = ["console","Window",
-	"Document",
-	"HtmlElement",
-	"HtmlDocument",
-	"HtmlInputElement",
-	"HtmlTextAreaElement",
-	"Navigator",
-	"Clipboard",
-]}
-console_log = {workspace=true, features = ["color"],optional = true}
+web-sys = {workspace=true}
+console_log = {workspace=true,optional = true}
 cfg-if = {workspace=true}
 parking_lot = {workspace=true}
 
 [features]
 default = ["console_log"]
-
-

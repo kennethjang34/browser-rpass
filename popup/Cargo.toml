@@ -5,36 +5,32 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [dependencies]
 wasm-bindgen= {workspace=true}
 js-sys = {workspace=true}
 wasm-bindgen-futures = {workspace=true}
 console_error_panic_hook ={workspace=true}
-serde={workspace=true,features = ["derive"]}
+serde={workspace=true}
 serde_json = {workspace=true}
-yew = { workspace=true, features = ["csr"] }
-chrono = { version = "0.4.24", features = ["serde"] }
+yew = { workspace=true}
+chrono = { workspace=true}
 gloo={workspace = true }
-gloo-utils = { workspace=true, features = ["serde"] }
-reqwasm = "0.5.0"
+gloo-utils = { workspace=true}
 validator = { version = "0.16.0", features = ["derive"] }
 yewdux = {workspace=true}
 yew-router = {workspace=true}
 serde-wasm-bindgen = { workspace =true}
 browser-rpass = { path = "../"}
 rand = {workspace=true}
-getrandom={workspace=true,features=["js"]}
+getrandom={workspace=true}
 typetag = {workspace=true}
 lazy_static = {workspace=true}
 url = {workspace=true}
 uuid = {version="1.4.1",features=["serde","v4"]}
 sublime_fuzzy="*"
-cfg-if = "0.1"
-log={workspace=true, features=["max_level_trace", "release_max_level_warn"]}
-console_log = {workspace=true, features = ["color"],optional = true}
+cfg-if = {workspace=true}
+log={workspace=true}
+console_log = {workspace=true,optional = true}
 parking_lot = {workspace=true}
 fern={workspace=true}
 
@@ -45,17 +41,3 @@ default = ["console_log"]
 
 [dependencies.web-sys]
 workspace = true
-features = [
-    "console",
-    "Window",
-	"Document",
-	"HtmlElement",
-	"HtmlDocument",
-	"HtmlInputElement",
-	"HtmlTextAreaElement",
-	"Navigator",
-	"Clipboard",
-	"DomRect",
-	"Element", 
-	"DomTokenList"
-]

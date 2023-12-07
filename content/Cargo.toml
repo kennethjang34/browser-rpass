@@ -4,30 +4,30 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib","rlib"]
 
 [dependencies]
-wasm-bindgen = "^0.2.87"
-js-sys = "0.3"
-wasm-bindgen-futures = "0.4"
-console_error_panic_hook = "0.1.6"
+wasm-bindgen = {workspace=true}
+js-sys = {workspace=true}
+wasm-bindgen-futures ={workspace=true}
+console_error_panic_hook = {workspace=true}
 reqwest-wasm = "0.11.16"
-serde = { version = "1.0.164", features = ["derive"] }
+serde = { workspace=true }
 browser-rpass = { path = "../"}
-serde_json = "1.0.96"
+serde_json = {workspace=true}
 yew = {workspace=true}
 yewdux = {workspace=true}
-log={version="0.4", features=["max_level_trace", "release_max_level_warn"]}
+log={workspace=true}
 fern ={workspace =true}
 gloo={workspace = true}
-gloo-utils = { workspace=true, features = ["serde"] }
-cfg-if = "0.1"
+gloo-utils = { workspace=true }
+cfg-if = {workspace=true}
 
-console_log = {workspace=true, features = ["color"],optional = true}
+console_log = {workspace=true,optional = true}
 
-chrono = { version = "0.4.24", features = ["serde"] }
+chrono = { workspace=true }
 rand = {workspace=true}
-getrandom={workspace=true,features=["js"]}
+getrandom={workspace=true}
 typetag = {workspace=true}
 lazy_static = {workspace=true}
 url = {workspace=true}
@@ -40,21 +40,5 @@ parking_lot = {workspace=true}
 
 [dependencies.web-sys]
 workspace = true
-features = [
-    "console",
-    "Window",
-	"Document",
-	"HtmlElement",
-	"HtmlDocument",
-	"HtmlInputElement",
-	"HtmlTextAreaElement",
-	"Navigator",
-	"Clipboard",
-	"CssStyleDeclaration",
-	"HtmlStyleElement",
-	"HtmlCollection",
-	"HtmlDataListElement",
-	"HtmlOptionElement","DomRect",
-]
 [features]
 default = ["console_log"]
