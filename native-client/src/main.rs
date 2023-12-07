@@ -1287,6 +1287,8 @@ fn update_entry_field(id:&str, key:&str, value:&str, store: PasswordStoreType, p
         Err(pass::Error::Generic("Failed to parse entry content"))
     }
 }
+
+#[allow(dead_code)]
 fn do_rename_file(
     old_name: &str,
     new_name: &str,

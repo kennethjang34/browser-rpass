@@ -33,7 +33,7 @@ url = {workspace=true}
 uuid = {version="1.4.1",features=["serde","v4"]}
 sublime_fuzzy="*"
 cfg-if = "0.1"
-log = {workspace=true}
+log={workspace=true, features=["max_level_trace", "release_max_level_warn"]}
 console_log = {workspace=true, features = ["color"],optional = true}
 parking_lot = {workspace=true}
 fern={workspace=true}

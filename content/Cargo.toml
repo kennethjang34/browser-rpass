@@ -17,7 +17,7 @@ browser-rpass = { path = "../"}
 serde_json = "1.0.96"
 yew = {workspace=true}
 yewdux = {workspace=true}
-log = {workspace=true}
+log={version="0.4", features=["max_level_trace", "release_max_level_warn"]}
 fern ={workspace =true}
 gloo={workspace = true}
 gloo-utils = { workspace=true, features = ["serde"] }
@@ -34,7 +34,6 @@ url = {workspace=true}
 uuid = {version="1.4.1",features=["serde","v4"]}
 sublime_fuzzy="*"
 parking_lot = {workspace=true}
-# material-yew = "0.3.0"
 
 
 

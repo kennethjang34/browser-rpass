@@ -30,7 +30,7 @@ strum_macros = "0.25.2"
 yew-router = "^0.17.0"
 once_cell = "1.8.0"
 cfg-if = "0.1"
-log = "0.4"
+log={version="0.4", features=["max_level_trace", "release_max_level_warn"]}
 console_log = { version = "1", features = ["color"]}
 parking_lot = "^0.12.1"
 fern = "0.6.2"
