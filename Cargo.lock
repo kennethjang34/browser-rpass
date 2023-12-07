@@ -1927,7 +1927,6 @@ dependencies = [
  "url",
  "uuid",
  "wasm-bindgen",
- "yew",
 ]
 
 [[package]]
