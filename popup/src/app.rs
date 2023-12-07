@@ -6,7 +6,7 @@ use browser_rpass::{
     log,
     util::{chrome, Tab},
 };
-use gloo_utils::format::JsValueSerdeExt;
+use gloo_utils::{document, format::JsValueSerdeExt};
 use log::*;
 use serde_json::{json, Value};
 use wasm_bindgen::prelude::Closure;

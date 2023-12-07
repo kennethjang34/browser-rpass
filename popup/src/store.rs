@@ -1,6 +1,7 @@
 use browser_rpass::request::SessionEventWrapper;
 use browser_rpass::types::StorageStatus;
 use gloo::storage::errors::StorageError;
+use gloo_utils::document;
 use gloo_utils::format::JsValueSerdeExt;
 use lazy_static::lazy_static;
 use log::debug;
@@ -101,6 +102,7 @@ pub struct StoreData {
 pub struct PersistentStoreData {
     pub user_id: Option<String>,
     pub remember_me: bool,
+    pub dark_mode: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
@@ -150,6 +152,7 @@ pub enum DataAction {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum PopupAction {
     PathSet(Option<String>),
+    DarkModeToggle,
 }
 impl Reducer<PopupStore> for PopupAction {
     fn apply(self, state: Rc<PopupStore>) -> Rc<PopupStore> {
@@ -159,6 +162,22 @@ impl Reducer<PopupStore> for PopupAction {
                 ..state.deref().clone()
             }
             .into(),
+            PopupAction::DarkModeToggle => {
+                let dark_mode = !state.persistent_data.dark_mode;
+                if dark_mode {
+                    let _ = document().body().unwrap().set_class_name("dark");
+                } else {
+                    let _ = document().body().unwrap().class_list().remove_1("dark");
+                }
+                PopupStore {
+                    persistent_data: PersistentStoreData {
+                        dark_mode,
+                        ..state.persistent_data.clone()
+                    },
+                    ..state.deref().clone()
+                }
+                .into()
+            }
         }
     }
 }
@@ -327,6 +346,7 @@ impl Reducer<PopupStore> for LoginAction {
                 persistent_data: PersistentStoreData {
                     user_id: Some(user_id),
                     remember_me: store.persistent_data.remember_me,
+                    dark_mode: store.persistent_data.dark_mode,
                 },
                 login_status: LoginStatus::Loading,
                 ..store.deref().clone()
@@ -370,6 +390,7 @@ impl Reducer<PopupStore> for LoginAction {
                         None
                     },
                     remember_me: store.persistent_data.remember_me,
+                    dark_mode: store.persistent_data.dark_mode,
                 },
                 login_status: LoginStatus::LogoutSuccess,
                 data: StoreData {
@@ -401,6 +422,7 @@ impl Reducer<PopupStore> for LoginAction {
                     } else {
                         None
                     },
+                    dark_mode: store.persistent_data.dark_mode,
                 },
                 login_status: LoginStatus::LoggedOut,
                 data: StoreData {
@@ -417,6 +439,7 @@ impl Reducer<PopupStore> for LoginAction {
                     persistent_data: PersistentStoreData {
                         remember_me: store.persistent_data.remember_me,
                         user_id: Some(user_id),
+                        dark_mode: store.persistent_data.dark_mode,
                     },
                     login_status: LoginStatus::LoggedIn,
                     ..store.deref().clone()
@@ -432,6 +455,7 @@ impl Reducer<PopupStore> for LoginAction {
                         } else {
                             None
                         },
+                        dark_mode: store.persistent_data.dark_mode,
                     },
                     ..store.deref().clone()
                 }

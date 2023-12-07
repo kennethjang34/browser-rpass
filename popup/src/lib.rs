@@ -2,6 +2,7 @@
 pub extern crate browser_rpass;
 pub use browser_rpass::dbg;
 pub use browser_rpass::types::*;
+use gloo_utils::document;
 use store::PopupStore;
 use store::EXTENSION_PORT;
 use wasm_bindgen::JsValue;
@@ -41,6 +42,12 @@ pub async fn run_app() -> Result<(), JsValue> {
     if let Some(parsed_state) = persisted {
         let mut popup_store = PopupStore::default();
         popup_store.persistent_data = parsed_state;
+        let dark_mode = popup_store.persistent_data.dark_mode;
+        if dark_mode {
+            let _ = document().body().unwrap().set_class_name("dark");
+        } else {
+            let _ = document().body().unwrap().class_list().remove_1("dark");
+        }
         Dispatch::<PopupStore>::new().set(popup_store);
     }
     let acknowledgement = create_request_acknowledgement();

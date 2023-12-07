@@ -17,7 +17,7 @@ serde={workspace=true,features = ["derive"]}
 serde_json = {workspace=true}
 yew = { workspace=true, features = ["csr"] }
 chrono = { version = "0.4.24", features = ["serde"] }
-gloo={workspace = true}
+gloo={workspace = true }
 gloo-utils = { workspace=true, features = ["serde"] }
 reqwasm = "0.5.0"
 validator = { version = "0.16.0", features = ["derive"] }
@@ -56,4 +56,6 @@ features = [
 	"Navigator",
 	"Clipboard",
 	"DomRect",
+	"Element", 
+	"DomTokenList"
 ]
