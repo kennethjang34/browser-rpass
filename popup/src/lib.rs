@@ -19,7 +19,6 @@ mod app;
 mod components;
 mod event_handlers;
 mod pages;
-mod router;
 mod store;
 use std::collections::HashMap;
 
