@@ -8,16 +8,23 @@ use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
+    #[prop_or_default]
     pub input_type: Option<String>,
     pub label: String,
     pub name: String,
     pub handle_onchange: Callback<String>,
+    #[prop_or_default]
     pub handle_on_input_blur: Option<Callback<(String, String)>>,
     pub errors: Rc<RefCell<ValidationErrors>>,
+    #[prop_or_default]
     pub label_class: Option<String>,
+    #[prop_or_default]
     pub input_class: Option<String>,
+    #[prop_or_default]
     pub placeholder: Option<String>,
+    #[prop_or_default]
     pub disabled: Option<bool>,
+    #[prop_or_default]
     pub value: Option<String>,
 }
 

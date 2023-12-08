@@ -9,7 +9,40 @@ edition = "2021"
 crate-type = ["rlib", "cdylib"]
 
 [workspace.dependencies]
+serde_json = "1.0.96"
+serde-wasm-bindgen = "^0.5.0"
+gloo = "0.8.0"
+gloo-utils = { version = "^0.1.2", features = ["serde"] }
+wasm-bindgen = {version="0.2.89"}
+rand = "0.8.5"
+getrandom={ version = "0.2.3", features = ["js"] }
+typetag = "0.2"
+enum_dispatch="0.3.12"
+wasm-bindgen-futures = "0.4.39"
+js-sys = "^0.3"
+console_error_panic_hook = "0.1.6"
+lazy_static = "1.4.0"
+serde_repr = "0.1"
+yewdux ={version="0.9.4"}
+yew = {version="^0.21.0", features=["csr"]}
+
+serde_variant = "0.1.2"
+url = "2.4.1"
+strum = "0.25.0"
+strum_macros = "0.25.2"
+yew-router = "^0.17.0"
+once_cell = "1.8.0"
+cfg-if = "0.1"
+log={version="0.4", features=["max_level_trace", "release_max_level_warn"]}
+console_log = { version = "1", features = ["color"]}
+parking_lot = "^0.12.1"
+fern = {version="0.6.2", features=["colored"]}
+chrono = { version = "0.4.24", features = ["serde"] }
+uuid = {version="1.6.1", features = ["serde","v4","macro-diagnostics"]}
 serde = { version = "1.0.174", features = ["derive"] }
+
+
+[dependencies]
 serde_json = "1.0.96"
 serde-wasm-bindgen = "^0.5.0"
 gloo = "0.8.0"
@@ -24,8 +57,8 @@ js-sys = "^0.3"
 console_error_panic_hook = "0.1.6"
 lazy_static = "1.4.0"
 serde_repr = "0.1"
-yewdux ={version="0.9.3"}
-yew = {version="^0.20.0", features=["csr"]}
+yewdux ={version="0.9.4"}
+yew = {version="^0.21.0", features=["csr"]}
 
 serde_variant = "0.1.2"
 url = "2.4.1"
@@ -39,31 +72,8 @@ console_log = { version = "1", features = ["color"]}
 parking_lot = "^0.12.1"
 fern = {version="0.6.2", features=["colored"]}
 chrono = { version = "0.4.24", features = ["serde"] }
-
-[dependencies]
+uuid = {version="1.6.1", features = ["serde","v4","macro-diagnostics"]}
 serde = { version = "1.0.174", features = ["derive"] }
-console_log = { version = "1", features = ["color"]}
-serde_json = "1.0.96"
-serde-wasm-bindgen = "^0.5.0"
-gloo = "0.8.0"
-gloo-utils = { version = "^0.1.2", features = ["serde"] }
-wasm-bindgen = {version="0.2.89"}
-rand = "0.8.4"
-getrandom={ version = "0.2.3", features = ["js"] }
-typetag = "0.2"
-enum_dispatch="0.3.12"
-wasm-bindgen-futures = "0.4.39"
-js-sys = "^0.3"
-console_error_panic_hook = "0.1.6"
-lazy_static = "1.4.0"
-serde_repr = "0.1"
-serde_variant = "0.1.2"
-url = "2.4.1"
-strum_macros = "0.25.2"
-once_cell = "1.8.0"
-chrono = { version = "0.4.24", features = ["serde"] }
-fern = "0.6.2"
-log.workspace = true
 
 [profile.release]
 debug = true
@@ -99,7 +109,8 @@ features = [
 	"HtmlStyleElement",
 	"HtmlCollection",
 	"HtmlDataListElement",
-	"HtmlOptionElement","DomRect",
+	"HtmlOptionElement",
+	"DomRect",
 	"Element",
 	"DomTokenList",
 
@@ -120,7 +131,8 @@ features = [
 	"HtmlStyleElement",
 	"HtmlCollection",
 	"HtmlDataListElement",
-	"HtmlOptionElement","DomRect",
+	"HtmlOptionElement",
+	"DomRect",
 	"Element",
 	"DomTokenList",
 ]

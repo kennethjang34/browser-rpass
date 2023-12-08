@@ -48,18 +48,16 @@ pub fn create_account_popup(props: &Props) -> Html {
         let dispatch = store_dispatch.clone();
         Callback::from(move |_| dispatch.apply(DataAction::Idle))
     };
-    use_effect_with_deps(
-        {
-            let dispatch = store_dispatch.clone();
-            move |(store_status, handle_close): &(Rc<StoreDataStatus>, Callback<MouseEvent>)| {
-                if **store_status == StoreDataStatus::CreationSuccess {
-                    handle_close.emit(MouseEvent::new("click").unwrap());
-                    dispatch.apply(DataAction::Idle);
-                }
+
+    use_effect_with((store_status.clone(), props.handle_close.clone()), {
+        let dispatch = store_dispatch.clone();
+        move |(store_status, handle_close): &(Rc<StoreDataStatus>, Callback<MouseEvent>)| {
+            if **store_status == StoreDataStatus::CreationSuccess {
+                handle_close.emit(MouseEvent::new("click").unwrap());
+                dispatch.apply(DataAction::Idle);
             }
-        },
-        (store_status.clone(), props.handle_close.clone()),
-    );
+        }
+    });
     let on_reveal = {
         let reveal_password = reveal_password.clone();
         Callback::from(move |e: MouseEvent| {

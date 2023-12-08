@@ -6,33 +6,33 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+browser-rpass = { path = "../"}
 wasm-bindgen= {workspace=true}
 js-sys = {workspace=true}
 wasm-bindgen-futures = {workspace=true}
 console_error_panic_hook ={workspace=true}
-serde={workspace=true}
 serde_json = {workspace=true}
 yew = { workspace=true}
 chrono = { workspace=true}
 gloo={workspace = true }
 gloo-utils = { workspace=true}
-validator = { version = "0.16.0", features = ["derive"] }
 yewdux = {workspace=true}
 yew-router = {workspace=true}
 serde-wasm-bindgen = { workspace =true}
-browser-rpass = { path = "../"}
 rand = {workspace=true}
 getrandom={workspace=true}
 typetag = {workspace=true}
 lazy_static = {workspace=true}
 url = {workspace=true}
-uuid = {version="1.4.1",features=["serde","v4"]}
-sublime_fuzzy="*"
+uuid = {workspace=true}
 cfg-if = {workspace=true}
 log={workspace=true}
 console_log = {workspace=true,optional = true}
 parking_lot = {workspace=true}
 fern={workspace=true}
+sublime_fuzzy="*"
+validator = { version = "0.16.0", features = ["derive"] }
+serde={workspace=true}
 
 
 [features]

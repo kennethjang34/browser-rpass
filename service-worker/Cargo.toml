@@ -10,37 +10,35 @@ crate-type = ["cdylib"]
 
 [dependencies]
 browser-rpass = { path = "../"}
-serde = {workspace=true}
-serde_json = {workspace=true}
-serde-wasm-bindgen = {workspace=true}
+cfg-if = {workspace=true}
+console_error_panic_hook = {workspace=true}
+console_log = {workspace=true,optional = true}
+enum_dispatch={workspace=true}
+fern={workspace=true}
+getrandom={workspace=true}
 gloo = {workspace=true}
 gloo-utils = {workspace=true}
-wasm-bindgen= {workspace=true}
-rand = {workspace=true}
-getrandom={workspace=true}
-typetag = {workspace=true}
-enum_dispatch={workspace=true}
-wasm-bindgen-futures = {workspace=true}
 js-sys = {workspace=true}
-console_error_panic_hook = {workspace=true}
 lazy_static = {workspace=true}
+log={workspace=true}
+once_cell = {workspace=true}
+parking_lot = {workspace=true}
+rand = {workspace=true}
+serde = {workspace=true}
+serde-wasm-bindgen = {workspace=true}
+serde_json = {workspace=true}
 serde_repr = {workspace=true}
-yewdux = {workspace=true}
-yew = {workspace=true}
 serde_variant = {workspace=true}
-url = {workspace=true}
 strum = {workspace=true}
 strum_macros = {workspace=true}
-yew-router = {workspace=true}
-once_cell = {workspace=true}
-log={workspace=true}
-fern={workspace=true}
+typetag = {workspace=true}
+url = {workspace=true}
+wasm-bindgen-futures = {workspace=true}
+wasm-bindgen= {workspace=true}
+yew = {workspace=true}
+yewdux = {workspace=true}
 
-
-web-sys = {workspace=true}
-console_log = {workspace=true,optional = true}
-cfg-if = {workspace=true}
-parking_lot = {workspace=true}
-
+[dependencies.web-sys]
+workspace = true
 [features]
 default = ["console_log"]

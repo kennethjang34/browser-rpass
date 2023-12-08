@@ -1,6 +1,7 @@
 use core::fmt;
 use enum_dispatch::enum_dispatch;
 use gloo_utils::format::JsValueSerdeExt;
+#[allow(unused_imports)]
 use log::debug;
 use serde_json::Value;
 use serde_variant::to_variant_name;

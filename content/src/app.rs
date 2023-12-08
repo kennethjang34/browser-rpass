@@ -28,159 +28,147 @@ pub fn App(_props: &Props) -> Html {
     let verified = use_selector(|state: &ContentScriptStore| state.verified);
     let account_selector = use_selector(|state: &ContentScriptStore| state.data.accounts.clone());
     let accounts = use_state(|| Rc::new(Vec::<Rc<Account>>::new()));
-    use_effect_with_deps(
+    use_effect_with((), {
+        let page_domain = page_domain.clone();
+        let user_input_element = username_input_element.clone();
+        let _password_input = password_input.clone();
+        let password_input_element = password_input_element.clone();
+        let current_focus = current_focus.clone();
         {
-            let page_domain = page_domain.clone();
-            let user_input_element = username_input_element.clone();
-            let _password_input = password_input.clone();
+            let username_input_element = username_input_element.clone();
+            let username_input = username_input.clone();
             let password_input_element = password_input_element.clone();
-            let current_focus = current_focus.clone();
-            {
-                let username_input_element = username_input_element.clone();
-                let username_input = username_input.clone();
-                let password_input_element = password_input_element.clone();
-                move |_| {
-                    let current_address =
-                        get_domain_name(&window().location().href().unwrap_or_default());
-                    if *page_domain != current_address {
-                        page_domain.set(current_address);
-                    }
-                    if let Some(ref username_input_element) = user_input_element {
-                        let on_focus = {
-                            let user_input_element = username_input_element.clone();
-                            let current_focus = current_focus.clone();
-                            Closure::<dyn Fn(_)>::new(move |_event: web_sys::FocusEvent| {
-                                current_focus.set(Some(user_input_element.clone()));
-                            })
-                        };
-                        username_input_element
-                            .add_event_listener_with_callback(
-                                "focus",
-                                on_focus.as_ref().unchecked_ref(),
-                            )
-                            .unwrap();
-                        on_focus.forget();
-                    }
-                    if let Some(ref password_input_element) = password_input_element {
-                        let on_focus = {
-                            let password_input_element = password_input_element.clone();
-                            let current_focus = current_focus.clone();
-                            Closure::<dyn Fn(_)>::new(move |_event: web_sys::FocusEvent| {
-                                current_focus.set(Some(password_input_element.clone()));
-                            })
-                        };
-                        password_input_element
-                            .add_event_listener_with_callback(
-                                "focus",
-                                on_focus.as_ref().unchecked_ref(),
-                            )
-                            .unwrap();
-                        on_focus.forget();
-                    }
-                    let on_click = {
+            move |_| {
+                let current_address =
+                    get_domain_name(&window().location().href().unwrap_or_default());
+                if *page_domain != current_address {
+                    page_domain.set(current_address);
+                }
+                if let Some(ref username_input_element) = user_input_element {
+                    let on_focus = {
+                        let user_input_element = username_input_element.clone();
                         let current_focus = current_focus.clone();
-                        let username_input_element = username_input_element.clone();
+                        Closure::<dyn Fn(_)>::new(move |_event: web_sys::FocusEvent| {
+                            current_focus.set(Some(user_input_element.clone()));
+                        })
+                    };
+                    username_input_element
+                        .add_event_listener_with_callback(
+                            "focus",
+                            on_focus.as_ref().unchecked_ref(),
+                        )
+                        .unwrap();
+                    on_focus.forget();
+                }
+                if let Some(ref password_input_element) = password_input_element {
+                    let on_focus = {
                         let password_input_element = password_input_element.clone();
-                        Closure::<dyn Fn(_)>::new(move |_event: web_sys::MouseEvent| {
-                            if let Some(event_target) = _event.target() {
-                                if let Ok(target_element) =
-                                    event_target.clone().dyn_into::<HtmlElement>()
+                        let current_focus = current_focus.clone();
+                        Closure::<dyn Fn(_)>::new(move |_event: web_sys::FocusEvent| {
+                            current_focus.set(Some(password_input_element.clone()));
+                        })
+                    };
+                    password_input_element
+                        .add_event_listener_with_callback(
+                            "focus",
+                            on_focus.as_ref().unchecked_ref(),
+                        )
+                        .unwrap();
+                    on_focus.forget();
+                }
+                let on_click = {
+                    let current_focus = current_focus.clone();
+                    let username_input_element = username_input_element.clone();
+                    let password_input_element = password_input_element.clone();
+                    Closure::<dyn Fn(_)>::new(move |_event: web_sys::MouseEvent| {
+                        if let Some(event_target) = _event.target() {
+                            if let Ok(target_element) =
+                                event_target.clone().dyn_into::<HtmlElement>()
+                            {
+                                if target_element.class_name().contains("rpass-suggestion")
+                                    || (username_input_element.is_some()
+                                        && target_element
+                                            == username_input_element
+                                                .clone()
+                                                .unwrap()
+                                                .dyn_into()
+                                                .unwrap())
+                                    || (password_input_element.is_some()
+                                        && target_element
+                                            == password_input_element
+                                                .clone()
+                                                .unwrap()
+                                                .dyn_into()
+                                                .unwrap())
                                 {
-                                    if target_element.class_name().contains("rpass-suggestion")
-                                        || (username_input_element.is_some()
-                                            && target_element
-                                                == username_input_element
-                                                    .clone()
-                                                    .unwrap()
-                                                    .dyn_into()
-                                                    .unwrap())
-                                        || (password_input_element.is_some()
-                                            && target_element
-                                                == password_input_element
-                                                    .clone()
-                                                    .unwrap()
-                                                    .dyn_into()
-                                                    .unwrap())
-                                    {
-                                        // do nothing when click on suggestion list
-                                    } else {
-                                        current_focus.set(None);
-                                    }
+                                    // do nothing when click on suggestion list
                                 } else {
                                     current_focus.set(None);
                                 }
                             } else {
                                 current_focus.set(None);
                             }
+                        } else {
+                            current_focus.set(None);
+                        }
+                    })
+                };
+                document()
+                    .body()
+                    .unwrap()
+                    .add_event_listener_with_callback("click", on_click.as_ref().unchecked_ref())
+                    .unwrap();
+                on_click.forget();
+                if let Some(username_input_element) = username_input_element {
+                    username_input_element.set_oninput(Some(
+                        &Closure::<dyn Fn(_)>::new({
+                            let username_input_element = username_input_element.clone();
+                            let username_input = username_input.clone();
+                            move |_event: web_sys::InputEvent| {
+                                let username = username_input_element.value();
+                                username_input.set(username);
+                            }
                         })
-                    };
-                    document()
-                        .body()
-                        .unwrap()
-                        .add_event_listener_with_callback(
-                            "click",
-                            on_click.as_ref().unchecked_ref(),
-                        )
-                        .unwrap();
-                    on_click.forget();
-                    if let Some(username_input_element) = username_input_element {
-                        username_input_element.set_oninput(Some(
-                            &Closure::<dyn Fn(_)>::new({
-                                let username_input_element = username_input_element.clone();
-                                let username_input = username_input.clone();
-                                move |_event: web_sys::InputEvent| {
-                                    let username = username_input_element.value();
-                                    username_input.set(username);
-                                }
-                            })
-                            .into_js_value()
-                            .unchecked_into(),
-                        ));
-                    }
+                        .into_js_value()
+                        .unchecked_into(),
+                    ));
                 }
             }
-        },
-        (),
-    );
-    use_effect_with_deps(
-        {
-            let accounts = accounts.clone();
-            move |verified: &Rc<bool>| {
-                if **verified {
-                    fetch_accounts(None);
-                } else {
-                    accounts.set(Rc::new(Vec::<Rc<Account>>::new()));
-                }
+        }
+    });
+    use_effect_with(verified.clone(), {
+        let accounts = accounts.clone();
+        move |verified: &Rc<bool>| {
+            if **verified {
+                fetch_accounts(None);
+            } else {
+                accounts.set(Rc::new(Vec::<Rc<Account>>::new()));
             }
-        },
-        verified.clone(),
-    );
-    use_effect_with_deps(
-        {
-            let accounts = accounts.clone();
-            let verified = verified.clone();
-            move |(page_domain, account_selector): &(
-                UseStateHandle<String>,
-                Rc<Mrc<Vec<Rc<Account>>>>,
-            )| {
-                if *verified {
-                    let account_state = account_selector.clone();
-                    let result_vec = account_state
-                        .borrow()
-                        .iter()
-                        .cloned()
-                        .filter(|account| {
-                            let domain = account.domain.as_ref();
-                            let page_address = (**page_domain).clone();
-                            domain.unwrap_or(&String::new()) == &page_address
-                        })
-                        .collect::<Vec<Rc<Account>>>();
-                    accounts.set(Rc::new(result_vec));
-                }
+        }
+    });
+    use_effect_with((page_domain.clone(), account_selector.clone()), {
+        let accounts = accounts.clone();
+        let verified = verified.clone();
+        move |(page_domain, account_selector): &(
+            UseStateHandle<String>,
+            Rc<Mrc<Vec<Rc<Account>>>>,
+        )| {
+            if *verified {
+                let account_state = account_selector.clone();
+                let result_vec = account_state
+                    .borrow()
+                    .iter()
+                    .cloned()
+                    .filter(|account| {
+                        let domain = account.domain.as_ref();
+                        let page_address = (**page_domain).clone();
+                        domain.unwrap_or(&String::new()) == &page_address
+                    })
+                    .collect::<Vec<Rc<Account>>>();
+                accounts.set(Rc::new(result_vec));
             }
-        },
-        (page_domain.clone(), account_selector.clone()),
-    );
+        }
+    });
 
     if (*current_focus).is_none() {
         html!(<></>)

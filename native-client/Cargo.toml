@@ -7,28 +7,32 @@ edition = "2021"
 
 
 [dependencies]
+browser-rpass = { path = "../"}
 rpass={ path = "../.." }
-strum = "0.18.0"
-strum_macros = "0.18.0"
+
+strum = {workspace=true}
+strum_macros = {workspace=true}
 enum_dispatch={workspace=true}
-git2 = "0.17.1"
-locale_config = "0.3.0"
+log={workspace=true}
+uuid = {workspace=true}
 wasm-bindgen= {workspace=true}
 console_error_panic_hook ={workspace=true}
-serde={workspace=true}
 serde_json.workspace = true
 chrono = { workspace=true }
-browser-rpass = { path = "../"}
 rand = {workspace=true}
 getrandom={workspace=true}
 typetag = {workspace=true}
 lazy_static = {workspace=true}
 url = {workspace=true}
 fern={workspace=true}
-log={workspace=true, features=["max_level_trace", "release_max_level_warn"]}
+
+
+git2 = "0.17.1"
+locale_config = "0.3.0"
 hex = "0.4.3"
 humantime = "2.1.0"
-uuid = {version="1.6.1", features = ["v4","macro-diagnostics",]}
+
+serde={workspace=true}
 
 [dependencies.config]
 version = "0.11.0"

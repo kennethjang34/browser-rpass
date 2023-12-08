@@ -33,17 +33,14 @@ pub fn home_page(_props: &Props) -> Html {
         event.prevent_default();
         window().close().unwrap();
     });
-    use_effect_with_deps(
-        {
-            let _path = path.clone();
-            move |verified: &Rc<bool>| {
-                if **verified {
-                    fetch_accounts(None);
-                }
+    use_effect_with(verified.clone(), {
+        let _path = path.clone();
+        move |verified: &Rc<bool>| {
+            if **verified {
+                fetch_accounts(None);
             }
-        },
-        verified.clone(),
-    );
+        }
+    });
     let dark_mode = use_selector(|state: &PopupStore| state.persistent_data.dark_mode);
     let set_darkmode = Callback::from(move |_| {
         Dispatch::<PopupStore>::new().apply(PopupAction::DarkModeToggle);

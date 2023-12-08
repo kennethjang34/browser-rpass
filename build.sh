@@ -1,11 +1,11 @@
-cargo build -p native-client
 rm -rf ./pkg
 mkdir pkg
+cargo build -p native-client
 wasm-pack build ./service-worker --target web --out-dir ./pkg --dev
 wasm-pack build ./content --target web --out-dir ./pkg --dev
 trunk build ./popup/index.html
-tailwindcss -i ./popup/assets/styles.css -o ./assets/popup_styles.css
-tailwindcss -i ./content/assets/styles.css -o ./assets/content_styles.css
+npx tailwindcss -i ./popup/assets/styles.css -o ./assets/popup_styles.css
+npx tailwindcss -i ./content/assets/styles.css -o ./assets/content_styles.css
 cp ./assets/* ./pkg
 cp -r ./popup/dist/* ./pkg
 cp ./init_popup.js ./pkg

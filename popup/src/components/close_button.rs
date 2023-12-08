@@ -3,8 +3,10 @@ use yew::prelude::*;
 pub struct Props {
     #[prop_or_default]
     pub class: Classes,
+    #[prop_or_default]
     pub onclick: Option<Callback<MouseEvent>>,
-    pub style: Option<String>,
+    #[prop_or_default]
+    pub style: String,
 }
 #[function_component(CloseButton)]
 pub fn close_button(props: &Props) -> Html {
