@@ -48,6 +48,7 @@ macro_rules! log {
 }
 
 pub enum InputElementType {
+    #[allow(dead_code)]
     Text,
     Email,
     Password,

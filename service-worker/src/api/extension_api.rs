@@ -1,8 +1,8 @@
 use browser_rpass::{
     dbg,
-    request::{SessionEvent, SessionEventType},
-    response::{LoginResponse, MessageEnum, RequestEnum},
-    Port,
+    js_binding::extension_api::*,
+    request::SessionEvent,
+    response::{MessageEnum, RequestEnum},
 };
 use gloo_utils::format::JsValueSerdeExt;
 use log::info;

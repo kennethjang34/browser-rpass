@@ -1,9 +1,9 @@
 use browser_rpass::{
+    js_binding::extension_api::Port,
     request::SessionEventType,
     response::{MessageEnum, RequestEnum, ResponseEnumTrait},
     store::MESSAGE_ACKNOWLEDGEMENTS_POP_UP,
     types::Resource,
-    Port,
 };
 use gloo_utils::format::JsValueSerdeExt;
 use log::*;

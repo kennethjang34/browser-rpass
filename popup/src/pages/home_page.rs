@@ -5,7 +5,7 @@ use crate::{
     store::PopupStore,
     store::{PopupAction, StoreDataStatus},
 };
-use gloo_utils::{document, window};
+use gloo_utils::window;
 use log::*;
 use std::rc::Rc;
 

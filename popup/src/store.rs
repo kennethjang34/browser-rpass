@@ -1,3 +1,4 @@
+use browser_rpass::js_binding::extension_api::*;
 use browser_rpass::request::SessionEventWrapper;
 use browser_rpass::types::StorageStatus;
 use gloo::storage::errors::StorageError;
@@ -306,7 +307,7 @@ impl Reducer<PopupStore> for DataAction {
                 ..state.deref().clone()
             }
             .into(),
-            DataAction::ResourceCreationFailed(resource, _session_event_wrapper) => {
+            DataAction::ResourceCreationFailed(_resource, _session_event_wrapper) => {
                 PopupStore {
                     page_loading: false,
                     data_status: StoreDataStatus::CreationFailed,
@@ -314,7 +315,7 @@ impl Reducer<PopupStore> for DataAction {
                 }
             }
             .into(),
-            DataAction::ResourceEditionFailed(resource, _session_event_wrapper) => {
+            DataAction::ResourceEditionFailed(_resource, _session_event_wrapper) => {
                 PopupStore {
                     page_loading: false,
                     data_status: StoreDataStatus::EditionFailed,
@@ -322,7 +323,7 @@ impl Reducer<PopupStore> for DataAction {
                 }
             }
             .into(),
-            DataAction::ResourceDeletionFailed(resource, _session_event_wrapper) => PopupStore {
+            DataAction::ResourceDeletionFailed(_resource, _session_event_wrapper) => PopupStore {
                 page_loading: false,
                 data_status: StoreDataStatus::DeletionFailed,
                 ..state.deref().clone()
@@ -341,7 +342,7 @@ impl Reducer<PopupStore> for DataAction {
 impl Reducer<PopupStore> for LoginAction {
     fn apply(self, store: Rc<PopupStore>) -> Rc<PopupStore> {
         match self {
-            LoginAction::LoginStarted(user_id, data) => PopupStore {
+            LoginAction::LoginStarted(user_id, _data) => PopupStore {
                 page_loading: true,
                 persistent_data: PersistentStoreData {
                     user_id: Some(user_id),
@@ -358,7 +359,7 @@ impl Reducer<PopupStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LoginError(data, user_id) => {
+            LoginAction::LoginError(_data, user_id) => {
                 debug!("LoginError: {:?}", user_id);
                 PopupStore {
                     page_loading: false,
@@ -367,20 +368,20 @@ impl Reducer<PopupStore> for LoginAction {
                 }
             }
             .into(),
-            LoginAction::LoginSucceeded(data) => PopupStore {
+            LoginAction::LoginSucceeded(_data) => PopupStore {
                 page_loading: false,
                 verified: true,
                 login_status: LoginStatus::LoginSuccess,
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LoginFailed(data) => PopupStore {
+            LoginAction::LoginFailed(_data) => PopupStore {
                 page_loading: false,
                 login_status: LoginStatus::LoginFailed,
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LogoutSucceeded(data) => PopupStore {
+            LoginAction::LogoutSucceeded(_data) => PopupStore {
                 page_loading: false,
                 verified: false,
                 persistent_data: PersistentStoreData {
@@ -400,19 +401,19 @@ impl Reducer<PopupStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LogoutFailed(data) => PopupStore {
+            LoginAction::LogoutFailed(_data) => PopupStore {
                 page_loading: false,
                 login_status: LoginStatus::LogoutFailed,
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LogoutStarted(data) => PopupStore {
+            LoginAction::LogoutStarted(_data) => PopupStore {
                 page_loading: true,
                 login_status: LoginStatus::Loading,
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::Logout(data) => PopupStore {
+            LoginAction::Logout(_data) => PopupStore {
                 verified: false,
                 page_loading: false,
                 persistent_data: PersistentStoreData {
@@ -432,7 +433,7 @@ impl Reducer<PopupStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::Login(user_id, data) => {
+            LoginAction::Login(user_id, _data) => {
                 PopupStore {
                     verified: true,
                     page_loading: false,
@@ -515,16 +516,6 @@ impl PopupStore {
         Ok(())
     }
 
-    pub fn init() {
-        let acknowledgement = create_request_acknowledgement();
-        let init_config = HashMap::new();
-        let init_request =
-            RequestEnum::create_init_request(init_config, Some(acknowledgement.clone()), None);
-        EXTENSION_PORT
-            .lock()
-            .borrow()
-            .post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
-    }
     pub async fn load() -> Option<PersistentStoreData> {
         let loaded = chrome
             .storage()

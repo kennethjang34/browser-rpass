@@ -1,12 +1,12 @@
 use browser_rpass::{
+    js_binding::extension_api::Port,
     request::SessionEventType,
-    response::{LoginResponse, MessageEnum, RequestEnum, ResponseEnumTrait},
+    response::{MessageEnum, RequestEnum, ResponseEnumTrait},
     store::{MESSAGE_ACKNOWLEDGEMENTS_POP_UP, MESSAGE_CONTEXT_POPUP},
     types::Resource,
-    Port,
 };
 use gloo_utils::format::JsValueSerdeExt;
-use log::{debug, error, info};
+use log::*;
 use serde_json::json;
 use wasm_bindgen::{prelude::Closure, JsValue};
 use wasm_bindgen_futures::spawn_local;

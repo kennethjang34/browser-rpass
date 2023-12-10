@@ -1,3 +1,4 @@
+pub mod js_binding;
 pub mod request;
 pub mod response;
 pub mod store;

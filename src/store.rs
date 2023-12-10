@@ -1,6 +1,6 @@
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Mutex};
 
-use crate::{response::ResponseEnum, util::Port};
+use crate::{js_binding::extension_api::Port, response::ResponseEnum};
 use lazy_static::lazy_static;
 use serde_json::Value;
 pub type AsyncCallback =

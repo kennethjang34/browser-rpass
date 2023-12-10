@@ -2,11 +2,8 @@ use crate::{
     pages::home_page::HomePage,
     store::{PopupAction, PopupStore},
 };
-use browser_rpass::{
-    log,
-    util::{chrome, Tab},
-};
-use gloo_utils::{document, format::JsValueSerdeExt};
+use browser_rpass::{js_binding::extension_api::*, log};
+use gloo_utils::format::JsValueSerdeExt;
 use log::*;
 use serde_json::{json, Value};
 use wasm_bindgen::prelude::Closure;

@@ -1,6 +1,6 @@
 use crate::components::*;
 use crate::Account;
-use browser_rpass::util::*;
+use browser_rpass::js_binding::clipboard_copy;
 use std::rc::Rc;
 use wasm_bindgen_futures;
 use yew;

@@ -6,6 +6,7 @@ use crate::store::LISTENER_PORT;
 use crate::store::PORT_ID_MAP;
 use crate::store::REQUEST_MAP;
 use crate::Resource;
+use browser_rpass::js_binding::extension_api::*;
 use browser_rpass::types::Account;
 use browser_rpass::types::StorageStatus;
 use browser_rpass::util::*;

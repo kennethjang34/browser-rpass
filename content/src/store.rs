@@ -1,10 +1,12 @@
 use browser_rpass::dbg;
+use browser_rpass::js_binding::extension_api::*;
 use browser_rpass::request::SessionEventWrapper;
 use browser_rpass::types::Account;
 use browser_rpass::types::Resource;
 use browser_rpass::types::StorageStatus;
 use gloo_utils::format::JsValueSerdeExt;
 use lazy_static::lazy_static;
+#[allow(unused_imports)]
 use log::*;
 use parking_lot::ReentrantMutex;
 use serde_json;
@@ -212,7 +214,7 @@ impl Reducer<ContentScriptStore> for DataAction {
                 ..state.deref().clone()
             }
             .into(),
-            DataAction::ResourceCreationFailed(resource, _session_event_wrapper) => {
+            DataAction::ResourceCreationFailed(_resource, _session_event_wrapper) => {
                 ContentScriptStore {
                     page_loading: false,
                     ..state.deref().clone()

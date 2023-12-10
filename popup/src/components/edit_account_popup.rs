@@ -3,10 +3,9 @@ use std::rc::Rc;
 use crate::{
     api::extension_api::edit_account,
     components::*,
-    store::{DataAction, PopupStore, StoreData, StoreDataStatus},
+    store::{DataAction, PopupStore, StoreDataStatus},
 };
 use browser_rpass::types::Account;
-use gloo_utils::document;
 #[allow(unused_imports)]
 use log::*;
 use wasm_bindgen::JsCast;
@@ -38,26 +37,10 @@ pub fn edit_account_popup(props: &Props) -> Html {
         let domain_input = domain_input.clone();
         move |event: SubmitEvent| {
             event.prevent_default();
-            let domain = if (*domain_input).is_empty() {
-                None
-            } else {
-                Some((*domain_input).clone())
-            };
-            let username = if (*username_input).is_empty() {
-                None
-            } else {
-                Some((*username_input).clone())
-            };
-            let password = if (*password_input).is_empty() {
-                None
-            } else {
-                Some((*password_input).clone())
-            };
-            let note = if (*note_input).is_empty() {
-                None
-            } else {
-                Some((*note_input).clone())
-            };
+            let domain = Some((*domain_input).clone());
+            let username = Some((*username_input).clone());
+            let password = Some((*password_input).clone());
+            let note = Some((*note_input).clone());
             edit_account(account.id.clone(), domain, username, password, note);
         }
     });

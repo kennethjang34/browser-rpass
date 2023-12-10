@@ -1,13 +1,11 @@
 use crate::event_handlers::native_message_handler::process_native_message;
 pub use crate::Resource;
 use crate::{api, StorageStatus};
-use browser_rpass::request::{LoginRequest, LogoutRequest, RequestEnumTrait, SessionEventType};
-use browser_rpass::response::{
-    CreateResponse, EditResponse, FetchResponse, LogoutResponse, ResponseEnum, ResponseEnumTrait,
-};
+use browser_rpass::dbg;
+use browser_rpass::request::{LoginRequest, RequestEnumTrait, SessionEventType};
+use browser_rpass::response::{CreateResponse, EditResponse, FetchResponse, LogoutResponse};
 use browser_rpass::store;
 use browser_rpass::types::Account;
-use browser_rpass::{dbg, StorageArea};
 use gloo_utils::format::JsValueSerdeExt;
 use log::*;
 use parking_lot::ReentrantMutex;
@@ -25,11 +23,11 @@ use yewdux::mrc::Mrc;
 use yewdux::prelude::Reducer;
 
 pub use browser_rpass::{
+    js_binding::extension_api::*,
     request::{RequestEnum, SessionEvent, SessionEventWrapper},
     store::AsyncCallback,
     store::MESSAGE_ACKNOWLEDGEMENTS_NATIVE,
     store::MESSAGE_ACKNOWLEDGEMENTS_POP_UP,
-    util::{chrome, Port},
 };
 use gloo::storage::errors::StorageError;
 use lazy_static::lazy_static;
@@ -96,6 +94,7 @@ lazy_static! {
         port.on_message().add_listener(
             Closure::<dyn Fn(String)>::new(native_port_message_handler).into_js_value(),
         );
+        #[allow(unused_mut)]
         let mut init_config = HashMap::new();
         let init_request = RequestEnum::create_init_request(init_config, None, None);
         port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
@@ -197,9 +196,6 @@ impl SessionStore {
             }
         });
         Ok(())
-    }
-    pub fn get_storage_status(&self) -> StorageStatus {
-        self.data.storage_status.clone()
     }
 }
 
