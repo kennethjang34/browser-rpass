@@ -501,12 +501,16 @@ pub fn handle_create_request(
                             ) {
                                 let entry_meta_res: serde_json::Result<serde_json::Value> =
                                     (&entry).try_into();
-                                if let Ok(entry_meta) = entry_meta_res {
-                                    merge_json(&mut entry_data, &entry_meta);
+                                if let Ok(entry_meta) = entry_meta_res.as_ref() {
+                                    merge_json(&mut entry_data, entry_meta);
                                     status = Status::Success;
                                     data = entry_data;
                                     (status, data)
                                 } else {
+                                    error!(
+                                        "failed to convert entry to serde_json::Value. response: {:?}",
+                                        entry_meta_res
+                                    );
                                     status = Status::Failure;
                                     data = serde_json::Value::Null;
                                     (status, data)

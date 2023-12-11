@@ -145,10 +145,11 @@ pub fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()>
                                 send_as_json(&response)?;
                                 Ok(response)
                             } else {
+                                let err_msg = response.unwrap_err();
                                 let response = ResponseEnum::CreateResponse(CreateResponse {
                                     status: Status::Failure,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: json!({"error_message": response.unwrap_err(), "request":request}),
+                                    data: json!({"error_message": err_msg, "request":request}),
                                     resource: request.resource,
                                     meta: None,
                                 });
@@ -254,7 +255,7 @@ pub fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()>
             };
             if let Err(error) = request_result {
                 error!(
-                    "Failed to handle request: {request} {error}",
+                    "Failed to handle {request} request. Err: {error}",
                     request = request,
                     error = error
                 );
