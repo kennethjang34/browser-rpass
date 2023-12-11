@@ -7,7 +7,6 @@ trunk build ./popup/index.html
 cp -r ./popup/dist/* ./pkg
 cp ./init_popup.js ./pkg
 cp ./run_service_worker.js ./pkg
-cp ./run_wasm_content.js ./pkg
 cp ./run_content.js ./pkg
 cp ./service-worker/pkg/service_worker.js ./pkg
 cp ./service-worker/pkg/service_worker_bg.wasm ./pkg
@@ -15,7 +14,6 @@ cp ./content/pkg/content.js ./pkg
 cp ./content/pkg/content_bg.wasm ./pkg
 cp ./manifest_v3.json ./pkg/manifest.json
 
-# npx tailwindcss -i ./popup/assets/styles.css -o ./assets/popup_styles.css
 # Check if the files exist
 if [ ! -f "./popup/assets/styles.css" ]; then
   echo "styles.css does not exist"
