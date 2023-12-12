@@ -254,11 +254,7 @@ pub fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()>
                 }
             };
             if let Err(error) = request_result {
-                error!(
-                    "Failed to handle {request} request. Err: {error}",
-                    request = request,
-                    error = error
-                );
+                error!("Failed to handle {:?} request. Err: {:?}", request, error);
                 send_as_json(&error)?;
             }
         } else {

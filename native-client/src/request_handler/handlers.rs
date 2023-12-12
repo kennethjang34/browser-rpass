@@ -37,18 +37,23 @@ pub fn handle_edit_request(
                         custom_fields,
                         Some(passphrase),
                     );
-                    if let Ok(updated_data) = updated_data {
-                        let edit_response = EditResponse {
-                            acknowledgement: request.acknowledgement,
-                            data: updated_data,
-                            status: Status::Success,
-                            resource: Resource::Account,
-                            id: request.id,
-                            meta: None,
-                        };
-                        Ok(edit_response)
-                    } else {
-                        Err(pass::Error::from("failed to update entry"))
+
+                    match updated_data {
+                        Ok(updated_data) => {
+                            let edit_response = EditResponse {
+                                acknowledgement: request.acknowledgement,
+                                data: updated_data,
+                                status: Status::Success,
+                                resource: Resource::Account,
+                                id: request.id,
+                                meta: None,
+                            };
+                            Ok(edit_response)
+                        }
+                        Err(err) => {
+                            error!("Failed to update entry: {:?}", err);
+                            Err(err)
+                        }
                     }
                 }
                 _ => {
@@ -429,7 +434,8 @@ pub fn handle_login_request(
         return Err(err);
     }
 
-    // verify that the git config is correct
+    // verify that the git config is correct (note: name field is not used for gpg
+    // signing/encryption per se, but it is to record the user who made the commit)
     if !store.lock()?.lock()?.has_configured_username() {
         Err(Error::GenericDyn(
             "Git user.name and user.name must be configured".to_string(),
@@ -450,14 +456,21 @@ pub fn handle_login_request(
         .lock()?
         .lock()?
         .verify_passphrase(Some(user_id), &passphrase);
-    if let Ok(verified) = verified {
-        if verified {
-            return Ok(store);
-        } else {
-            return Err(Error::GenericDyn("Failed to verify passphrase".to_string()));
+    match verified {
+        Ok(verified) => {
+            if verified {
+                return Ok(store);
+            } else {
+                return Err(Error::GenericDyn("Failed to verify passphrase".to_string()));
+            }
         }
-    } else {
-        return Err(Error::GenericDyn("Failed to verify passphrase".to_string()));
+        Err(e) => {
+            debug!("Failed to verify passphrase: {:?}", e);
+            return Err(Error::GenericDyn(format!(
+                "Failed to verify passphrase: {:?}",
+                e
+            )));
+        }
     }
 }
 pub fn handle_logout_request(
@@ -561,11 +574,13 @@ pub fn handle_delete_request(
             let id = request.id;
             let acknowledgement = request.acknowledgement;
             let (status, data) = {
-                if let Ok(entry_data) = store.lock()?.lock()?.delete_entry(&(id), Some(passphrase))
-                {
-                    (Status::Success, Some(entry_data))
-                } else {
-                    (Status::Failure, None)
+                let res = store.lock()?.lock()?.delete_entry(&(id), Some(&passphrase));
+                match res {
+                    Ok(entry_data) => (Status::Success, Some(entry_data)),
+                    Err(e) => {
+                        error!("Failed to delete entry: {:?}", e);
+                        (Status::Failure, None)
+                    }
                 }
             };
             let delete_response = DeleteResponse {
