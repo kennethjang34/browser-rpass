@@ -1,4 +1,4 @@
-use rpass::pass::CUSTOM_FIELD_PREFIX;
+use rpass::{crypto::PassphraseProvider, pass::CUSTOM_FIELD_PREFIX};
 use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -16,233 +16,204 @@ use crate::{store_api::*, util::*, PasswordStoreType, StoreListType};
 pub fn handle_edit_request(
     request: EditRequest,
     store: &PasswordStoreType,
+    passphrase_provider: Option<PassphraseProvider>,
 ) -> pass::Result<EditResponse> {
-    if let Some(ref header) = request.header {
-        if let Some(passphrase) = header.get("passphrase") {
-            let value = &request.value;
-            let resource = &request.resource;
-            match resource {
-                Resource::Account => {
-                    let domain = value.get_string("domain")?;
-                    let username = value.get_string("username")?;
-                    let password = value.get_string("password")?;
-                    let note = value.get_string("note")?;
-                    let custom_fields = value.get_object("custom_fields")?;
-                    let updated_data = store.lock()?.lock()?.update_default_entry_fields(
-                        &request.id,
-                        domain,
-                        username,
-                        password,
-                        note,
-                        custom_fields,
-                        Some(passphrase),
-                    );
+    let value = &request.value;
+    let resource = &request.resource;
+    match resource {
+        Resource::Account => {
+            let domain = value.get_string("domain")?;
+            let username = value.get_string("username")?;
+            let password = value.get_string("password")?;
+            let note = value.get_string("note")?;
+            let custom_fields = value.get_object("custom_fields")?;
+            let updated_data = store.lock()?.lock()?.update_default_entry_fields(
+                &request.id,
+                domain,
+                username,
+                password,
+                note,
+                custom_fields,
+                passphrase_provider,
+            );
 
-                    match updated_data {
-                        Ok(updated_data) => {
-                            let edit_response = EditResponse {
-                                acknowledgement: request.acknowledgement,
-                                data: updated_data,
-                                status: Status::Success,
-                                resource: Resource::Account,
-                                id: request.id,
-                                meta: None,
-                            };
-                            Ok(edit_response)
-                        }
-                        Err(err) => {
-                            error!("Failed to update entry: {:?}", err);
-                            Err(err)
-                        }
-                    }
+            match updated_data {
+                Ok(updated_data) => {
+                    let edit_response = EditResponse {
+                        acknowledgement: request.acknowledgement,
+                        data: updated_data,
+                        status: Status::Success,
+                        resource: Resource::Account,
+                        id: request.id,
+                        meta: None,
+                    };
+                    Ok(edit_response)
                 }
-                _ => {
-                    return Err(pass::Error::from(
-                        "Currently only resource type of Account is supported",
-                    ));
+                Err(err) => {
+                    error!("Failed to update entry: {:?}", err);
+                    Err(err)
                 }
             }
-        } else {
+        }
+        _ => {
             return Err(pass::Error::from(
-                "passphrase must be provided for credential",
+                "Currently only resource type of Account is supported",
             ));
         }
-    } else {
-        return Err(pass::Error::from("header must be provided for credential"));
     }
 }
 
 pub fn handle_get_request(
     request: GetRequest,
     store: &PasswordStoreType,
+    passphrase_provider: Option<PassphraseProvider>,
 ) -> pass::Result<GetResponse> {
     let resource = request.resource;
     let acknowledgement = request.acknowledgement;
-    if let Some(header) = request.header {
-        if let Some(passphrase) = header.get("passphrase") {
-            let id = request.id;
-            match resource {
-                Resource::Account => {
-                    let locked_store = store.lock()?;
-                    let locked_store = locked_store.lock()?;
-                    let encrypted_password_entry = locked_store.get_entry(&id);
-                    let password_entry = encrypted_password_entry.and_then(
-                        |encrypted_password_entry: PasswordEntry| {
-                            let json_value_res: serde_json::Result<
-                                serde_json::Map<String, serde_json::Value>,
-                            > = (&encrypted_password_entry).try_into();
-                            if let Ok(mut json_value) = json_value_res {
-                                json_value.insert(
-                                    "password".to_owned(),
-                                    serde_json::Value::String(
-                                        encrypted_password_entry
-                                            .secret(&locked_store, Some(passphrase))
-                                            .unwrap_or("failed to decrypt password".to_string()),
-                                    ),
-                                );
-                                Ok(json_value)
-                            } else {
-                                Err(pass::Error::from(
-                                    "failed to convert password entry to serde_json::Value",
-                                ))
-                            }
-                        },
-                    );
-                    let get_response = {
-                        if let Ok(data) = password_entry.map(|data| data.into()) {
-                            GetResponse {
-                                data,
-                                meta: Some(json!({"id":id})),
-                                resource,
-                                acknowledgement,
-                                status: Status::Success,
-                            }
-                        } else {
-                            GetResponse {
-                                data: serde_json::Value::Null,
-                                meta: Some(json!({"id":id})),
-                                resource,
-                                acknowledgement,
-                                status: Status::Failure,
-                            }
-                        }
-                    };
-                    return Ok(get_response);
-                }
-                _ => {
-                    return Err(pass::Error::from(
-                        "Currently only resource type of Account is supported",
-                    ));
+    let id = request.id;
+    match resource {
+        Resource::Account => {
+            let locked_store = store.lock()?;
+            let locked_store = locked_store.lock()?;
+            let encrypted_password_entry = locked_store.get_entry(&id);
+            let password_entry =
+                encrypted_password_entry.and_then(|encrypted_password_entry: PasswordEntry| {
+                    let json_value_res: serde_json::Result<
+                        serde_json::Map<String, serde_json::Value>,
+                    > = (&encrypted_password_entry).try_into();
+                    if let Ok(mut json_value) = json_value_res {
+                        json_value.insert(
+                            "password".to_owned(),
+                            serde_json::Value::String(
+                                encrypted_password_entry
+                                    .secret(&locked_store, passphrase_provider)
+                                    .unwrap_or("failed to decrypt password".to_string()),
+                            ),
+                        );
+                        Ok(json_value)
+                    } else {
+                        Err(pass::Error::from(
+                            "failed to convert password entry to serde_json::Value",
+                        ))
+                    }
+                });
+            let get_response = {
+                if let Ok(data) = password_entry.map(|data| data.into()) {
+                    GetResponse {
+                        data,
+                        meta: Some(json!({"id":id})),
+                        resource,
+                        acknowledgement,
+                        status: Status::Success,
+                    }
+                } else {
+                    GetResponse {
+                        data: serde_json::Value::Null,
+                        meta: Some(json!({"id":id})),
+                        resource,
+                        acknowledgement,
+                        status: Status::Failure,
+                    }
                 }
             };
-        } else {
+            return Ok(get_response);
+        }
+        _ => {
             return Err(pass::Error::from(
-                "passphrase must be provided for credential",
+                "Currently only resource type of Account is supported",
             ));
         }
-    } else {
-        return Err(pass::Error::from("header must be provided for credential"));
-    }
+    };
 }
 pub fn handle_search_request(
     request: SearchRequest,
     store: &PasswordStoreType,
+    passphrase_provider: Option<PassphraseProvider>,
 ) -> pass::Result<SearchResponse> {
-    if let Some(header) = request.header {
-        if let Some(passphrase) = header.get("passphrase") {
-            let resource = request.resource;
-            let acknowledgement = request.acknowledgement;
-            let query = request.query.unwrap_or("".to_string());
-            match resource {
-                Resource::Account => {
-                    let encrypted_password_entries = &filter_entries(&store, &query)?;
-                    let locked_store = store.lock()?;
-                    let locked_store = &*locked_store.lock()?;
-                    let decrypted_password_entries = encrypted_password_entries
-                        .iter()
-                        .filter_map(|encrypted_password_entry| {
-                            let json_value_res: serde_json::Result<
-                                serde_json::Map<String, serde_json::Value>,
-                            > = encrypted_password_entry.try_into();
-                            if let Ok(mut mut_obj) = json_value_res {
-                                mut_obj.insert(
-                                    "password".to_owned(),
-                                    serde_json::Value::String(
-                                        encrypted_password_entry
-                                            .secret(locked_store, Some(passphrase))
-                                            .unwrap_or("failed to decrypt password".to_string()),
-                                    ),
-                                );
-                                Some(mut_obj.into())
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<serde_json::Value>>();
-                    let search_response = {
-                        if let Ok(data) = serde_json::to_value(decrypted_password_entries.clone()) {
-                            if let Some(data_arr) = data.as_array().cloned() {
-                                SearchResponse {
-                                    data: data_arr,
-                                    acknowledgement: acknowledgement.clone(),
-                                    status: Status::Success,
-                                    resource,
-                                    meta: Some(json!({"query":query.clone()})),
-                                }
-                            } else {
-                                SearchResponse {
-                                    data: vec![].into(),
-                                    acknowledgement: acknowledgement.clone(),
-                                    status: Status::Failure,
-                                    resource,
-                                    meta: Some(
-                                        json!({"query":query.clone(), "error":format!("failed to parse data as array. Data: {:?}", data)}),
-                                    ),
-                                }
-                            }
-                        } else {
-                            SearchResponse {
-                                data: vec![].into(),
-                                acknowledgement,
-                                status: Status::Failure,
-                                resource,
-                                meta: Some(
-                                    json!({"query":query, "error":format!("failed to convert data to serde_json::Value. Data: {:?}", decrypted_password_entries)}),
-                                ),
-                            }
+    let resource = request.resource;
+    let acknowledgement = request.acknowledgement;
+    let query = request.query.unwrap_or("".to_string());
+    match resource {
+        Resource::Account => {
+            let encrypted_password_entries = &filter_entries(&store, &query)?;
+            let locked_store = store.lock()?;
+            let locked_store = &*locked_store.lock()?;
+            let decrypted_password_entries = encrypted_password_entries
+                .iter()
+                .filter_map(|encrypted_password_entry| {
+                    let json_value_res: serde_json::Result<
+                        serde_json::Map<String, serde_json::Value>,
+                    > = encrypted_password_entry.try_into();
+                    if let Ok(mut mut_obj) = json_value_res {
+                        mut_obj.insert(
+                            "password".to_owned(),
+                            serde_json::Value::String(
+                                encrypted_password_entry
+                                    .secret(locked_store, passphrase_provider.clone())
+                                    .unwrap_or("failed to decrypt password".to_string()),
+                            ),
+                        );
+                        Some(mut_obj.into())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<serde_json::Value>>();
+            let search_response = {
+                if let Ok(data) = serde_json::to_value(decrypted_password_entries.clone()) {
+                    if let Some(data_arr) = data.as_array().cloned() {
+                        SearchResponse {
+                            data: data_arr,
+                            acknowledgement: acknowledgement.clone(),
+                            status: Status::Success,
+                            resource,
+                            meta: Some(json!({"query":query.clone()})),
                         }
-                    };
-                    return Ok(search_response);
-                }
-                _ => {
-                    return Err(pass::Error::from(
-                        "Currently only resource type of Account is supported",
-                    ));
+                    } else {
+                        SearchResponse {
+                            data: vec![].into(),
+                            acknowledgement: acknowledgement.clone(),
+                            status: Status::Failure,
+                            resource,
+                            meta: Some(
+                                json!({"query":query.clone(), "error":format!("failed to parse data as array. Data: {:?}", data)}),
+                            ),
+                        }
+                    }
+                } else {
+                    SearchResponse {
+                        data: vec![].into(),
+                        acknowledgement,
+                        status: Status::Failure,
+                        resource,
+                        meta: Some(
+                            json!({"query":query, "error":format!("failed to convert data to serde_json::Value. Data: {:?}", decrypted_password_entries)}),
+                        ),
+                    }
                 }
             };
-        } else {
+            return Ok(search_response);
+        }
+        _ => {
             return Err(pass::Error::from(
-                "passphrase must be provided for credential",
+                "Currently only resource type of Account is supported",
             ));
         }
-    } else {
-        return Err(pass::Error::from("header must be provided for credential"));
-    }
+    };
 }
 pub fn handle_fetch_request(
     request: FetchRequest,
     store: &PasswordStoreType,
+    passphrase_provider: Option<PassphraseProvider>,
 ) -> pass::Result<FetchResponse> {
-    if let Some(header) = request.header {
-        if let Some(passphrase) = header.get("passphrase") {
-            let resource = request.resource;
-            let acknowledgement = request.acknowledgement;
-            match resource {
-                Resource::Account => {
-                    let locked_store = store.lock()?;
-                    let locked_store = &*locked_store.lock()?;
-                    let encrypted_password_entries = locked_store.get_entries(None)?;
-                    let decrypted_password_entries = encrypted_password_entries
+    let resource = request.resource;
+    let acknowledgement = request.acknowledgement;
+    match resource {
+        Resource::Account => {
+            let locked_store = store.lock()?;
+            let locked_store = &*locked_store.lock()?;
+            let encrypted_password_entries = locked_store.get_entries(None)?;
+            let decrypted_password_entries = encrypted_password_entries
                         .iter()
                         .filter_map(|encrypted_password_entry| {
                             let json_value_res: serde_json::Result<
@@ -252,7 +223,7 @@ pub fn handle_fetch_request(
                                 json_value_res
                             {
                                 if let Ok(decrypted) = encrypted_password_entry
-                                    .secret(locked_store, Some(passphrase))
+                                    .secret(locked_store, passphrase_provider.clone())
                                 {
                                     if let Ok(decrypted) =
                                         serde_json::from_str::<serde_json::Value>(&decrypted)
@@ -272,52 +243,44 @@ pub fn handle_fetch_request(
                             }
                         })
                         .collect::<Vec<serde_json::Value>>();
-                    let fetch_response = {
-                        if let Ok(data) = serde_json::to_value(decrypted_password_entries) {
-                            if let Some(data) = data.as_array().cloned() {
-                                FetchResponse {
-                                    data: data.into(),
-                                    meta: Some(json!({"custom_field_prefix":CUSTOM_FIELD_PREFIX})),
-                                    resource,
-                                    acknowledgement,
-                                    status: Status::Success,
-                                }
-                            } else {
-                                FetchResponse {
-                                    data: serde_json::Value::Null,
-                                    meta: None,
-                                    resource,
-                                    acknowledgement,
-                                    status: Status::Failure,
-                                }
-                            }
-                        } else {
-                            FetchResponse {
-                                data: serde_json::Value::Null,
-                                meta: None,
-                                resource,
-                                acknowledgement,
-                                status: Status::Failure,
-                            }
+            let fetch_response = {
+                if let Ok(data) = serde_json::to_value(decrypted_password_entries) {
+                    if let Some(data) = data.as_array().cloned() {
+                        FetchResponse {
+                            data: data.into(),
+                            meta: Some(json!({"custom_field_prefix":CUSTOM_FIELD_PREFIX})),
+                            resource,
+                            acknowledgement,
+                            status: Status::Success,
                         }
-                    };
-                    return Ok(fetch_response);
-                }
-                _ => {
-                    error!("requsted resource: {:?} not supported", resource);
-                    return Err(pass::Error::from(
-                        "Currently only resource type of Account is supported",
-                    ));
+                    } else {
+                        FetchResponse {
+                            data: serde_json::Value::Null,
+                            meta: None,
+                            resource,
+                            acknowledgement,
+                            status: Status::Failure,
+                        }
+                    }
+                } else {
+                    FetchResponse {
+                        data: serde_json::Value::Null,
+                        meta: None,
+                        resource,
+                        acknowledgement,
+                        status: Status::Failure,
+                    }
                 }
             };
-        } else {
+            return Ok(fetch_response);
+        }
+        _ => {
+            error!("requsted resource: {:?} not supported", resource);
             return Err(pass::Error::from(
-                "passphrase must be provided for credential",
+                "Currently only resource type of Account is supported",
             ));
         }
-    } else {
-        return Err(pass::Error::from("header must be provided for credential"));
-    }
+    };
 }
 pub fn handle_init_request(request: InitRequest) -> pass::Result<StoreListType> {
     let home_dir = request.config.get("home_dir");
@@ -411,19 +374,23 @@ pub fn handle_init_request(request: InitRequest) -> pass::Result<StoreListType> 
 pub fn handle_login_request(
     request: LoginRequest,
     stores: &StoreListType,
+    passphrase_provider: Option<PassphraseProvider>,
 ) -> pass::Result<PasswordStoreType> {
-    let user_id = request.username;
-    let passphrase = request.passphrase;
+    let store_name = request.user_id;
     let store = {
         let stores_locked = stores.lock()?;
         let filtered = stores_locked
             .iter()
-            .filter(|s| s.lock().map(|s| s.get_name() == &user_id).unwrap_or(false))
+            .filter(|s| {
+                s.lock()
+                    .map(|s| s.get_name() == &store_name)
+                    .unwrap_or(false)
+            })
             .collect::<Vec<_>>();
         if filtered.len() == 0 {
             return Err(Error::GenericDyn(format!(
                 "No store found for username: {}",
-                user_id
+                store_name
             )));
         }
         filtered[0].clone()
@@ -438,7 +405,7 @@ pub fn handle_login_request(
     // signing/encryption per se, but it is to record the user who made the commit)
     if !store.lock()?.lock()?.has_configured_username() {
         Err(Error::GenericDyn(
-            "Git user.name and user.name must be configured".to_string(),
+            "Git user.name and user.email must be configured".to_string(),
         ))?;
     }
     for password in &store.lock()?.lock()?.passwords {
@@ -455,7 +422,7 @@ pub fn handle_login_request(
     let verified = store
         .lock()?
         .lock()?
-        .verify_passphrase(Some(user_id), &passphrase);
+        .verify_passphrase(Some(store_name), passphrase_provider);
     match verified {
         Ok(verified) => {
             if verified {
@@ -476,131 +443,122 @@ pub fn handle_login_request(
 pub fn handle_logout_request(
     request: LogoutRequest,
     _store: &PasswordStoreType,
+    passphrase_provider: Option<PassphraseProvider>,
 ) -> pass::Result<()> {
     let _acknowledgement = request.acknowledgement;
     let _status = Status::Success;
+    if let Some(passphrase_provider) = passphrase_provider {
+        passphrase_provider.passphrases.write().unwrap().clear();
+    }
     Ok(())
 }
 pub fn handle_create_request(
     request: CreateRequest,
     store: &PasswordStoreType,
+    passphrase_provider: Option<PassphraseProvider>,
 ) -> pass::Result<CreateResponse> {
-    if let Some(header) = request.header {
-        if let Some(passphrase) = header.get("passphrase") {
-            let username = request.username;
-            let domain = request.domain;
-            let note = request.note;
-            let password = request.value;
-            let resource = request.resource;
-            let acknowledgement = request.acknowledgement;
-            let custom_fields = request.custom_fields;
-            let data;
-            let status;
-            match resource {
-                Resource::Account => {
-                    let locked_store = store.lock()?;
-                    let mut locked_store = locked_store.lock()?;
-                    let (status, data) = match locked_store.create_entry(
-                        username.as_deref(),
-                        password.as_str().map(|s| s),
-                        domain.as_deref(),
-                        note.as_deref(),
-                        custom_fields,
-                        Some(passphrase),
+    let username = request.username;
+    let domain = request.domain;
+    let note = request.note;
+    let password = request.value;
+    let resource = request.resource;
+    let acknowledgement = request.acknowledgement;
+    let custom_fields = request.custom_fields;
+    let data;
+    let status;
+    match resource {
+        Resource::Account => {
+            let locked_store = store.lock()?;
+            let mut locked_store = locked_store.lock()?;
+            let (status, data) = match locked_store.create_entry(
+                username.as_deref(),
+                password.as_str().map(|s| s),
+                domain.as_deref(),
+                note.as_deref(),
+                custom_fields,
+                passphrase_provider.clone(),
+            ) {
+                Ok(entry) => {
+                    if let Ok(mut entry_data) = serde_json::from_str(
+                        entry
+                            .secret(&locked_store, passphrase_provider.clone())?
+                            .as_str(),
                     ) {
-                        Ok(entry) => {
-                            if let Ok(mut entry_data) = serde_json::from_str(
-                                entry.secret(&locked_store, Some(passphrase))?.as_str(),
-                            ) {
-                                let entry_meta_res: serde_json::Result<serde_json::Value> =
-                                    (&entry).try_into();
-                                if let Ok(entry_meta) = entry_meta_res.as_ref() {
-                                    merge_json(&mut entry_data, entry_meta);
-                                    status = Status::Success;
-                                    data = entry_data;
-                                    (status, data)
-                                } else {
-                                    error!(
-                                        "failed to convert entry to serde_json::Value. response: {:?}",
-                                        entry_meta_res
-                                    );
-                                    status = Status::Failure;
-                                    data = serde_json::Value::Null;
-                                    (status, data)
-                                }
-                            } else {
-                                status = Status::Failure;
-                                data = serde_json::Value::Null;
-                                (status, data)
-                            }
-                        }
-                        Err(err) => {
+                        let entry_meta_res: serde_json::Result<serde_json::Value> =
+                            (&entry).try_into();
+                        if let Ok(entry_meta) = entry_meta_res.as_ref() {
+                            merge_json(&mut entry_data, entry_meta);
+                            status = Status::Success;
+                            data = entry_data;
+                            (status, data)
+                        } else {
+                            error!(
+                                "failed to convert entry to serde_json::Value. response: {:?}",
+                                entry_meta_res
+                            );
                             status = Status::Failure;
                             data = serde_json::Value::Null;
-                            error!("Failed to create password entry: {:?}", err);
                             (status, data)
                         }
-                    };
-                    let create_response: CreateResponse = CreateResponse {
-                        acknowledgement,
-                        data,
-                        meta: None,
-                        resource: Resource::Account,
-                        status,
-                    };
-                    return Ok(create_response);
+                    } else {
+                        status = Status::Failure;
+                        data = serde_json::Value::Null;
+                        (status, data)
+                    }
                 }
-                _ => {
-                    return Err(pass::Error::from(
-                        "Currently only resource type of Account is supported",
-                    ));
+                Err(err) => {
+                    status = Status::Failure;
+                    data = serde_json::Value::Null;
+                    error!("Failed to create password entry: {:?}", err);
+                    (status, data)
                 }
             };
-        } else {
+            let create_response: CreateResponse = CreateResponse {
+                acknowledgement,
+                data,
+                meta: None,
+                resource: Resource::Account,
+                status,
+            };
+            return Ok(create_response);
+        }
+        _ => {
             return Err(pass::Error::from(
-                "passphrase must be provided for credential",
+                "Currently only resource type of Account is supported",
             ));
         }
-    } else {
-        return Err(pass::Error::from("header must be provided for credential"));
-    }
+    };
 }
 pub fn handle_delete_request(
     request: DeleteRequest,
     store: &PasswordStoreType,
+    passphrase_provider: Option<PassphraseProvider>,
 ) -> pass::Result<DeleteResponse> {
-    if let Some(header) = request.header {
-        if let Some(passphrase) = header.get("passphrase").cloned() {
-            let id = request.id;
-            let acknowledgement = request.acknowledgement;
-            let (status, data) = {
-                let res = store.lock()?.lock()?.delete_entry(&(id), Some(&passphrase));
-                match res {
-                    Ok(entry_data) => (Status::Success, Some(entry_data)),
-                    Err(e) => {
-                        error!("Failed to delete entry: {:?}", e);
-                        (Status::Failure, None)
-                    }
-                }
-            };
-            let delete_response = DeleteResponse {
-                acknowledgement,
-                data: data
-                    .map(|data| {
-                        (&data).try_into().unwrap_or(serde_json::Value::String(
-                            "data serialization failed".to_string(),
-                        ))
-                    })
-                    .unwrap_or_default(),
-                status,
-            };
-            Ok(delete_response)
-        } else {
-            return Err(pass::Error::from(
-                "passphrase must be provided for credential",
-            ));
+    let id = request.id;
+    let acknowledgement = request.acknowledgement;
+    let (status, data) = {
+        let res = store
+            .lock()?
+            .lock()?
+            .delete_entry(&(id), passphrase_provider);
+        match res {
+            Ok(entry_data) => (Status::Success, Some(entry_data)),
+            Err(e) => {
+                error!("Failed to delete entry: {:?}", e);
+                (Status::Failure, None)
+            }
         }
-    } else {
-        return Err(pass::Error::from("header must be provided for credential"));
-    }
+    };
+    let delete_response = DeleteResponse {
+        acknowledgement,
+        data: data
+            .map(|data| {
+                (&data).try_into().unwrap_or(serde_json::Value::String(
+                    "data serialization failed".to_string(),
+                ))
+            })
+            .unwrap_or_default(),
+        status,
+    };
+    Ok(delete_response)
 }

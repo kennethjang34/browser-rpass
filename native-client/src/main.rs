@@ -4,6 +4,9 @@ use native_client::request_handler::*;
 use native_client::util::*;
 
 use rpass::pass::{self, Error};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::RwLock;
 use std::{thread, time};
 fn main() -> pass::Result<()> {
     if let Err(log_init_error) = setup_logger() {
@@ -20,8 +23,9 @@ fn main() -> pass::Result<()> {
         match request {
             RequestEnum::Init(request) => {
                 let stores = handle_init_request(request)?;
+                let passphrases = Arc::new(RwLock::new(HashMap::new()));
                 thread::sleep(time::Duration::from_millis(200));
-                listen_to_native_messaging(stores)
+                listen_to_native_messaging(stores, Some(passphrases.clone()))
             }
             _ => {
                 let err_msg=format!("The first message json must have 'init' as key and initialization values as its value. Received message: {:?}",request);

@@ -1,12 +1,26 @@
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
+
 pub use super::util::*;
 
 use browser_rpass::{request::*, response::*};
 use log::*;
-use rpass::pass::{self};
+use rpass::{
+    crypto::PassphraseProvider,
+    pass::{self},
+};
 use serde_json::json;
 
 use crate::{request_handler::*, PasswordStoreType, StoreListType};
-pub fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()> {
+pub fn listen_to_native_messaging(
+    mut stores: StoreListType,
+    passphrases: Option<Arc<RwLock<HashMap<String, String>>>>,
+) -> pass::Result<()> {
+    let passphrase_provider = Some(PassphraseProvider::new(
+        passphrases.unwrap_or(Arc::new(RwLock::new(HashMap::new()))),
+    ));
     trace!("start listening to native messaging");
     let mut store_opt: Option<PasswordStoreType> = None;
     loop {
@@ -18,9 +32,11 @@ pub fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()>
         if let Ok(request) = serde_json::from_value::<RequestEnum>(received_message.clone()) {
             let request_result = {
                 if let Some(store) = store_opt.as_ref() {
+                    let passphrase_provider = passphrase_provider.clone();
                     match request.clone() {
                         RequestEnum::Get(request) => {
-                            let response = handle_get_request(request.clone(), store);
+                            let response =
+                                handle_get_request(request.clone(), store, passphrase_provider);
                             if response.is_ok() {
                                 let response = ResponseEnum::GetResponse(response?);
                                 send_as_json(&response)?;
@@ -38,7 +54,11 @@ pub fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()>
                             }
                         }
                         RequestEnum::Search(request) => {
-                            let response = handle_search_request(request.clone(), store);
+                            let response = handle_search_request(
+                                request.clone(),
+                                store,
+                                passphrase_provider.clone(),
+                            );
                             if response.is_ok() {
                                 let response = response?;
                                 let response = ResponseEnum::SearchResponse(response);
@@ -57,7 +77,11 @@ pub fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()>
                             }
                         }
                         RequestEnum::Fetch(request) => {
-                            let response = handle_fetch_request(request.clone(), store);
+                            let response = handle_fetch_request(
+                                request.clone(),
+                                store,
+                                passphrase_provider.clone(),
+                            );
                             if response.is_ok() {
                                 let response = response?;
                                 let response = ResponseEnum::FetchResponse(response);
@@ -97,7 +121,11 @@ pub fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()>
                             }
                         }
                         RequestEnum::Login(request) => {
-                            let store_res = handle_login_request(request.clone(), &stores);
+                            let store_res = handle_login_request(
+                                request.clone(),
+                                &stores,
+                                passphrase_provider.clone(),
+                            );
                             if store_res.is_ok() {
                                 store_opt = Some(store_res?);
                                 let response = ResponseEnum::LoginResponse(LoginResponse {
@@ -118,7 +146,8 @@ pub fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()>
                             }
                         }
                         RequestEnum::Logout(request) => {
-                            let res = handle_logout_request(request.clone(), store);
+                            let res =
+                                handle_logout_request(request.clone(), store, passphrase_provider);
                             if res.is_ok() {
                                 store_opt = None;
                                 let response = ResponseEnum::LogoutResponse(LogoutResponse {
@@ -139,7 +168,11 @@ pub fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()>
                             }
                         }
                         RequestEnum::Create(request) => {
-                            let response = handle_create_request(request.clone(), store);
+                            let response = handle_create_request(
+                                request.clone(),
+                                store,
+                                passphrase_provider.clone(),
+                            );
                             if response.is_ok() {
                                 let response = ResponseEnum::CreateResponse(response?);
                                 send_as_json(&response)?;
@@ -158,7 +191,11 @@ pub fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()>
                             }
                         }
                         RequestEnum::Delete(request) => {
-                            let response = handle_delete_request(request.clone(), store);
+                            let response = handle_delete_request(
+                                request.clone(),
+                                store,
+                                passphrase_provider.clone(),
+                            );
                             if response.is_ok() {
                                 let response = ResponseEnum::DeleteResponse(response?);
                                 send_as_json(&response)?;
@@ -174,7 +211,11 @@ pub fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()>
                             }
                         }
                         RequestEnum::Edit(request) => {
-                            let response = handle_edit_request(request.clone(), store);
+                            let response = handle_edit_request(
+                                request.clone(),
+                                store,
+                                passphrase_provider.clone(),
+                            );
                             if response.is_ok() {
                                 let response = ResponseEnum::EditResponse(response?);
                                 send_as_json(&response)?;
@@ -222,7 +263,11 @@ pub fn listen_to_native_messaging(mut stores: StoreListType) -> pass::Result<()>
                             }
                         }
                         RequestEnum::Login(request) => {
-                            let store_res = handle_login_request(request.clone(), &stores);
+                            let store_res = handle_login_request(
+                                request.clone(),
+                                &stores,
+                                passphrase_provider.clone(),
+                            );
                             if store_res.is_ok() {
                                 store_opt = Some(store_res?);
                                 let response = ResponseEnum::LoginResponse(LoginResponse {
