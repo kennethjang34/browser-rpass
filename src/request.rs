@@ -96,7 +96,7 @@ pub struct FetchRequest {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", rename = "login")]
 pub struct LoginRequest {
-    pub username: String,
+    pub user_id: String,
     pub passphrase: String,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
@@ -321,7 +321,7 @@ impl RequestEnum {
         passphrase: String,
     ) -> RequestEnum {
         RequestEnum::Login(LoginRequest {
-            username: user_id,
+            user_id,
             passphrase,
             acknowledgement: {
                 if acknowledgement.is_some() {

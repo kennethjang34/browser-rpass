@@ -40,7 +40,7 @@ pub fn process_native_message(
                 let login_response2 = login_response.clone();
                 let mut ctx = ctx.unwrap_or(json!({}));
                 ctx["passphrase"] = json!(login_request.passphrase);
-                ctx["user_id"] = json!(login_request.username);
+                ctx["user_id"] = json!(login_request.user_id);
                 ctx["acknowledgement"] = json!(login_request.acknowledgement);
                 wasm_bindgen_futures::spawn_local(async move {
                     let login_response = login_response2;
