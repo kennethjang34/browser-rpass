@@ -16,12 +16,12 @@ use yew::prelude::*;
 use yewdux::prelude::*;
 
 #[derive(Validate, Debug, Default, Clone, Serialize, Deserialize)]
-struct LoginUserSchema {
+struct LoginSchema {
     // #[validate(
     //     length(min = 1, message = "Email is required"),
     //     email(message = "Email is invalid")
     // )]
-    user_id: String,
+    store_id: String,
 }
 #[derive(Properties, PartialEq)]
 pub struct Props {}
@@ -30,11 +30,11 @@ pub struct Props {}
 pub fn login_page(_props: &Props) -> Html {
     let (_popup_store, popup_store_dispatch) = use_store::<PopupStore>();
     let validation_errors = use_state(|| Rc::new(RefCell::new(ValidationErrors::new())));
-    let user_id = use_state(|| popup_store_dispatch.get().persistent_data.user_id.clone());
-    let handle_user_id_input = Callback::from({
-        let user_id = user_id.clone();
+    let store_id = use_state(|| popup_store_dispatch.get().persistent_data.store_id.clone());
+    let handle_store_id_input = Callback::from({
+        let store_id = store_id.clone();
         move |value: String| {
-            user_id.set(Some(value));
+            store_id.set(Some(value));
         }
     });
 
@@ -52,23 +52,23 @@ pub fn login_page(_props: &Props) -> Html {
     let login_status = use_selector(|state: &PopupStore| state.login_status.clone());
     let on_submit = {
         let cloned_validation_errors = validation_errors.clone();
-        let user_id = user_id.clone();
+        let store_id = store_id.clone();
         let popup_store_dispatch = popup_store_dispatch.clone();
         Callback::from(move |event: SubmitEvent| {
             event.prevent_default();
-            let form = LoginUserSchema {
-                user_id: (*user_id).clone().unwrap_or_default(),
+            let form = LoginSchema {
+                store_id: (*store_id).clone().unwrap_or_default(),
             };
             let validation_errors = cloned_validation_errors.clone();
-            let user_id = user_id.clone();
+            let store_id = store_id.clone();
 
             match form.validate() {
                 Ok(_) => {
                     let _form_data = form.clone();
                     popup_store_dispatch
-                        .apply(LoginAction::LoginStarted(form.user_id.clone(), json!({})));
-                    let user_id = (*user_id).clone().unwrap_or_default();
-                    login(user_id);
+                        .apply(LoginAction::LoginStarted(form.store_id.clone(), json!({})));
+                    let store_id = (*store_id).clone().unwrap_or_default();
+                    login(store_id);
                 }
                 Err(e) => {
                     validation_errors.set(Rc::new(RefCell::new(e)));
@@ -112,12 +112,12 @@ pub fn login_page(_props: &Props) -> Html {
                                         class="space-y-6 m-2.5 relative" style="top:72px;" action="#"
 
                               >
-                              <FormInput label="Email"  name="email" input_type="email"  handle_onchange={handle_user_id_input} errors={&*validation_errors} /* handle_on_input_blur={validate_input_on_blur.clone()} */
+                              <FormInput label="Email"  name="email" input_type="email"  handle_onchange={handle_store_id_input} errors={&*validation_errors} /* handle_on_input_blur={validate_input_on_blur.clone()} */
                               label_class={
     "block mb-auto text-sm font-medium text-gray-900 dark:text-white"
                               }
         input_class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder={"name@company.com"}
-                              value={(*user_id).clone()}
+                              value={(*store_id).clone()}
                               />
                                   <div class="flex justify-between">
                         <div class="flex items-start">

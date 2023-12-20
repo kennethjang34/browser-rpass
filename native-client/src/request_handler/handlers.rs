@@ -376,7 +376,7 @@ pub fn handle_login_request(
     stores: &StoreListType,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<PasswordStoreType> {
-    let store_name = request.user_id;
+    let store_name = request.store_id;
     let store = {
         let stores_locked = stores.lock()?;
         let filtered = stores_locked

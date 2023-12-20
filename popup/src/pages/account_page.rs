@@ -15,7 +15,7 @@ use yewdux::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
-    pub user_id: Option<String>,
+    pub store_id: Option<String>,
     pub path: Option<String>,
 }
 

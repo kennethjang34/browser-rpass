@@ -101,7 +101,7 @@ pub struct StoreData {
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct PersistentStoreData {
-    pub user_id: Option<String>,
+    pub store_id: Option<String>,
     pub remember_me: bool,
     pub dark_mode: bool,
 }
@@ -342,10 +342,10 @@ impl Reducer<PopupStore> for DataAction {
 impl Reducer<PopupStore> for LoginAction {
     fn apply(self, store: Rc<PopupStore>) -> Rc<PopupStore> {
         match self {
-            LoginAction::LoginStarted(user_id, _data) => PopupStore {
+            LoginAction::LoginStarted(store_id, _data) => PopupStore {
                 page_loading: true,
                 persistent_data: PersistentStoreData {
-                    user_id: Some(user_id),
+                    store_id: Some(store_id),
                     remember_me: store.persistent_data.remember_me,
                     dark_mode: store.persistent_data.dark_mode,
                 },
@@ -359,8 +359,8 @@ impl Reducer<PopupStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LoginError(_data, user_id) => {
-                debug!("LoginError: {:?}", user_id);
+            LoginAction::LoginError(_data, store_id) => {
+                debug!("LoginError: {:?}", store_id);
                 PopupStore {
                     page_loading: false,
                     login_status: LoginStatus::LoginError,
@@ -385,8 +385,8 @@ impl Reducer<PopupStore> for LoginAction {
                 page_loading: false,
                 verified: false,
                 persistent_data: PersistentStoreData {
-                    user_id: if store.persistent_data.remember_me {
-                        store.persistent_data.user_id.clone()
+                    store_id: if store.persistent_data.remember_me {
+                        store.persistent_data.store_id.clone()
                     } else {
                         None
                     },
@@ -418,8 +418,8 @@ impl Reducer<PopupStore> for LoginAction {
                 page_loading: false,
                 persistent_data: PersistentStoreData {
                     remember_me: store.persistent_data.remember_me,
-                    user_id: if store.persistent_data.remember_me {
-                        store.persistent_data.user_id.clone()
+                    store_id: if store.persistent_data.remember_me {
+                        store.persistent_data.store_id.clone()
                     } else {
                         None
                     },
@@ -433,13 +433,13 @@ impl Reducer<PopupStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::Login(user_id, _data) => {
+            LoginAction::Login(store_id, _data) => {
                 PopupStore {
                     verified: true,
                     page_loading: false,
                     persistent_data: PersistentStoreData {
                         remember_me: store.persistent_data.remember_me,
-                        user_id: Some(user_id),
+                        store_id: Some(store_id),
                         dark_mode: store.persistent_data.dark_mode,
                     },
                     login_status: LoginStatus::LoggedIn,
@@ -451,8 +451,8 @@ impl Reducer<PopupStore> for LoginAction {
                 PopupStore {
                     persistent_data: PersistentStoreData {
                         remember_me,
-                        user_id: if remember_me {
-                            store.persistent_data.user_id.clone()
+                        store_id: if remember_me {
+                            store.persistent_data.store_id.clone()
                         } else {
                             None
                         },

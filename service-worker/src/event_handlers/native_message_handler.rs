@@ -39,7 +39,7 @@ pub fn process_native_message(
             if let RequestEnum::Login(login_request) = request.clone().unwrap() {
                 let login_response2 = login_response.clone();
                 let mut ctx = ctx.unwrap_or(json!({}));
-                ctx["user_id"] = json!(login_request.user_id);
+                ctx["store_id"] = json!(login_request.store_id);
                 ctx["acknowledgement"] = json!(login_request.acknowledgement);
                 wasm_bindgen_futures::spawn_local(async move {
                     let login_response = login_response2;

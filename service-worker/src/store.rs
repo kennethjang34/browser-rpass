@@ -32,7 +32,7 @@ pub use browser_rpass::{
 use gloo::storage::errors::StorageError;
 use lazy_static::lazy_static;
 use yewdux::{
-    prelude::{init_listener, Dispatch, Listener},
+    prelude::{init_listener, Listener},
     store::Store,
 };
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -122,7 +122,7 @@ pub struct StoreData {
 }
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct SessionStore {
-    pub user: (Option<String>, Option<String>),
+    pub credential: (Option<String>, Option<String>),
     pub data: StoreData,
 }
 
@@ -212,10 +212,10 @@ impl Reducer<SessionStore> for SessionActionWrapper {
         let mut clear_ports = false;
         let (session_store, session_event) = match session_action {
             SessionAction::Login => {
-                let user_id = {
+                let store_id = {
                     if let Some(ref meta) = meta {
-                        if let Some(user_id) = meta.get("user_id") {
-                            Some(user_id.as_str().unwrap().to_owned())
+                        if let Some(store_id) = meta.get("store_id") {
+                            Some(store_id.as_str().unwrap().to_owned())
                         } else {
                             None
                         }
@@ -225,13 +225,13 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 };
                 (
                     SessionStore {
-                        user: (user_id.clone(), None),
+                        credential: (store_id.clone(), None),
                         ..store.deref().clone()
                     }
                     .into(),
                     Some(SessionEvent {
                         event_type: SessionEventType::Login,
-                        data: Some(json!({"verified":true,"user_id":user_id.clone()})),
+                        data: Some(json!({"verified":true,"store_id":store_id.clone()})),
                         meta,
                         resource: Some(vec![Resource::Auth]),
                         is_global: true,
@@ -248,7 +248,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
 
                 (
                     SessionStore {
-                        user: (store.user.0.clone(), None),
+                        credential: (store.credential.0.clone(), None),
                         ..store.deref().clone()
                     }
                     .into(),
@@ -268,7 +268,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     clear_ports = true;
                     (
                         SessionStore {
-                            user: (store.user.0.clone(), None),
+                            credential: (store.credential.0.clone(), None),
                             data: StoreData::default(),
                             ..SessionStore::default().clone()
                         }

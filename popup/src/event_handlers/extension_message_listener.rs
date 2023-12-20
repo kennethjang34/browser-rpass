@@ -45,7 +45,7 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                         match event_type {
                             &SessionEventType::Login => {
                                 dispatch.apply(LoginAction::Login(
-                                    data.get("user_id")
+                                    data.get("store_id")
                                         .map(|v| v.as_str().unwrap().to_owned())
                                         .unwrap(),
                                     data,
@@ -55,13 +55,13 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                 let context = contexts
                                     .get(event_request.acknowledgement.as_ref().unwrap())
                                     .unwrap();
-                                let user_id = context
-                                    .get("user_id")
+                                let store_id = context
+                                    .get("store_id")
                                     .unwrap()
                                     .as_str()
                                     .unwrap()
                                     .to_string();
-                                dispatch.apply(LoginAction::LoginError(data, user_id));
+                                dispatch.apply(LoginAction::LoginError(data, store_id));
                             }
                             &SessionEventType::Logout => {
                                 dispatch.apply(LoginAction::Logout(data));

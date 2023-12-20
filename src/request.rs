@@ -97,7 +97,7 @@ pub struct FetchRequest {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", rename = "login")]
 pub struct LoginRequest {
-    pub user_id: String,
+    pub store_id: String,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
     pub header: Option<HashMap<String, String>>,
@@ -317,7 +317,7 @@ impl RequestEnum {
     }
     pub fn create_login_request(acknowledgement: Option<String>, user_id: String) -> RequestEnum {
         RequestEnum::Login(LoginRequest {
-            user_id,
+            store_id: user_id,
             acknowledgement: {
                 if acknowledgement.is_some() {
                     acknowledgement

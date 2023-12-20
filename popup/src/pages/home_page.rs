@@ -24,7 +24,7 @@ pub fn home_page(_props: &Props) -> Html {
     let verified = use_selector(|state: &PopupStore| state.verified);
     let loading = use_selector(|state: &PopupStore| state.page_loading.clone());
     let path = use_selector(|state: &PopupStore| state.path.clone());
-    let user_id = use_selector(|state: &PopupStore| state.persistent_data.user_id.clone());
+    let store_id = use_selector(|state: &PopupStore| state.persistent_data.store_id.clone());
     let on_logout_click = Callback::from(move |event: MouseEvent| {
         event.prevent_default();
         logout();
@@ -89,7 +89,7 @@ pub fn home_page(_props: &Props) -> Html {
                               }
                           </button>
                             if *verified{
-                                <AccountPage user_id={(*user_id).clone()} path={(*path).clone()}/>
+                                <AccountPage store_id={(*store_id).clone()} path={(*path).clone()}/>
                                 <button type="button" class="fixed my-3 bottom-0 right-0 mr-3 warning-btn" onclick={on_logout_click}>{"logout"}</button>
                             }
                             else{

@@ -28,16 +28,16 @@ pub fn fetch_accounts(path: Option<String>) -> String {
         .post_message(<JsValue as JsValueSerdeExt>::from_serde(&fetch_request).unwrap());
     return acknowledgement;
 }
-pub fn login(user_id: String) {
+pub fn login(store_id: String) {
     let dispatch = Dispatch::<PopupStore>::new();
-    dispatch.apply(LoginAction::LoginStarted(user_id.clone(), json!({})));
+    dispatch.apply(LoginAction::LoginStarted(store_id.clone(), json!({})));
     let acknowledgement = create_request_acknowledgement();
     let login_request =
-        RequestEnum::create_login_request(Some(acknowledgement.clone()), user_id.clone());
+        RequestEnum::create_login_request(Some(acknowledgement.clone()), store_id.clone());
     MESSAGE_CONTEXT_POPUP
         .lock()
         .unwrap()
-        .insert(acknowledgement, json!({"user_id":user_id.clone()}));
+        .insert(acknowledgement, json!({"store_id":store_id.clone()}));
     EXTENSION_PORT
         .lock()
         .borrow()
