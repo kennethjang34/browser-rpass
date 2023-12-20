@@ -37,7 +37,7 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                         let dispatch = Dispatch::<ContentScriptStore>::new();
                         let event_request = request.session_event.clone();
                         let event_type = &event_request.event_type;
-                        let data = event_request.data.clone().unwrap_or(json!({}));
+                        let data = event_request.data.clone().unwrap_or_default();
 
                         let resource = event_request.resource.unwrap_or(vec![]);
                         match event_type {

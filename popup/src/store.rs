@@ -1,4 +1,5 @@
 use browser_rpass::js_binding::extension_api::*;
+use browser_rpass::request::DataFieldType;
 use browser_rpass::request::SessionEventWrapper;
 use browser_rpass::types::StorageStatus;
 use gloo::storage::errors::StorageError;
@@ -101,7 +102,7 @@ pub struct StoreData {
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct PersistentStoreData {
-    pub user_id: Option<String>,
+    pub store_id: Option<String>,
     pub remember_me: bool,
     pub dark_mode: bool,
 }
@@ -120,15 +121,15 @@ pub struct PopupStore {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum LoginAction {
-    LoginStarted(String, Value),
-    LoginError(Value, String),
-    LoginSucceeded(Value),
-    LoginFailed(Value),
-    LogoutSucceeded(Value),
-    LogoutFailed(Value),
-    LogoutStarted(Value),
-    Logout(Value),
-    Login(String, Value),
+    LoginStarted(String, HashMap<DataFieldType, Value>),
+    LoginError(HashMap<DataFieldType, Value>, String),
+    LoginSucceeded(HashMap<DataFieldType, Value>),
+    LoginFailed(HashMap<DataFieldType, Value>),
+    LogoutSucceeded(HashMap<DataFieldType, Value>),
+    LogoutFailed(HashMap<DataFieldType, Value>),
+    LogoutStarted(HashMap<DataFieldType, Value>),
+    Logout(HashMap<DataFieldType, Value>),
+    Login(String, HashMap<DataFieldType, Value>),
     LoginIdle,
     RememberMe(bool),
 }
@@ -137,16 +138,16 @@ pub enum LoginAction {
 pub enum DataAction {
     ResourceFetchStarted(Resource),
     Init(Value),
-    ResourceDeleted(Resource, Value),
-    ResourceCreated(Resource, Value),
-    ResourceEdited(Resource, Value, String),
-    ResourceDeletionFailed(Resource, Value),
+    ResourceDeleted(Resource, HashMap<DataFieldType, Value>),
+    ResourceCreated(Resource, HashMap<DataFieldType, Value>),
+    ResourceEdited(Resource, HashMap<DataFieldType, Value>, String),
+    ResourceDeletionFailed(Resource, HashMap<DataFieldType, Value>),
     ResourceEditionFailed(Resource, SessionEventWrapper),
     ResourceCreationFailed(Resource, SessionEventWrapper),
-    ResourceDeletionStarted(Resource, Value),
-    ResourceEditionStarted(Resource, Value),
-    ResourceCreationStarted(Resource, Value),
-    ResourceFetched(Resource, Value, Option<Value>),
+    ResourceDeletionStarted(Resource, HashMap<DataFieldType, Value>),
+    ResourceEditionStarted(Resource, HashMap<DataFieldType, Value>),
+    ResourceCreationStarted(Resource, HashMap<DataFieldType, Value>),
+    ResourceFetched(Resource, HashMap<DataFieldType, Value>, Option<Value>),
     Idle,
 }
 
@@ -205,10 +206,11 @@ impl Reducer<PopupStore> for DataAction {
                 }
             }
             .into(),
-            DataAction::ResourceFetched(resource, data, _meta) => match resource {
+            DataAction::ResourceFetched(resource, mut data, _meta) => match resource {
                 Resource::Account => {
                     let state_data = state.data.clone();
-                    let accounts = serde_json::from_value::<Vec<Account>>(data)
+                    let accounts = data.remove(&DataFieldType::Data).unwrap_or_default();
+                    let accounts = serde_json::from_value::<Vec<Account>>(accounts)
                         .unwrap_or_default()
                         .into_iter()
                         .map(|v| Rc::new(v))
@@ -229,9 +231,10 @@ impl Reducer<PopupStore> for DataAction {
                     todo!();
                 }
             },
-            DataAction::ResourceCreated(resource, data) => match resource {
+            DataAction::ResourceCreated(resource, mut data) => match resource {
                 Resource::Account => {
-                    let account = serde_json::from_value::<Account>(data.clone()).unwrap();
+                    let account = data.remove(&DataFieldType::Data).unwrap_or_default();
+                    let account = serde_json::from_value::<Account>(account).unwrap();
                     let state_data = state.data.clone();
                     let mut accounts = state_data.accounts.borrow_mut();
                     accounts.push(Rc::new(account));
@@ -249,9 +252,10 @@ impl Reducer<PopupStore> for DataAction {
                 }
                 .into(),
             },
-            DataAction::ResourceEdited(resource, data, id) => match resource {
+            DataAction::ResourceEdited(resource, mut data, id) => match resource {
                 Resource::Account => {
-                    let account = serde_json::from_value::<Account>(data.clone()).unwrap();
+                    let account = data.remove(&DataFieldType::Data).unwrap_or_default();
+                    let account = serde_json::from_value::<Account>(account).unwrap();
                     let state_data = state.data.clone();
                     let mut accounts = state_data.accounts.borrow_mut();
                     let idx = accounts.iter().position(|ac| ac.id == id).unwrap();
@@ -276,10 +280,11 @@ impl Reducer<PopupStore> for DataAction {
                 ..state.deref().clone()
             }
             .into(),
-            DataAction::ResourceDeleted(resource, data) => {
+            DataAction::ResourceDeleted(resource, mut data) => {
                 let state_data = state.data.clone();
                 match resource {
                     Resource::Account => {
+                        let data = data.remove(&DataFieldType::Data).unwrap_or_default();
                         let map = data.as_object().unwrap();
                         let deleted_id = map.get("id").unwrap().as_str().unwrap().to_owned();
                         state_data
@@ -342,10 +347,10 @@ impl Reducer<PopupStore> for DataAction {
 impl Reducer<PopupStore> for LoginAction {
     fn apply(self, store: Rc<PopupStore>) -> Rc<PopupStore> {
         match self {
-            LoginAction::LoginStarted(user_id, _data) => PopupStore {
+            LoginAction::LoginStarted(store_id, _data) => PopupStore {
                 page_loading: true,
                 persistent_data: PersistentStoreData {
-                    user_id: Some(user_id),
+                    store_id: Some(store_id),
                     remember_me: store.persistent_data.remember_me,
                     dark_mode: store.persistent_data.dark_mode,
                 },
@@ -359,8 +364,8 @@ impl Reducer<PopupStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LoginError(_data, user_id) => {
-                debug!("LoginError: {:?}", user_id);
+            LoginAction::LoginError(_data, store_id) => {
+                debug!("LoginError: {:?}", store_id);
                 PopupStore {
                     page_loading: false,
                     login_status: LoginStatus::LoginError,
@@ -385,8 +390,8 @@ impl Reducer<PopupStore> for LoginAction {
                 page_loading: false,
                 verified: false,
                 persistent_data: PersistentStoreData {
-                    user_id: if store.persistent_data.remember_me {
-                        store.persistent_data.user_id.clone()
+                    store_id: if store.persistent_data.remember_me {
+                        store.persistent_data.store_id.clone()
                     } else {
                         None
                     },
@@ -418,8 +423,8 @@ impl Reducer<PopupStore> for LoginAction {
                 page_loading: false,
                 persistent_data: PersistentStoreData {
                     remember_me: store.persistent_data.remember_me,
-                    user_id: if store.persistent_data.remember_me {
-                        store.persistent_data.user_id.clone()
+                    store_id: if store.persistent_data.remember_me {
+                        store.persistent_data.store_id.clone()
                     } else {
                         None
                     },
@@ -433,13 +438,13 @@ impl Reducer<PopupStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::Login(user_id, _data) => {
+            LoginAction::Login(store_id, _data) => {
                 PopupStore {
                     verified: true,
                     page_loading: false,
                     persistent_data: PersistentStoreData {
                         remember_me: store.persistent_data.remember_me,
-                        user_id: Some(user_id),
+                        store_id: Some(store_id),
                         dark_mode: store.persistent_data.dark_mode,
                     },
                     login_status: LoginStatus::LoggedIn,
@@ -451,8 +456,8 @@ impl Reducer<PopupStore> for LoginAction {
                 PopupStore {
                     persistent_data: PersistentStoreData {
                         remember_me,
-                        user_id: if remember_me {
-                            store.persistent_data.user_id.clone()
+                        store_id: if remember_me {
+                            store.persistent_data.store_id.clone()
                         } else {
                             None
                         },

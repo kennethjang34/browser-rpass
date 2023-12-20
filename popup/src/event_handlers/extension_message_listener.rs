@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use browser_rpass::{
     js_binding::extension_api::Port,
-    request::SessionEventType,
+    request::{DataFieldType, SessionEventType},
     response::{MessageEnum, RequestEnum, ResponseEnumTrait},
     store::{MESSAGE_ACKNOWLEDGEMENTS_POP_UP, MESSAGE_CONTEXT_POPUP},
     types::Resource,
@@ -37,7 +39,7 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                         let dispatch = Dispatch::<PopupStore>::new();
                         let event_request = request.session_event.clone();
                         let event_type = &event_request.event_type;
-                        let data = event_request.data.clone().unwrap_or(json!({}));
+                        let data = event_request.data.clone().unwrap_or(HashMap::new());
                         let meta = request.session_event.clone().meta.unwrap_or(json!({}));
                         let contexts = MESSAGE_CONTEXT_POPUP.lock().unwrap();
 
@@ -45,7 +47,7 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                         match event_type {
                             &SessionEventType::Login => {
                                 dispatch.apply(LoginAction::Login(
-                                    data.get("user_id")
+                                    data.get(&DataFieldType::StoreID)
                                         .map(|v| v.as_str().unwrap().to_owned())
                                         .unwrap(),
                                     data,
@@ -55,13 +57,13 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                 let context = contexts
                                     .get(event_request.acknowledgement.as_ref().unwrap())
                                     .unwrap();
-                                let user_id = context
-                                    .get("user_id")
+                                let store_id = context
+                                    .get("store_id")
                                     .unwrap()
                                     .as_str()
                                     .unwrap()
                                     .to_string();
-                                dispatch.apply(LoginAction::LoginError(data, user_id));
+                                dispatch.apply(LoginAction::LoginError(data, store_id));
                             }
                             &SessionEventType::Logout => {
                                 dispatch.apply(LoginAction::Logout(data));

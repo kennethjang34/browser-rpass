@@ -1,8 +1,7 @@
 use crate::event_handlers::native_message_handler::process_native_message;
 pub use crate::Resource;
 use crate::{api, StorageStatus};
-use browser_rpass::dbg;
-use browser_rpass::request::{LoginRequest, RequestEnumTrait, SessionEventType};
+use browser_rpass::request::{DataFieldType, LoginRequest, RequestEnumTrait, SessionEventType};
 use browser_rpass::response::{CreateResponse, EditResponse, FetchResponse, LogoutResponse};
 use browser_rpass::store;
 use browser_rpass::types::Account;
@@ -32,7 +31,7 @@ pub use browser_rpass::{
 use gloo::storage::errors::StorageError;
 use lazy_static::lazy_static;
 use yewdux::{
-    prelude::{init_listener, Dispatch, Listener},
+    prelude::{init_listener, Listener},
     store::Store,
 };
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -45,10 +44,10 @@ pub enum SessionAction {
     DataLoading(Option<String>),
     DataCreated(CreateResponse),
     DataEdited(EditResponse),
-    DataDeleted(Resource, Value),
+    DataDeleted(Resource, HashMap<DataFieldType, Value>),
     DataDeletionFailed(Resource, String),
-    DataCreationFailed(Resource, Value, Option<RequestEnum>),
-    DataEditFailed(Resource, Value, Option<RequestEnum>),
+    DataCreationFailed(Resource, HashMap<DataFieldType, Value>, Option<RequestEnum>),
+    DataEditFailed(Resource, HashMap<DataFieldType, Value>, Option<RequestEnum>),
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SessionActionWrapper {
@@ -120,9 +119,12 @@ pub struct StoreData {
     pub accounts: Mrc<Vec<Rc<Account>>>,
     pub storage_status: StorageStatus,
 }
+
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct SessionStore {
-    pub user: (Option<String>, Option<String>),
+    pub current_store_id: Option<String>,
+    pub current_signing_key: Option<String>,
+    pub verified: bool,
     pub data: StoreData,
 }
 
@@ -212,10 +214,10 @@ impl Reducer<SessionStore> for SessionActionWrapper {
         let mut clear_ports = false;
         let (session_store, session_event) = match session_action {
             SessionAction::Login => {
-                let user_id = {
+                let store_id = {
                     if let Some(ref meta) = meta {
-                        if let Some(user_id) = meta.get("user_id") {
-                            Some(user_id.as_str().unwrap().to_owned())
+                        if let Some(store_id) = meta.get("store_id") {
+                            Some(store_id.as_str().unwrap().to_owned())
                         } else {
                             None
                         }
@@ -223,15 +225,20 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         None
                     }
                 };
+                let mut data = HashMap::new();
+                data.insert(DataFieldType::Verified, json!(true));
+                data.insert(DataFieldType::StoreID, json!(store_id.clone()));
                 (
                     SessionStore {
-                        user: (user_id.clone(), None),
+                        current_store_id: store_id.clone(),
+                        verified: true,
                         ..store.deref().clone()
                     }
                     .into(),
                     Some(SessionEvent {
                         event_type: SessionEventType::Login,
-                        data: Some(json!({"verified":true,"user_id":user_id.clone()})),
+                        // data: Some(json!({"verified":true,"store_id":store_id.clone()})),
+                        data: Some(data),
                         meta,
                         resource: Some(vec![Resource::Auth]),
                         is_global: true,
@@ -248,7 +255,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
 
                 (
                     SessionStore {
-                        user: (store.user.0.clone(), None),
                         ..store.deref().clone()
                     }
                     .into(),
@@ -263,18 +269,20 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 )
             }
             SessionAction::Logout => {
-                if (*store).user.1.is_some() {
+                if (*store).verified {
                     clear_ports = true;
+                    let mut data = HashMap::new();
+                    data.insert(DataFieldType::Verified, json!(false));
                     (
                         SessionStore {
-                            user: (store.user.0.clone(), None),
+                            verified: false,
                             data: StoreData::default(),
                             ..SessionStore::default().clone()
                         }
                         .into(),
                         Some(SessionEvent {
                             event_type: SessionEventType::Logout,
-                            data: Some(json!({"verified":false})),
+                            data: Some(data),
                             meta,
                             resource: Some(vec![Resource::Auth]),
                             is_global: true,
@@ -282,14 +290,27 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }),
                     )
                 } else {
-                    (store, None)
+                    (
+                        store,
+                        Some(SessionEvent {
+                            event_type: SessionEventType::LogoutError,
+                            data: None,
+                            meta,
+                            resource: Some(vec![Resource::Auth]),
+                            is_global: false,
+                            acknowledgement,
+                        }),
+                    )
                 }
             }
             SessionAction::DataDeleted(resource, data) => match resource.clone() {
                 Resource::Account => {
-                    let map = data.as_object().unwrap();
-                    let deleted_id = map.get("id").unwrap().as_str().unwrap().to_owned();
-                    // let account_deleted = serde_json::from_value::<Account>(data.clone()).unwrap();
+                    let deleted_id = data
+                        .get(&DataFieldType::ResourceID)
+                        .unwrap()
+                        .as_str()
+                        .unwrap()
+                        .to_owned();
                     let mut account_vec = store.data.accounts.borrow_mut();
                     let index = account_vec.iter().position(|ac| deleted_id == ac.id);
                     if let Some(index) = index {
@@ -330,16 +351,19 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }),
                 ),
             },
-            SessionAction::DataCreated(create_response) => {
+            SessionAction::DataCreated(mut create_response) => {
                 let resource = create_response.resource.clone();
                 match resource {
                     Resource::Account => {
-                        let data_payload = create_response.data.clone();
+                        let data_payload =
+                            create_response.data.remove(&DataFieldType::Data).unwrap();
                         let account: Rc<Account> =
                             Rc::new(serde_json::from_value(data_payload).unwrap());
                         let current_state_data = &store.data;
                         let mut account_vec = current_state_data.accounts.borrow_mut();
                         account_vec.push(account.clone());
+                        let mut data = HashMap::new();
+                        data.insert(DataFieldType::Data, serde_json::to_value(account).unwrap());
                         (
                             SessionStore {
                                 data: StoreData {
@@ -351,7 +375,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             .into(),
                             Some(SessionEvent {
                                 event_type: SessionEventType::Create,
-                                data: Some(serde_json::to_value(account).unwrap()),
+                                data: Some(data),
                                 meta,
                                 resource: Some(vec![resource]),
                                 is_global: true,
@@ -380,7 +404,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 match resource {
                     Resource::Account => {
                         let data_payload = edit_response.data.clone();
-                        let updated_data = data_payload.as_object().unwrap();
+                        let updated_data = data_payload.get(&DataFieldType::UpdatedFields).unwrap();
+                        let updated_data = updated_data.as_object().unwrap();
                         let current_state_data = &store.data;
                         let mut account_vec = current_state_data.accounts.borrow_mut();
                         let account_id = edit_response.id.clone();
@@ -425,6 +450,11 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 }
                             }
                         }
+                        let mut data = HashMap::new();
+                        data.insert(
+                            DataFieldType::Data,
+                            serde_json::to_value(new_account).unwrap(),
+                        );
                         (
                             SessionStore {
                                 data: StoreData {
@@ -436,7 +466,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             .into(),
                             Some(SessionEvent {
                                 event_type: SessionEventType::Update,
-                                data: Some(serde_json::to_value(new_account).unwrap()),
+                                data: Some(data),
                                 meta,
                                 resource: Some(vec![resource]),
                                 is_global: true,
@@ -474,6 +504,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 let resource = fetch_response.resource.clone();
                 if resource == Resource::Account {
                     let data_payload: Vec<Rc<Account>> = data
+                        .get(&DataFieldType::Data)
+                        .unwrap_or(&json!([]))
                         .as_array()
                         .unwrap_or(&vec![])
                         .into_iter()
@@ -528,9 +560,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 None,
             ),
             SessionAction::DataCreationFailed(resource, _data, request) => {
-                dbg!(&resource);
-                dbg!(&_data);
-                dbg!(&meta);
                 let session_event = {
                     if let Some(request) = request {
                         let request_acknowledgement = request.get_acknowledgement();

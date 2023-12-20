@@ -1,12 +1,13 @@
 use rpass::{crypto::Handler, pass::CUSTOM_FIELD_PREFIX};
 use std::{
+    collections::HashMap,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
 
 pub use super::util::*;
 
-use browser_rpass::{request::*, response::*, JsonValueExt};
+use browser_rpass::{request::*, response::*};
 use log::*;
 use rpass::pass::{self, Error, PasswordEntry, PasswordStore};
 use serde_json::json;
@@ -22,11 +23,26 @@ pub fn handle_edit_request(
     let resource = &request.resource;
     match resource {
         Resource::Account => {
-            let domain = value.get_string("domain")?;
-            let username = value.get_string("username")?;
-            let password = value.get_string("password")?;
-            let note = value.get_string("note")?;
-            let custom_fields = value.get_object("custom_fields")?;
+            let domain = value
+                .get(&DataFieldType::Domain)
+                .map(|v| v.as_str())
+                .flatten();
+            let username = value
+                .get(&DataFieldType::Username)
+                .map(|v| v.as_str())
+                .flatten();
+            let password = value
+                .get(&DataFieldType::Password)
+                .map(|v| v.as_str())
+                .flatten();
+            let note = value
+                .get(&DataFieldType::Note)
+                .map(|v| v.as_str())
+                .flatten();
+            let custom_fields = value
+                .get(&DataFieldType::CustomField)
+                .map(|v| v.as_object())
+                .flatten();
             let updated_data = store.lock()?.lock()?.update_default_entry_fields(
                 &request.id,
                 domain,
@@ -37,11 +53,13 @@ pub fn handle_edit_request(
                 passphrase_provider,
             );
 
+            let mut data = HashMap::new();
             match updated_data {
                 Ok(updated_data) => {
+                    data.insert(DataFieldType::UpdatedFields, updated_data.clone());
                     let edit_response = EditResponse {
                         acknowledgement: request.acknowledgement,
-                        data: updated_data,
+                        data,
                         status: Status::Success,
                         resource: Resource::Account,
                         id: request.id,
@@ -97,8 +115,10 @@ pub fn handle_get_request(
                         ))
                     }
                 });
+            let mut data = HashMap::new();
             let get_response = {
-                if let Ok(data) = password_entry.map(|data| data.into()) {
+                if let Ok(data_value) = password_entry.map(|data| data.into()) {
+                    data.insert(DataFieldType::Data, data_value);
                     GetResponse {
                         data,
                         meta: Some(json!({"id":id})),
@@ -108,7 +128,7 @@ pub fn handle_get_request(
                     }
                 } else {
                     GetResponse {
-                        data: serde_json::Value::Null,
+                        data,
                         meta: Some(json!({"id":id})),
                         resource,
                         acknowledgement,
@@ -160,10 +180,12 @@ pub fn handle_search_request(
                 })
                 .collect::<Vec<serde_json::Value>>();
             let search_response = {
-                if let Ok(data) = serde_json::to_value(decrypted_password_entries.clone()) {
-                    if let Some(data_arr) = data.as_array().cloned() {
+                let mut data = HashMap::new();
+                if let Ok(data_value) = serde_json::to_value(decrypted_password_entries.clone()) {
+                    if let Some(data_arr) = data_value.as_array().cloned() {
+                        data.insert(DataFieldType::Data, data_arr.into());
                         SearchResponse {
-                            data: data_arr,
+                            data,
                             acknowledgement: acknowledgement.clone(),
                             status: Status::Success,
                             resource,
@@ -171,18 +193,18 @@ pub fn handle_search_request(
                         }
                     } else {
                         SearchResponse {
-                            data: vec![].into(),
+                            data,
                             acknowledgement: acknowledgement.clone(),
                             status: Status::Failure,
                             resource,
                             meta: Some(
-                                json!({"query":query.clone(), "error":format!("failed to parse data as array. Data: {:?}", data)}),
+                                json!({"query":query.clone(), "error":format!("failed to parse data as array. Data: {:?}", data_value)}),
                             ),
                         }
                     }
                 } else {
                     SearchResponse {
-                        data: vec![].into(),
+                        data,
                         acknowledgement,
                         status: Status::Failure,
                         resource,
@@ -244,10 +266,12 @@ pub fn handle_fetch_request(
                         })
                         .collect::<Vec<serde_json::Value>>();
             let fetch_response = {
-                if let Ok(data) = serde_json::to_value(decrypted_password_entries) {
-                    if let Some(data) = data.as_array().cloned() {
+                let mut data = HashMap::new();
+                if let Ok(data_value) = serde_json::to_value(decrypted_password_entries) {
+                    if let Some(data_arr) = data_value.as_array().cloned() {
+                        data.insert(DataFieldType::Data, json!(data_arr));
                         FetchResponse {
-                            data: data.into(),
+                            data,
                             meta: Some(json!({"custom_field_prefix":CUSTOM_FIELD_PREFIX})),
                             resource,
                             acknowledgement,
@@ -255,7 +279,7 @@ pub fn handle_fetch_request(
                         }
                     } else {
                         FetchResponse {
-                            data: serde_json::Value::Null,
+                            data,
                             meta: None,
                             resource,
                             acknowledgement,
@@ -264,7 +288,7 @@ pub fn handle_fetch_request(
                     }
                 } else {
                     FetchResponse {
-                        data: serde_json::Value::Null,
+                        data,
                         meta: None,
                         resource,
                         acknowledgement,
@@ -376,7 +400,7 @@ pub fn handle_login_request(
     stores: &StoreListType,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<PasswordStoreType> {
-    let store_name = request.user_id;
+    let store_name = request.store_id;
     let store = {
         let stores_locked = stores.lock()?;
         let filtered = stores_locked
@@ -457,19 +481,19 @@ pub fn handle_create_request(
     let username = request.username;
     let domain = request.domain;
     let note = request.note;
-    let password = request.value;
+    let password = request.password;
     let resource = request.resource;
     let acknowledgement = request.acknowledgement;
     let custom_fields = request.custom_fields;
-    let data;
     let status;
     match resource {
         Resource::Account => {
             let locked_store = store.lock()?;
             let mut locked_store = locked_store.lock()?;
-            let (status, data) = match locked_store.create_entry(
+            let mut data = HashMap::new();
+            let status = match locked_store.create_entry(
                 username.as_deref(),
-                password.as_str().map(|s| s),
+                password.as_deref(),
                 domain.as_deref(),
                 note.as_deref(),
                 custom_fields,
@@ -486,28 +510,25 @@ pub fn handle_create_request(
                         if let Ok(entry_meta) = entry_meta_res.as_ref() {
                             merge_json(&mut entry_data, entry_meta);
                             status = Status::Success;
-                            data = entry_data;
-                            (status, data)
+                            data.insert(DataFieldType::Data, entry_data);
+                            status
                         } else {
                             error!(
                                 "failed to convert entry to serde_json::Value. response: {:?}",
                                 entry_meta_res
                             );
                             status = Status::Failure;
-                            data = serde_json::Value::Null;
-                            (status, data)
+                            status
                         }
                     } else {
                         status = Status::Failure;
-                        data = serde_json::Value::Null;
-                        (status, data)
+                        status
                     }
                 }
                 Err(err) => {
                     status = Status::Failure;
-                    data = serde_json::Value::Null;
                     error!("Failed to create password entry: {:?}", err);
-                    (status, data)
+                    status
                 }
             };
             let create_response: CreateResponse = CreateResponse {
@@ -533,28 +554,30 @@ pub fn handle_delete_request(
 ) -> pass::Result<DeleteResponse> {
     let id = request.id;
     let acknowledgement = request.acknowledgement;
-    let (status, data) = {
+    let mut data = HashMap::new();
+    let status = {
         let res = store
             .lock()?
             .lock()?
             .delete_entry(&(id), passphrase_provider);
         match res {
-            Ok(entry_data) => (Status::Success, Some(entry_data)),
+            Ok(entry_data) => {
+                data.insert(
+                    DataFieldType::ResourceID,
+                    serde_json::to_value(entry_data.id.clone()).unwrap_or_default(),
+                );
+                data.insert(DataFieldType::Data, serde_json::to_value(entry_data)?);
+                Status::Success
+            }
             Err(e) => {
                 error!("Failed to delete entry: {:?}", e);
-                (Status::Failure, None)
+                Status::Failure
             }
         }
     };
     let delete_response = DeleteResponse {
         acknowledgement,
-        data: data
-            .map(|data| {
-                (&data).try_into().unwrap_or(serde_json::Value::String(
-                    "data serialization failed".to_string(),
-                ))
-            })
-            .unwrap_or_default(),
+        data,
         status,
     };
     Ok(delete_response)
