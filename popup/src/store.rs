@@ -1,4 +1,5 @@
 use browser_rpass::js_binding::extension_api::*;
+use browser_rpass::request::DataFieldType;
 use browser_rpass::request::SessionEventWrapper;
 use browser_rpass::types::StorageStatus;
 use gloo::storage::errors::StorageError;
@@ -120,15 +121,15 @@ pub struct PopupStore {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum LoginAction {
-    LoginStarted(String, Value),
-    LoginError(Value, String),
-    LoginSucceeded(Value),
-    LoginFailed(Value),
-    LogoutSucceeded(Value),
-    LogoutFailed(Value),
-    LogoutStarted(Value),
-    Logout(Value),
-    Login(String, Value),
+    LoginStarted(String, HashMap<DataFieldType, Value>),
+    LoginError(HashMap<DataFieldType, Value>, String),
+    LoginSucceeded(HashMap<DataFieldType, Value>),
+    LoginFailed(HashMap<DataFieldType, Value>),
+    LogoutSucceeded(HashMap<DataFieldType, Value>),
+    LogoutFailed(HashMap<DataFieldType, Value>),
+    LogoutStarted(HashMap<DataFieldType, Value>),
+    Logout(HashMap<DataFieldType, Value>),
+    Login(String, HashMap<DataFieldType, Value>),
     LoginIdle,
     RememberMe(bool),
 }
@@ -137,16 +138,16 @@ pub enum LoginAction {
 pub enum DataAction {
     ResourceFetchStarted(Resource),
     Init(Value),
-    ResourceDeleted(Resource, Value),
-    ResourceCreated(Resource, Value),
-    ResourceEdited(Resource, Value, String),
-    ResourceDeletionFailed(Resource, Value),
+    ResourceDeleted(Resource, HashMap<DataFieldType, Value>),
+    ResourceCreated(Resource, HashMap<DataFieldType, Value>),
+    ResourceEdited(Resource, HashMap<DataFieldType, Value>, String),
+    ResourceDeletionFailed(Resource, HashMap<DataFieldType, Value>),
     ResourceEditionFailed(Resource, SessionEventWrapper),
     ResourceCreationFailed(Resource, SessionEventWrapper),
-    ResourceDeletionStarted(Resource, Value),
-    ResourceEditionStarted(Resource, Value),
-    ResourceCreationStarted(Resource, Value),
-    ResourceFetched(Resource, Value, Option<Value>),
+    ResourceDeletionStarted(Resource, HashMap<DataFieldType, Value>),
+    ResourceEditionStarted(Resource, HashMap<DataFieldType, Value>),
+    ResourceCreationStarted(Resource, HashMap<DataFieldType, Value>),
+    ResourceFetched(Resource, HashMap<DataFieldType, Value>, Option<Value>),
     Idle,
 }
 
@@ -205,10 +206,11 @@ impl Reducer<PopupStore> for DataAction {
                 }
             }
             .into(),
-            DataAction::ResourceFetched(resource, data, _meta) => match resource {
+            DataAction::ResourceFetched(resource, mut data, _meta) => match resource {
                 Resource::Account => {
                     let state_data = state.data.clone();
-                    let accounts = serde_json::from_value::<Vec<Account>>(data)
+                    let accounts = data.remove(&DataFieldType::Data).unwrap_or_default();
+                    let accounts = serde_json::from_value::<Vec<Account>>(accounts)
                         .unwrap_or_default()
                         .into_iter()
                         .map(|v| Rc::new(v))
@@ -229,9 +231,10 @@ impl Reducer<PopupStore> for DataAction {
                     todo!();
                 }
             },
-            DataAction::ResourceCreated(resource, data) => match resource {
+            DataAction::ResourceCreated(resource, mut data) => match resource {
                 Resource::Account => {
-                    let account = serde_json::from_value::<Account>(data.clone()).unwrap();
+                    let account = data.remove(&DataFieldType::Data).unwrap_or_default();
+                    let account = serde_json::from_value::<Account>(account).unwrap();
                     let state_data = state.data.clone();
                     let mut accounts = state_data.accounts.borrow_mut();
                     accounts.push(Rc::new(account));
@@ -249,9 +252,10 @@ impl Reducer<PopupStore> for DataAction {
                 }
                 .into(),
             },
-            DataAction::ResourceEdited(resource, data, id) => match resource {
+            DataAction::ResourceEdited(resource, mut data, id) => match resource {
                 Resource::Account => {
-                    let account = serde_json::from_value::<Account>(data.clone()).unwrap();
+                    let account = data.remove(&DataFieldType::Data).unwrap_or_default();
+                    let account = serde_json::from_value::<Account>(account).unwrap();
                     let state_data = state.data.clone();
                     let mut accounts = state_data.accounts.borrow_mut();
                     let idx = accounts.iter().position(|ac| ac.id == id).unwrap();
@@ -276,10 +280,11 @@ impl Reducer<PopupStore> for DataAction {
                 ..state.deref().clone()
             }
             .into(),
-            DataAction::ResourceDeleted(resource, data) => {
+            DataAction::ResourceDeleted(resource, mut data) => {
                 let state_data = state.data.clone();
                 match resource {
                     Resource::Account => {
+                        let data = data.remove(&DataFieldType::Data).unwrap_or_default();
                         let map = data.as_object().unwrap();
                         let deleted_id = map.get("id").unwrap().as_str().unwrap().to_owned();
                         state_data

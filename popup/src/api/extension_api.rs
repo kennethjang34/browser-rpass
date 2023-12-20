@@ -1,7 +1,11 @@
+use std::collections::HashMap;
+
 use crate::{store::LoginAction, Resource};
 
 use browser_rpass::{
-    request::RequestEnum, store::MESSAGE_CONTEXT_POPUP, util::create_request_acknowledgement,
+    request::{DataFieldType, RequestEnum},
+    store::MESSAGE_CONTEXT_POPUP,
+    util::create_request_acknowledgement,
 };
 use gloo_utils::format::JsValueSerdeExt;
 use serde_json::{json, Value};
@@ -30,7 +34,7 @@ pub fn fetch_accounts(path: Option<String>) -> String {
 }
 pub fn login(store_id: String) {
     let dispatch = Dispatch::<PopupStore>::new();
-    dispatch.apply(LoginAction::LoginStarted(store_id.clone(), json!({})));
+    dispatch.apply(LoginAction::LoginStarted(store_id.clone(), HashMap::new()));
     let acknowledgement = create_request_acknowledgement();
     let login_request =
         RequestEnum::create_login_request(Some(acknowledgement.clone()), store_id.clone());
@@ -45,7 +49,7 @@ pub fn login(store_id: String) {
 }
 pub fn logout() {
     let dispatch = Dispatch::<PopupStore>::new();
-    dispatch.apply(LoginAction::LogoutStarted(json!({})));
+    dispatch.apply(LoginAction::LogoutStarted(HashMap::new()));
     let logout_request = RequestEnum::create_logout_request(None, None);
     EXTENSION_PORT
         .lock()
@@ -60,10 +64,21 @@ pub fn create_account(
     note: Option<String>,
 ) -> String {
     let dispatch = Dispatch::<PopupStore>::new();
-    dispatch.apply(DataAction::ResourceCreationStarted(
-        Resource::Account,
-        json!({"username": username, "password": password, "domain": domain, "note": note}),
-    ));
+    let mut data = HashMap::new();
+    data.insert(
+        DataFieldType::Username,
+        Value::String(username.clone().unwrap()),
+    );
+    data.insert(
+        DataFieldType::Password,
+        Value::String(password.clone().unwrap()),
+    );
+    data.insert(
+        DataFieldType::Domain,
+        Value::String(domain.clone().unwrap()),
+    );
+    data.insert(DataFieldType::Note, Value::String(note.clone().unwrap()));
+    dispatch.apply(DataAction::ResourceCreationStarted(Resource::Account, data));
     let acknowledgement = create_request_acknowledgement();
     let create_request = RequestEnum::create_create_request(
         username.clone(),
@@ -90,41 +105,66 @@ pub fn edit_account(
     note: Option<String>,
 ) -> String {
     let dispatch = Dispatch::<PopupStore>::new();
-    let mut payload = json!({"id": id});
+    let mut payload = HashMap::new();
+    payload.insert(DataFieldType::ResourceID, Value::String(id.clone()));
+    // json!({"id": id});
     if let Some(username) = username.as_ref() {
         payload
-            .as_object_mut()
-            .unwrap()
-            .insert("username".into(), Value::String(username.clone()));
+            // .as_object_mut()
+            // .unwrap()
+            .insert(DataFieldType::Username, Value::String(username.clone()));
     }
     if let Some(note) = note.as_ref() {
         payload
-            .as_object_mut()
-            .unwrap()
-            .insert("note".into(), Value::String(note.clone()));
+            // .as_object_mut()
+            // .unwrap()
+            // .insert("note".into(), Value::String(note.clone()));
+            .insert(DataFieldType::Note, Value::String(note.clone()));
     }
     if let Some(domain) = domain.as_ref() {
         payload
-            .as_object_mut()
-            .unwrap()
-            .insert("domain".into(), Value::String(domain.clone()));
+            // .as_object_mut()
+            // .unwrap()
+            .insert(DataFieldType::Domain, Value::String(domain.clone()));
     }
     if let Some(password) = password.as_ref() {
         payload
-            .as_object_mut()
-            .unwrap()
-            .insert("password".into(), Value::String(password.clone()));
+            // .as_object_mut()
+            // .unwrap()
+            .insert(DataFieldType::Password, Value::String(password.clone()));
     }
     dispatch.apply(DataAction::ResourceEditionStarted(
         Resource::Account,
         payload,
     ));
     let acknowledgement = create_request_acknowledgement();
+    let mut data = HashMap::new();
+    data.insert(
+        DataFieldType::Username,
+        serde_json::to_value(username.clone()).unwrap_or_default(),
+    );
+    data.insert(
+        DataFieldType::Password,
+        serde_json::to_value(password.clone()).unwrap_or_default(),
+    );
+    data.insert(
+        DataFieldType::Domain,
+        serde_json::to_value(domain.clone()).unwrap_or_default(),
+    );
+    data.insert(
+        DataFieldType::Note,
+        serde_json::to_value(note.clone()).unwrap_or_default(),
+    );
+    data.insert(
+        DataFieldType::ResourceID,
+        serde_json::to_value(id.clone()).unwrap_or_default(),
+    );
     let edit_request = RequestEnum::create_edit_request(
         id,
         Resource::Account,
         domain.clone(),
-        json!({"username": username, "password": password,"domain": domain, "note": note}),
+        data,
+        // json!({"username": username, "password": password,"domain": domain, "note": note}),
         Some(acknowledgement.clone()),
         None,
     );
@@ -137,10 +177,9 @@ pub fn edit_account(
 
 pub fn delete_resource(id: String, resource: Resource) -> String {
     let dispatch = Dispatch::<PopupStore>::new();
-    dispatch.apply(DataAction::ResourceDeletionStarted(
-        resource.clone(),
-        json!({"id": id}),
-    ));
+    let mut data = HashMap::new();
+    data.insert(DataFieldType::ResourceID, Value::String(id.clone()));
+    dispatch.apply(DataAction::ResourceDeletionStarted(resource.clone(), data));
     let acknowledgement = create_request_acknowledgement();
     let delete_request = RequestEnum::create_delete_request(
         id.clone(),

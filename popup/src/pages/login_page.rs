@@ -3,8 +3,8 @@ use crate::components::FormInput;
 use crate::store::{LoginAction, LoginStatus, PopupStore};
 #[allow(unused_imports)]
 use log::*;
-use serde_json::json;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 use yew;
 
@@ -65,8 +65,10 @@ pub fn login_page(_props: &Props) -> Html {
             match form.validate() {
                 Ok(_) => {
                     let _form_data = form.clone();
-                    popup_store_dispatch
-                        .apply(LoginAction::LoginStarted(form.store_id.clone(), json!({})));
+                    popup_store_dispatch.apply(LoginAction::LoginStarted(
+                        form.store_id.clone(),
+                        HashMap::new(),
+                    ));
                     let store_id = (*store_id).clone().unwrap_or_default();
                     login(store_id);
                 }

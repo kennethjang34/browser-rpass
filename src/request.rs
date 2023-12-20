@@ -28,9 +28,45 @@ pub enum SessionEventType {
     CreationFailed,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum DataFieldType {
+    Request,
+    StoreID,
+    ResourceID,
+    UserID,
+    Username,
+    Passphrase,
+    Password,
+    Note,
+    CustomField,
+    Domain,
+    Path,
+    Resource,
+    Query,
+    Value,
+    Verified,
+    Error,
+    ErrorMessage,
+    ErrorCode,
+    ErrorSource,
+    Update,
+    UpdatedFields,
+    Delete,
+    Create,
+    Search,
+    Fetch,
+    Login,
+    Logout,
+    Status,
+    Acknowledgement,
+    Data,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SessionEvent {
-    pub data: Option<Value>,
+    // pub data: Option<Value>,
+    pub data: Option<HashMap<DataFieldType, Value>>,
     pub event_type: SessionEventType,
     pub meta: Option<Value>,
     pub resource: Option<Vec<Resource>>,
@@ -60,7 +96,7 @@ pub struct EditRequest {
     pub id: String,
     pub resource: Resource,
     pub domain: Option<String>,
-    pub value: Value,
+    pub value: HashMap<DataFieldType, Value>,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
     pub header: Option<HashMap<String, String>>,
@@ -128,7 +164,7 @@ pub struct CreateRequest {
     pub note: Option<String>,
     pub custom_fields: Option<HashMap<String, Value>>,
     pub domain: Option<String>,
-    pub value: Value,
+    pub password: Option<String>,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
     pub header: Option<HashMap<String, String>>,
@@ -256,7 +292,7 @@ impl RequestEnum {
         note: Option<String>,
         custom_fields: Option<HashMap<String, Value>>,
         resource: Resource,
-        value: Value,
+        password: Option<String>,
         acknowledgement: Option<String>,
         header: Option<HashMap<String, String>>,
     ) -> RequestEnum {
@@ -266,7 +302,7 @@ impl RequestEnum {
             resource,
             note,
             custom_fields,
-            value,
+            password,
             acknowledgement: {
                 if acknowledgement.is_some() {
                     acknowledgement
@@ -347,7 +383,7 @@ impl RequestEnum {
         id: String,
         resource: Resource,
         domain: Option<String>,
-        value: Value,
+        value: HashMap<DataFieldType, Value>,
         acknowledgement: Option<String>,
         header: Option<HashMap<String, String>>,
     ) -> RequestEnum {

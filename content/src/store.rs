@@ -1,5 +1,6 @@
 use browser_rpass::dbg;
 use browser_rpass::js_binding::extension_api::*;
+use browser_rpass::request::DataFieldType;
 use browser_rpass::request::SessionEventWrapper;
 use browser_rpass::types::Account;
 use browser_rpass::types::Resource;
@@ -96,13 +97,13 @@ pub enum LoginAction {
 pub enum DataAction {
     ResourceFetchStarted(Resource),
     Init(Value),
-    ResourceDeleted(Resource, Value),
-    ResourceCreated(Resource, Value),
-    ResourceDeletionFailed(Resource, Value),
+    ResourceDeleted(Resource, HashMap<DataFieldType, Value>),
+    ResourceCreated(Resource, HashMap<DataFieldType, Value>),
+    ResourceDeletionFailed(Resource, HashMap<DataFieldType, Value>),
     ResourceCreationFailed(Resource, SessionEventWrapper),
-    ResourceDeletionStarted(Resource, Value),
-    ResourceCreationStarted(Resource, Value),
-    ResourceFetched(Resource, Value, Option<Value>),
+    ResourceDeletionStarted(Resource, HashMap<DataFieldType, Value>),
+    ResourceCreationStarted(Resource, HashMap<DataFieldType, Value>),
+    ResourceFetched(Resource, HashMap<DataFieldType, Value>, Option<Value>),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -135,11 +136,12 @@ impl Reducer<ContentScriptStore> for DataAction {
                 }
             }
             .into(),
-            DataAction::ResourceFetched(resource, data, _meta) => match resource {
+            DataAction::ResourceFetched(resource, mut data, _meta) => match resource {
                 Resource::Account => {
                     dbg!(&data);
                     let state_data = state.data.clone();
-                    let accounts = serde_json::from_value::<Vec<Account>>(data)
+                    let accounts = data.remove(&DataFieldType::Data).unwrap_or_default();
+                    let accounts = serde_json::from_value::<Vec<Account>>(accounts)
                         .unwrap_or_default()
                         .into_iter()
                         .map(|v| Rc::new(v))
@@ -160,9 +162,10 @@ impl Reducer<ContentScriptStore> for DataAction {
                     todo!();
                 }
             },
-            DataAction::ResourceCreated(resource, data) => match resource {
+            DataAction::ResourceCreated(resource, mut data) => match resource {
                 Resource::Account => {
-                    let account = serde_json::from_value::<Account>(data.clone()).unwrap();
+                    let account = data.remove(&DataFieldType::Data).unwrap_or_default();
+                    let account = serde_json::from_value::<Account>(account).unwrap();
                     let mut state_data = state.data.clone();
                     let accounts = state_data.accounts.clone();
                     accounts.borrow_mut().push(Rc::new(account));
@@ -185,11 +188,12 @@ impl Reducer<ContentScriptStore> for DataAction {
                 ..state.deref().clone()
             }
             .into(),
-            DataAction::ResourceDeleted(resource, data) => {
+            DataAction::ResourceDeleted(resource, mut data) => {
                 let state_data = state.data.clone();
                 match resource {
                     Resource::Account => {
-                        let account = serde_json::from_value::<Account>(data.clone()).unwrap();
+                        let account = data.remove(&DataFieldType::Data).unwrap_or_default();
+                        let account = serde_json::from_value::<Account>(account).unwrap();
                         state_data
                             .accounts
                             .borrow_mut()

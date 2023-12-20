@@ -18,10 +18,6 @@ pub fn listen_to_native_messaging(
     mut stores: StoreListType,
     passphrases: Option<Arc<RwLock<HashMap<String, String>>>>,
 ) -> pass::Result<()> {
-    // let mut passphrase_provider = Some(Handler::new(
-    //     passphrases.unwrap_or(Arc::new(RwLock::new(HashMap::new()))),
-    //     None,
-    // ));
     trace!("start listening to native messaging");
     let mut store_opt: Option<PasswordStoreType> = None;
     loop {
@@ -48,10 +44,16 @@ pub fn listen_to_native_messaging(
                                 send_as_json(&response)?;
                                 Ok(response)
                             } else {
+                                let mut data = HashMap::new();
+                                data.insert(
+                                    DataFieldType::ErrorMessage,
+                                    json!(response.unwrap_err()),
+                                );
+                                data.insert(DataFieldType::Request, json!(request));
                                 let response = ResponseEnum::GetResponse(GetResponse {
                                     status: Status::Failure,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: json!({"error_message": response.unwrap_err(), "request":request}),
+                                    data,
                                     resource: Resource::Password,
                                     meta: None,
                                 });
@@ -71,10 +73,12 @@ pub fn listen_to_native_messaging(
                                 send_as_json(&response)?;
                                 Ok(response)
                             } else {
+                                let mut data = HashMap::new();
+                                data.insert(DataFieldType::Data, json!([]));
                                 let response = ResponseEnum::SearchResponse(SearchResponse {
                                     status: Status::Failure,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: vec![],
+                                    data,
                                     resource: request.resource,
                                     meta: None,
                                 });
@@ -94,10 +98,12 @@ pub fn listen_to_native_messaging(
                                 send_as_json(&response)?;
                                 Ok(response)
                             } else {
+                                let mut data = HashMap::new();
+                                data.insert(DataFieldType::Data, json!([]));
                                 let response = ResponseEnum::FetchResponse(FetchResponse {
                                     status: Status::Failure,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: serde_json::Value::Null,
+                                    data,
                                     resource: request.resource,
                                     meta: None,
                                 });
@@ -109,18 +115,25 @@ pub fn listen_to_native_messaging(
                             let response = handle_init_request(request);
                             if response.is_ok() {
                                 stores = response?;
+                                let mut data = HashMap::new();
+                                data.insert(DataFieldType::Data, json!([]));
                                 let response = ResponseEnum::InitResponse(InitResponse {
                                     status: Status::Success,
                                     acknowledgement: None,
-                                    data: serde_json::Value::Null,
+                                    data,
                                 });
                                 send_as_json(&response)?;
                                 Ok(response)
                             } else {
+                                let mut data = HashMap::new();
+                                data.insert(
+                                    DataFieldType::ErrorMessage,
+                                    serde_json::to_value(response.unwrap_err()).unwrap(),
+                                );
                                 let response = ResponseEnum::InitResponse(InitResponse {
                                     status: Status::Failure,
                                     acknowledgement: None,
-                                    data: json!({"error_message": response.unwrap_err()}),
+                                    data,
                                 });
                                 send_as_json(&response)?;
                                 Err(response)
@@ -132,20 +145,25 @@ pub fn listen_to_native_messaging(
                                 &stores,
                                 passphrase_provider.clone(),
                             );
+                            let mut data = HashMap::new();
                             if store_res.is_ok() {
                                 store_opt = Some(store_res?);
                                 let response = ResponseEnum::LoginResponse(LoginResponse {
                                     status: Status::Success,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: serde_json::Value::Null,
+                                    data,
                                 });
                                 send_as_json(&response)?;
                                 Ok(response)
                             } else {
+                                data.insert(
+                                    DataFieldType::ErrorMessage,
+                                    serde_json::to_value(store_res.unwrap_err()).unwrap(),
+                                );
                                 let response = ResponseEnum::LoginResponse(LoginResponse {
                                     status: Status::Failure,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: json!({"error_message": store_res.unwrap_err()}),
+                                    data,
                                 });
                                 send_as_json(&response)?;
                                 Err(response)
@@ -154,20 +172,25 @@ pub fn listen_to_native_messaging(
                         RequestEnum::Logout(request) => {
                             let res =
                                 handle_logout_request(request.clone(), store, passphrase_provider);
+                            let mut data = HashMap::new();
                             if res.is_ok() {
                                 store_opt = None;
                                 let response = ResponseEnum::LogoutResponse(LogoutResponse {
                                     status: Status::Success,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: serde_json::Value::Null,
+                                    data,
                                 });
                                 send_as_json(&response)?;
                                 Ok(response)
                             } else {
+                                data.insert(
+                                    DataFieldType::ErrorMessage,
+                                    serde_json::to_value(res.unwrap_err()).unwrap(),
+                                );
                                 let response = LogoutResponse {
                                     status: Status::Failure,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: json!({"error_message": res.unwrap_err()}),
+                                    data,
                                 };
                                 send_as_json(&response)?;
                                 Err(ResponseEnum::LogoutResponse(response))
@@ -179,16 +202,20 @@ pub fn listen_to_native_messaging(
                                 store,
                                 passphrase_provider.clone(),
                             );
+                            let mut data = HashMap::new();
                             if response.is_ok() {
                                 let response = ResponseEnum::CreateResponse(response?);
                                 send_as_json(&response)?;
                                 Ok(response)
                             } else {
-                                let err_msg = response.unwrap_err();
+                                data.insert(
+                                    DataFieldType::ErrorMessage,
+                                    serde_json::to_value(response.unwrap_err()).unwrap(),
+                                );
                                 let response = ResponseEnum::CreateResponse(CreateResponse {
                                     status: Status::Failure,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: json!({"error_message": err_msg, "request":request}),
+                                    data,
                                     resource: request.resource,
                                     meta: None,
                                 });
@@ -202,15 +229,20 @@ pub fn listen_to_native_messaging(
                                 store,
                                 passphrase_provider.clone(),
                             );
+                            let mut data = HashMap::new();
                             if response.is_ok() {
                                 let response = ResponseEnum::DeleteResponse(response?);
                                 send_as_json(&response)?;
                                 Ok(response)
                             } else {
+                                data.insert(
+                                    DataFieldType::ErrorMessage,
+                                    serde_json::to_value(response.unwrap_err()).unwrap(),
+                                );
                                 let response = ResponseEnum::DeleteResponse(DeleteResponse {
                                     status: Status::Failure,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: json!({"error_message": response.unwrap_err(), "request":request}),
+                                    data,
                                 });
                                 send_as_json(&response)?;
                                 Err(response)
@@ -222,16 +254,21 @@ pub fn listen_to_native_messaging(
                                 store,
                                 passphrase_provider.clone(),
                             );
+                            let mut data = HashMap::new();
                             if response.is_ok() {
                                 let response = ResponseEnum::EditResponse(response?);
                                 send_as_json(&response)?;
                                 Ok(response)
                             } else {
+                                data.insert(
+                                    DataFieldType::ErrorMessage,
+                                    serde_json::to_value(response.unwrap_err()).unwrap(),
+                                );
                                 let response = ResponseEnum::EditResponse(EditResponse {
                                     id: request.id.clone(),
                                     status: Status::Failure,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: json!({"error_message": response.unwrap_err(), "request":request}),
+                                    data,
                                     resource: request.resource,
                                     meta: None,
                                 });
@@ -239,11 +276,16 @@ pub fn listen_to_native_messaging(
                                 Err(response)
                             }
                         }
-                        _ => Err(ResponseEnum::GenericError(GenericError {
-                            status: Status::Failure,
-                            acknowledgement: request.get_acknowledgement(),
-                            data: json!({"error_message": "Unknown request", "request":request}),
-                        })),
+                        _ => {
+                            let mut data = HashMap::new();
+                            data.insert(DataFieldType::ErrorMessage, json!("Unknown request"));
+                            data.insert(DataFieldType::Request, json!(request));
+                            Err(ResponseEnum::GenericError(GenericError {
+                                status: Status::Failure,
+                                acknowledgement: request.get_acknowledgement(),
+                                data,
+                            }))
+                        }
                     }
                 } else {
                     let passphrase_provider = Some(Handler::new(
@@ -255,20 +297,25 @@ pub fn listen_to_native_messaging(
                     match request.clone() {
                         RequestEnum::Init(request) => {
                             let response = handle_init_request(request.clone());
+                            let mut data = HashMap::new();
                             if response.is_ok() {
                                 stores = response?;
                                 let response = ResponseEnum::InitResponse(InitResponse {
                                     status: Status::Success,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: serde_json::Value::Null,
+                                    data,
                                 });
                                 send_as_json(&response)?;
                                 Ok(response)
                             } else {
+                                data.insert(
+                                    DataFieldType::ErrorMessage,
+                                    serde_json::to_value(response.unwrap_err()).unwrap(),
+                                );
                                 let response = ResponseEnum::InitResponse(InitResponse {
                                     status: Status::Failure,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: json!({"error_message": response.unwrap_err()}),
+                                    data,
                                 });
                                 send_as_json(&response)?;
                                 Err(response)
@@ -280,31 +327,39 @@ pub fn listen_to_native_messaging(
                                 &stores,
                                 passphrase_provider.clone(),
                             );
+                            let mut data = HashMap::new();
                             if store_res.is_ok() {
                                 store_opt = Some(store_res?);
                                 let response = ResponseEnum::LoginResponse(LoginResponse {
                                     status: Status::Success,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: serde_json::Value::Null,
+                                    data,
                                 });
                                 send_as_json(&response)?;
                                 Ok(response)
                             } else {
+                                data.insert(
+                                    DataFieldType::ErrorMessage,
+                                    serde_json::to_value(store_res.unwrap_err()).unwrap(),
+                                );
                                 let response = ResponseEnum::LoginResponse(LoginResponse {
                                     status: Status::Failure,
                                     acknowledgement: request.acknowledgement.clone(),
-                                    data: json!({"error_message": store_res.unwrap_err()}),
+                                    data,
                                 });
                                 send_as_json(&response)?;
                                 Err(response)
                             }
                         }
                         _ => {
+                            let mut data = HashMap::new();
+                            data.insert(DataFieldType::ErrorMessage, json!("Unknown request"));
+                            data.insert(DataFieldType::Request, json!(request));
                             error!("Only login request could be accepted when no store has been set. Request was: {:?}", request);
                             Err(ResponseEnum::GenericError(GenericError {
                                 status: Status::Failure,
                                 acknowledgement: request.get_acknowledgement(),
-                                data: json!({"error_message": "Only login request could be accepted when no store has been set", "request":request}),
+                                data,
                             }))
                         }
                     }

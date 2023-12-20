@@ -56,12 +56,16 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
             if let RequestEnum::Init(_init_request) = request {
                 let dispatch = Dispatch::<SessionStore>::new();
                 if dispatch.get().current_store_id.is_some() {
+                    let mut data = HashMap::new();
+                    data.insert(DataFieldType::Verified, json!(false));
+                    data.insert(
+                        DataFieldType::StoreID,
+                        json!(dispatch.get().current_store_id.clone().unwrap_or_default()),
+                    );
                     let mock_session_event = {
                         SessionEvent {
                             event_type: SessionEventType::Login,
-                            data: Some(
-                                json!({"verified":false, "store_id":dispatch.get().current_store_id.clone().unwrap_or_default()}),
-                            ),
+                            data: Some(data),
                             meta,
                             resource: None,
                             is_global: false,
@@ -206,19 +210,22 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                             StorageStatus::Loaded => {
                                 let resource = fetch_request.resource.clone();
                                 let accounts = data.accounts.clone();
+                                let mut data = HashMap::new();
+                                data.insert(
+                                    DataFieldType::Data,
+                                    serde_json::to_value(
+                                        accounts
+                                            .borrow()
+                                            .iter()
+                                            .map(|v| (**v).clone())
+                                            .collect::<Vec<Account>>(),
+                                    )
+                                    .unwrap(),
+                                );
                                 let mock_session_event = {
                                     SessionEvent {
                                         event_type: SessionEventType::Refreshed,
-                                        data: Some(
-                                            serde_json::to_value(
-                                                accounts
-                                                    .borrow()
-                                                    .iter()
-                                                    .map(|v| (**v).clone())
-                                                    .collect::<Vec<Account>>(),
-                                            )
-                                            .unwrap(),
-                                        ),
+                                        data: Some(data),
                                         meta,
                                         resource: Some(vec![resource]),
                                         is_global: true,
