@@ -92,17 +92,16 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                         set.insert(extension_port.name());
                         set
                     });
-            } else if let Some(passphrase) = dispatch.get().user.1.clone() {
-                let header_map = {
+            } else {
+                let header = {
                     let mut map = HashMap::new();
-                    map.insert("passphrase".to_owned(), passphrase.clone());
-                    map.insert(
-                        "user_id".to_owned(),
-                        dispatch.get().user.0.clone().unwrap_or_default(),
-                    );
+                    let user_id = dispatch.get().user.0.clone();
+                    if let Some(user_id) = user_id {
+                        map.insert("user_id".to_owned(), user_id);
+                    }
                     map
                 };
-                request.set_header(header_map);
+                request.set_header(header);
                 match request.clone() {
                     RequestEnum::Get(get_request) => match get_request.resource.clone() {
                         _ => {
@@ -249,6 +248,19 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                             }
                         }
                     }
+                    RequestEnum::Login(login_request) => {
+                        REQUEST_MAP
+                            .lock()
+                            .unwrap()
+                            .insert(native_request_acknowledgement.clone(), request.clone());
+                        PORT_ID_MAP
+                            .lock()
+                            .unwrap()
+                            .insert(session_event_acknowledgement.clone(), extension_port.name());
+                        native_port.post_message(
+                            <JsValue as JsValueSerdeExt>::from_serde(&login_request).unwrap(),
+                        );
+                    }
                     _ => {
                         error!("resouce not supported. received request: {:?}", request);
                         let error_response = ErrorResponse {
@@ -264,27 +276,6 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                         );
                     }
                 }
-            } else if let RequestEnum::Login(login_request) = request.clone() {
-                REQUEST_MAP
-                    .lock()
-                    .unwrap()
-                    .insert(native_request_acknowledgement.clone(), request.clone());
-                PORT_ID_MAP
-                    .lock()
-                    .unwrap()
-                    .insert(session_event_acknowledgement.clone(), extension_port.name());
-                native_port.post_message(
-                    <JsValue as JsValueSerdeExt>::from_serde(&login_request).unwrap(),
-                );
-            } else {
-                let error_response = ResponseEnum::ErrorResponse(ErrorResponse {
-                    message: Some("passphrase is not a string".to_owned()),
-                    acknowledgement: request.get_acknowledgement(),
-                    code: Some(ErrorCode::NotSupported),
-                });
-                extension_port.post_message(
-                    <JsValue as JsValueSerdeExt>::from_serde(&error_response).unwrap(),
-                );
             }
         }
     });

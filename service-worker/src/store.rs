@@ -212,17 +212,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
         let mut clear_ports = false;
         let (session_store, session_event) = match session_action {
             SessionAction::Login => {
-                let passphrase = {
-                    if let Some(ref meta) = meta {
-                        if let Some(passphrase) = meta.get("passphrase") {
-                            Some(passphrase.as_str().unwrap().to_owned())
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                };
                 let user_id = {
                     if let Some(ref meta) = meta {
                         if let Some(user_id) = meta.get("user_id") {
@@ -236,7 +225,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 };
                 (
                     SessionStore {
-                        user: (user_id.clone(), passphrase),
+                        user: (user_id.clone(), None),
                         ..store.deref().clone()
                     }
                     .into(),
@@ -620,14 +609,4 @@ impl Listener for StorageListener {
         } else {
         }
     }
-}
-
-pub async fn _set_passphrase_async(passphrase: Option<String>, dispatch: Dispatch<SessionStore>) {
-    dispatch
-        .reduce_mut_future(|store| {
-            Box::pin(async move {
-                store.user.1 = passphrase.clone();
-            })
-        })
-        .await;
 }

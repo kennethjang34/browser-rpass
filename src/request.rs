@@ -97,7 +97,6 @@ pub struct FetchRequest {
 #[serde(tag = "type", rename = "login")]
 pub struct LoginRequest {
     pub user_id: String,
-    pub passphrase: String,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
     pub header: Option<HashMap<String, String>>,
@@ -315,14 +314,9 @@ impl RequestEnum {
             header,
         })
     }
-    pub fn create_login_request(
-        acknowledgement: Option<String>,
-        user_id: String,
-        passphrase: String,
-    ) -> RequestEnum {
+    pub fn create_login_request(acknowledgement: Option<String>, user_id: String) -> RequestEnum {
         RequestEnum::Login(LoginRequest {
             user_id,
-            passphrase,
             acknowledgement: {
                 if acknowledgement.is_some() {
                     acknowledgement
