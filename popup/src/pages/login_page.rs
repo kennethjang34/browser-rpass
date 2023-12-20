@@ -19,7 +19,7 @@ use yewdux::prelude::*;
 struct LoginSchema {
     // #[validate(
     //     length(min = 1, message = "Email is required"),
-    //     email(message = "Email is invalid")
+    //     store_id(message = "Store ID is invalid")
     // )]
     store_id: String,
 }
@@ -114,7 +114,7 @@ pub fn login_page(_props: &Props) -> Html {
                                         class="space-y-6 m-2.5 relative" style="top:72px;" action="#"
 
                               >
-                              <FormInput label="Email"  name="email" input_type="email"  handle_onchange={handle_store_id_input} errors={&*validation_errors} /* handle_on_input_blur={validate_input_on_blur.clone()} */
+                              <FormInput label="Store Name"  name="email" input_type="text"  handle_onchange={handle_store_id_input} errors={&*validation_errors} /* handle_on_input_blur={validate_input_on_blur.clone()} */
                               label_class={
     "block mb-auto text-sm font-medium text-gray-900 dark:text-white"
                               }
