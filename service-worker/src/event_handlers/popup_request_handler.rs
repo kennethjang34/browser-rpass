@@ -55,12 +55,12 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
             };
             if let RequestEnum::Init(_init_request) = request {
                 let dispatch = Dispatch::<SessionStore>::new();
-                if dispatch.get().credential.1.is_some() {
+                if dispatch.get().current_store_id.is_some() {
                     let mock_session_event = {
                         SessionEvent {
                             event_type: SessionEventType::Login,
                             data: Some(
-                                json!({"verified":true, "store_id":dispatch.get().credential.0.clone().unwrap_or_default()}),
+                                json!({"verified":false, "store_id":dispatch.get().current_store_id.clone().unwrap_or_default()}),
                             ),
                             meta,
                             resource: None,
@@ -95,7 +95,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
             } else {
                 let header = {
                     let mut map = HashMap::new();
-                    let store_id = dispatch.get().credential.0.clone();
+                    let store_id = dispatch.get().current_store_id.clone();
                     if let Some(store_id) = store_id {
                         map.insert("store_id".to_owned(), store_id);
                     }

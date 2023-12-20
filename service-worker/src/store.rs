@@ -120,9 +120,12 @@ pub struct StoreData {
     pub accounts: Mrc<Vec<Rc<Account>>>,
     pub storage_status: StorageStatus,
 }
+
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct SessionStore {
-    pub credential: (Option<String>, Option<String>),
+    pub current_store_id: Option<String>,
+    pub current_signing_key: Option<String>,
+    pub verified: bool,
     pub data: StoreData,
 }
 
@@ -225,7 +228,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 };
                 (
                     SessionStore {
-                        credential: (store_id.clone(), None),
+                        current_store_id: store_id.clone(),
+                        verified: true,
                         ..store.deref().clone()
                     }
                     .into(),
@@ -248,7 +252,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
 
                 (
                     SessionStore {
-                        credential: (store.credential.0.clone(), None),
                         ..store.deref().clone()
                     }
                     .into(),
@@ -263,12 +266,11 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 )
             }
             SessionAction::Logout => {
-                // if (*store).credential.1.is_some() {
-                if true {
+                if (*store).verified {
                     clear_ports = true;
                     (
                         SessionStore {
-                            credential: (store.credential.0.clone(), None),
+                            verified: false,
                             data: StoreData::default(),
                             ..SessionStore::default().clone()
                         }
