@@ -212,17 +212,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
         let mut clear_ports = false;
         let (session_store, session_event) = match session_action {
             SessionAction::Login => {
-                let passphrase = {
-                    if let Some(ref meta) = meta {
-                        if let Some(passphrase) = meta.get("passphrase") {
-                            Some(passphrase.as_str().unwrap().to_owned())
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                };
                 let user_id = {
                     if let Some(ref meta) = meta {
                         if let Some(user_id) = meta.get("user_id") {
@@ -236,7 +225,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 };
                 (
                     SessionStore {
-                        user: (user_id.clone(), passphrase),
+                        user: (user_id.clone(), None),
                         ..store.deref().clone()
                     }
                     .into(),
@@ -274,7 +263,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 )
             }
             SessionAction::Logout => {
-                if (*store).user.1.is_some() {
+                // if (*store).credential.1.is_some() {
+                if true {
                     clear_ports = true;
                     (
                         SessionStore {
@@ -293,14 +283,23 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }),
                     )
                 } else {
-                    (store, None)
+                    (
+                        store,
+                        Some(SessionEvent {
+                            event_type: SessionEventType::LogoutError,
+                            data: None,
+                            meta,
+                            resource: Some(vec![Resource::Auth]),
+                            is_global: false,
+                            acknowledgement,
+                        }),
+                    )
                 }
             }
             SessionAction::DataDeleted(resource, data) => match resource.clone() {
                 Resource::Account => {
                     let map = data.as_object().unwrap();
                     let deleted_id = map.get("id").unwrap().as_str().unwrap().to_owned();
-                    // let account_deleted = serde_json::from_value::<Account>(data.clone()).unwrap();
                     let mut account_vec = store.data.accounts.borrow_mut();
                     let index = account_vec.iter().position(|ac| deleted_id == ac.id);
                     if let Some(index) = index {
@@ -620,14 +619,4 @@ impl Listener for StorageListener {
         } else {
         }
     }
-}
-
-pub async fn _set_passphrase_async(passphrase: Option<String>, dispatch: Dispatch<SessionStore>) {
-    dispatch
-        .reduce_mut_future(|store| {
-            Box::pin(async move {
-                store.user.1 = passphrase.clone();
-            })
-        })
-        .await;
 }
