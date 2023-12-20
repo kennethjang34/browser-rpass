@@ -1,4 +1,4 @@
-use rpass::{crypto::PassphraseProvider, pass::CUSTOM_FIELD_PREFIX};
+use rpass::{crypto::Handler, pass::CUSTOM_FIELD_PREFIX};
 use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -16,7 +16,7 @@ use crate::{store_api::*, util::*, PasswordStoreType, StoreListType};
 pub fn handle_edit_request(
     request: EditRequest,
     store: &PasswordStoreType,
-    passphrase_provider: Option<PassphraseProvider>,
+    passphrase_provider: Option<Handler>,
 ) -> pass::Result<EditResponse> {
     let value = &request.value;
     let resource = &request.resource;
@@ -66,7 +66,7 @@ pub fn handle_edit_request(
 pub fn handle_get_request(
     request: GetRequest,
     store: &PasswordStoreType,
-    passphrase_provider: Option<PassphraseProvider>,
+    passphrase_provider: Option<Handler>,
 ) -> pass::Result<GetResponse> {
     let resource = request.resource;
     let acknowledgement = request.acknowledgement;
@@ -128,7 +128,7 @@ pub fn handle_get_request(
 pub fn handle_search_request(
     request: SearchRequest,
     store: &PasswordStoreType,
-    passphrase_provider: Option<PassphraseProvider>,
+    passphrase_provider: Option<Handler>,
 ) -> pass::Result<SearchResponse> {
     let resource = request.resource;
     let acknowledgement = request.acknowledgement;
@@ -204,7 +204,7 @@ pub fn handle_search_request(
 pub fn handle_fetch_request(
     request: FetchRequest,
     store: &PasswordStoreType,
-    passphrase_provider: Option<PassphraseProvider>,
+    passphrase_provider: Option<Handler>,
 ) -> pass::Result<FetchResponse> {
     let resource = request.resource;
     let acknowledgement = request.acknowledgement;
@@ -374,7 +374,7 @@ pub fn handle_init_request(request: InitRequest) -> pass::Result<StoreListType> 
 pub fn handle_login_request(
     request: LoginRequest,
     stores: &StoreListType,
-    passphrase_provider: Option<PassphraseProvider>,
+    passphrase_provider: Option<Handler>,
 ) -> pass::Result<PasswordStoreType> {
     let store_name = request.user_id;
     let store = {
@@ -419,10 +419,7 @@ pub fn handle_login_request(
             ))?;
         }
     }
-    let verified = store
-        .lock()?
-        .lock()?
-        .verify_passphrase(Some(store_name), passphrase_provider);
+    let verified = store.lock()?.lock()?.try_passphrase(passphrase_provider);
     match verified {
         Ok(verified) => {
             if verified {
@@ -443,7 +440,7 @@ pub fn handle_login_request(
 pub fn handle_logout_request(
     request: LogoutRequest,
     _store: &PasswordStoreType,
-    passphrase_provider: Option<PassphraseProvider>,
+    passphrase_provider: Option<Handler>,
 ) -> pass::Result<()> {
     let _acknowledgement = request.acknowledgement;
     let _status = Status::Success;
@@ -455,7 +452,7 @@ pub fn handle_logout_request(
 pub fn handle_create_request(
     request: CreateRequest,
     store: &PasswordStoreType,
-    passphrase_provider: Option<PassphraseProvider>,
+    passphrase_provider: Option<Handler>,
 ) -> pass::Result<CreateResponse> {
     let username = request.username;
     let domain = request.domain;
@@ -532,7 +529,7 @@ pub fn handle_create_request(
 pub fn handle_delete_request(
     request: DeleteRequest,
     store: &PasswordStoreType,
-    passphrase_provider: Option<PassphraseProvider>,
+    passphrase_provider: Option<Handler>,
 ) -> pass::Result<DeleteResponse> {
     let id = request.id;
     let acknowledgement = request.acknowledgement;

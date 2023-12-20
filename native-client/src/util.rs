@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use fern::colors::{Color, ColoredLevelConfig};
 use log::LevelFilter;
-use rpass::{crypto::PassphraseProvider, pass};
+use rpass::{crypto::Handler, pass};
 use serde_json::Value;
 
 use crate::PasswordStoreType;
@@ -77,7 +77,7 @@ pub fn do_rename_file(
     old_name: &str,
     new_name: &str,
     store: PasswordStoreType,
-    passphrase_provider: Option<PassphraseProvider>,
+    passphrase_provider: Option<Handler>,
 ) -> pass::Result<()> {
     let res = store
         .lock()?

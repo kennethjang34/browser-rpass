@@ -8,7 +8,7 @@ pub use super::util::*;
 use browser_rpass::{request::*, response::*};
 use log::*;
 use rpass::{
-    crypto::PassphraseProvider,
+    crypto::Handler,
     pass::{self},
 };
 use serde_json::json;
@@ -18,9 +18,10 @@ pub fn listen_to_native_messaging(
     mut stores: StoreListType,
     passphrases: Option<Arc<RwLock<HashMap<String, String>>>>,
 ) -> pass::Result<()> {
-    let passphrase_provider = Some(PassphraseProvider::new(
-        passphrases.unwrap_or(Arc::new(RwLock::new(HashMap::new()))),
-    ));
+    // let mut passphrase_provider = Some(Handler::new(
+    //     passphrases.unwrap_or(Arc::new(RwLock::new(HashMap::new()))),
+    //     None,
+    // ));
     trace!("start listening to native messaging");
     let mut store_opt: Option<PasswordStoreType> = None;
     loop {
@@ -32,7 +33,12 @@ pub fn listen_to_native_messaging(
         if let Ok(request) = serde_json::from_value::<RequestEnum>(received_message.clone()) {
             let request_result = {
                 if let Some(store) = store_opt.as_ref() {
-                    let passphrase_provider = passphrase_provider.clone();
+                    let passphrase_provider = Some(Handler::new(
+                        passphrases
+                            .clone()
+                            .unwrap_or(Arc::new(RwLock::new(HashMap::new()))),
+                        Some(request.get_type()),
+                    ));
                     match request.clone() {
                         RequestEnum::Get(request) => {
                             let response =
@@ -240,6 +246,12 @@ pub fn listen_to_native_messaging(
                         })),
                     }
                 } else {
+                    let passphrase_provider = Some(Handler::new(
+                        passphrases
+                            .clone()
+                            .unwrap_or(Arc::new(RwLock::new(HashMap::new()))),
+                        Some(request.get_type()),
+                    ));
                     match request.clone() {
                         RequestEnum::Init(request) => {
                             let response = handle_init_request(request.clone());
