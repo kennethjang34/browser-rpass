@@ -17,10 +17,6 @@ use yewdux::prelude::*;
 
 #[derive(Validate, Debug, Default, Clone, Serialize, Deserialize)]
 struct LoginSchema {
-    // #[validate(
-    //     length(min = 1, message = "Email is required"),
-    //     store_id(message = "Store ID is invalid")
-    // )]
     store_id: String,
 }
 #[derive(Properties, PartialEq)]

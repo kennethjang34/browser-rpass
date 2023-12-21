@@ -15,7 +15,7 @@ use yewdux::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
-    pub store_id: Option<String>,
+    pub store_id: String,
     pub path: Option<String>,
 }
 
@@ -157,7 +157,7 @@ pub fn account_page(props: &Props) -> Html {
                             </tr>
                         </thead>
                         <tbody>
-                            <AccountEntryList accounts={account_selector}/>
+                            <AccountEntryList accounts={account_selector} store_id={props.store_id.clone()}/>
                         </tbody>
                     </table>
                     </div>
@@ -166,7 +166,7 @@ pub fn account_page(props: &Props) -> Html {
     </button>
                     if *show_create_account_popup{
                         <div class="fullscreen-container">
-                            <CreateAccountPopup domain={props.path.clone()} handle_close={close_create_account_popup}/>
+                            <CreateAccountPopup domain={props.path.clone()} handle_close={close_create_account_popup} store_id={props.store_id.clone()}/>
                         </div>
                     }
                 </div>

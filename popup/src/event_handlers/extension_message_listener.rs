@@ -18,6 +18,7 @@ use crate::store::{DataAction, LoginAction, PopupStore};
 pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
     let port = port.clone();
     Closure::<dyn Fn(JsValue)>::new(move |msg: JsValue| {
+        debug!("message received: {:?}", msg);
         match <JsValue as JsValueSerdeExt>::into_serde::<MessageEnum>(&msg) {
             Ok(parsed_message) => match parsed_message {
                 MessageEnum::Response(response) => {
@@ -66,6 +67,7 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                 dispatch.apply(LoginAction::LoginError(data, store_id));
                             }
                             &SessionEventType::Logout => {
+                                debug!("logout event received");
                                 dispatch.apply(LoginAction::Logout(data));
                             }
                             &SessionEventType::Delete => {

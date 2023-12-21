@@ -16,10 +16,11 @@ use yewdux::prelude::Dispatch;
 use crate::store::{DataAction, PopupStore, EXTENSION_PORT};
 
 //send fetch request to native app for the given path, return acknowledgement of the request
-pub fn fetch_accounts(path: Option<String>) -> String {
+pub fn fetch_accounts(store_id: Option<String>, path: Option<String>) -> String {
     let dispatch = Dispatch::<PopupStore>::new();
     let acknowledgement = create_request_acknowledgement();
     let fetch_request = RequestEnum::create_fetch_request(
+        store_id,
         path,
         Resource::Account,
         Some(acknowledgement.clone()),
@@ -37,7 +38,7 @@ pub fn login(store_id: String) {
     dispatch.apply(LoginAction::LoginStarted(store_id.clone(), HashMap::new()));
     let acknowledgement = create_request_acknowledgement();
     let login_request =
-        RequestEnum::create_login_request(Some(acknowledgement.clone()), store_id.clone());
+        RequestEnum::create_login_request(Some(acknowledgement.clone()), Some(store_id.clone()));
     MESSAGE_CONTEXT_POPUP
         .lock()
         .unwrap()
@@ -47,10 +48,10 @@ pub fn login(store_id: String) {
         .borrow()
         .post_message(<JsValue as JsValueSerdeExt>::from_serde(&login_request).unwrap());
 }
-pub fn logout() {
+pub fn logout(store_id: String) {
     let dispatch = Dispatch::<PopupStore>::new();
     dispatch.apply(LoginAction::LogoutStarted(HashMap::new()));
-    let logout_request = RequestEnum::create_logout_request(None, None);
+    let logout_request = RequestEnum::create_logout_request(None, None, Some(store_id));
     EXTENSION_PORT
         .lock()
         .borrow()
@@ -58,6 +59,7 @@ pub fn logout() {
 }
 
 pub fn create_account(
+    store_id: String,
     domain: Option<String>,
     username: Option<String>,
     password: Option<String>,
@@ -81,6 +83,7 @@ pub fn create_account(
     dispatch.apply(DataAction::ResourceCreationStarted(Resource::Account, data));
     let acknowledgement = create_request_acknowledgement();
     let create_request = RequestEnum::create_create_request(
+        Some(store_id),
         username.clone(),
         domain.clone(),
         note.clone(),
@@ -103,6 +106,7 @@ pub fn edit_account(
     username: Option<String>,
     password: Option<String>,
     note: Option<String>,
+    store_id: Option<String>,
 ) -> String {
     let dispatch = Dispatch::<PopupStore>::new();
     let mut payload = HashMap::new();
@@ -164,9 +168,9 @@ pub fn edit_account(
         Resource::Account,
         domain.clone(),
         data,
-        // json!({"username": username, "password": password,"domain": domain, "note": note}),
         Some(acknowledgement.clone()),
         None,
+        store_id,
     );
     EXTENSION_PORT
         .lock()
@@ -175,7 +179,7 @@ pub fn edit_account(
     return acknowledgement;
 }
 
-pub fn delete_resource(id: String, resource: Resource) -> String {
+pub fn delete_resource(id: String, resource: Resource, store_id: Option<String>) -> String {
     let dispatch = Dispatch::<PopupStore>::new();
     let mut data = HashMap::new();
     data.insert(DataFieldType::ResourceID, Value::String(id.clone()));
@@ -186,6 +190,7 @@ pub fn delete_resource(id: String, resource: Resource) -> String {
         resource,
         Some(acknowledgement.clone()),
         None,
+        store_id,
     );
     EXTENSION_PORT
         .lock()

@@ -18,6 +18,7 @@ use yewdux::{dispatch::Dispatch, functional::use_selector};
 pub struct Props {
     pub domain: Option<String>,
     pub handle_close: Callback<MouseEvent>,
+    pub store_id: String,
 }
 
 #[function_component(CreateAccountPopup)]
@@ -32,9 +33,11 @@ pub fn create_account_popup(props: &Props) -> Html {
         let username_input = username_input.clone();
         let note_input = note_input.clone();
         let domain_input = domain_input.clone();
+        let store_id = props.store_id.clone();
         move |event: SubmitEvent| {
             event.prevent_default();
             create_account(
+                store_id.clone(),
                 Some((*domain_input).clone()),
                 Some((*username_input).clone()),
                 Some((*password_input).clone()),

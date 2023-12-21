@@ -2,7 +2,9 @@ use crate::event_handlers::native_message_handler::process_native_message;
 pub use crate::Resource;
 use crate::{api, StorageStatus};
 use browser_rpass::request::{DataFieldType, LoginRequest, RequestEnumTrait, SessionEventType};
-use browser_rpass::response::{CreateResponse, EditResponse, FetchResponse, LogoutResponse};
+use browser_rpass::response::{
+    CreateResponse, EditResponse, FetchResponse, InitResponse, LogoutResponse,
+};
 use browser_rpass::store;
 use browser_rpass::types::Account;
 use gloo_utils::format::JsValueSerdeExt;
@@ -38,13 +40,14 @@ use yewdux::{
 pub enum SessionAction {
     Login,
     LoginError(LoginRequest),
-    Logout,
+    Logout(String),
+    Init(InitResponse),
     LogoutError(LogoutResponse),
     DataFetched(FetchResponse),
-    DataLoading(Option<String>),
+    DataLoading(String, Option<String>),
     DataCreated(CreateResponse),
     DataEdited(EditResponse),
-    DataDeleted(Resource, HashMap<DataFieldType, Value>),
+    DataDeleted(Resource, String, HashMap<DataFieldType, Value>),
     DataDeletionFailed(Resource, String),
     DataCreationFailed(Resource, HashMap<DataFieldType, Value>, Option<RequestEnum>),
     DataEditFailed(Resource, HashMap<DataFieldType, Value>, Option<RequestEnum>),
@@ -118,14 +121,14 @@ lazy_static! {
 pub struct StoreData {
     pub accounts: Mrc<Vec<Rc<Account>>>,
     pub storage_status: StorageStatus,
+    pub signing_key: Option<String>,
+    pub store_id: String,
+    pub verified: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct SessionStore {
-    pub current_store_id: Option<String>,
-    pub current_signing_key: Option<String>,
-    pub verified: bool,
-    pub data: StoreData,
+    pub stores: Mrc<HashMap<String, StoreData>>,
 }
 
 impl Store for SessionStore {
@@ -211,33 +214,45 @@ impl Reducer<SessionStore> for SessionActionWrapper {
             .and_then(|ack| ack.as_str())
             .map(|ack| ack.to_owned());
         let session_action = self.action;
+        #[allow(unused_mut)]
         let mut clear_ports = false;
         let (session_store, session_event) = match session_action {
             SessionAction::Login => {
                 let store_id = {
-                    if let Some(ref meta) = meta {
-                        if let Some(store_id) = meta.get("store_id") {
-                            Some(store_id.as_str().unwrap().to_owned())
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
+                    meta.as_ref()
+                        .unwrap()
+                        .get("store_id")
+                        .unwrap()
+                        .as_str()
+                        .unwrap()
+                        .to_owned()
                 };
                 let mut data = HashMap::new();
                 data.insert(DataFieldType::Verified, json!(true));
                 data.insert(DataFieldType::StoreID, json!(store_id.clone()));
+                let mut stores_ptr = store.stores.borrow_mut();
+                if let Some(store) = stores_ptr.get_mut(&store_id.clone()) {
+                    store.verified = true;
+                } else {
+                    stores_ptr.insert(
+                        store_id.clone(),
+                        StoreData {
+                            accounts: Mrc::new(Vec::new()),
+                            storage_status: StorageStatus::Uninitialized,
+                            signing_key: None,
+                            store_id: store_id.clone(),
+                            verified: true,
+                        },
+                    );
+                }
                 (
                     SessionStore {
-                        current_store_id: store_id.clone(),
-                        verified: true,
                         ..store.deref().clone()
                     }
                     .into(),
                     Some(SessionEvent {
                         event_type: SessionEventType::Login,
-                        // data: Some(json!({"verified":true,"store_id":store_id.clone()})),
+                        store_id: Some(store_id),
                         data: Some(data),
                         meta,
                         resource: Some(vec![Resource::Auth]),
@@ -259,6 +274,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }
                     .into(),
                     Some(SessionEvent {
+                        store_id: request.store_id,
                         event_type: SessionEventType::LoginError,
                         data: None,
                         meta,
@@ -268,65 +284,70 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }),
                 )
             }
-            SessionAction::Logout => {
-                if (*store).verified {
-                    clear_ports = true;
-                    let mut data = HashMap::new();
-                    data.insert(DataFieldType::Verified, json!(false));
-                    (
-                        SessionStore {
-                            verified: false,
-                            data: StoreData::default(),
-                            ..SessionStore::default().clone()
-                        }
-                        .into(),
-                        Some(SessionEvent {
-                            event_type: SessionEventType::Logout,
-                            data: Some(data),
-                            meta,
-                            resource: Some(vec![Resource::Auth]),
-                            is_global: true,
-                            acknowledgement,
-                        }),
-                    )
+            SessionAction::Logout(store_id) => {
+                debug!("logout action");
+                debug!("stores: {:?}", store.stores.clone());
+                if let Some(target_store) = store.stores.clone().borrow_mut().get_mut(&store_id) {
+                    debug!("target store: {:?}", target_store);
+                    if (*target_store).verified {
+                        // clear_ports = true;
+                        let mut data = HashMap::new();
+                        data.insert(DataFieldType::StoreID, json!(store_id));
+                        target_store.storage_status = StorageStatus::Uninitialized;
+                        target_store.verified = false;
+                        (
+                            store,
+                            Some(SessionEvent {
+                                store_id: Some(store_id),
+                                event_type: SessionEventType::Logout,
+                                data: Some(data),
+                                meta,
+                                resource: Some(vec![Resource::Auth]),
+                                is_global: true,
+                                acknowledgement,
+                            }),
+                        )
+                    } else {
+                        (
+                            store,
+                            Some(SessionEvent {
+                                store_id: Some(store_id),
+                                event_type: SessionEventType::LogoutError,
+                                data: None,
+                                meta,
+                                resource: Some(vec![Resource::Auth]),
+                                is_global: false,
+                                acknowledgement,
+                            }),
+                        )
+                    }
                 } else {
-                    (
-                        store,
-                        Some(SessionEvent {
-                            event_type: SessionEventType::LogoutError,
-                            data: None,
-                            meta,
-                            resource: Some(vec![Resource::Auth]),
-                            is_global: false,
-                            acknowledgement,
-                        }),
-                    )
+                    (store, None)
                 }
             }
-            SessionAction::DataDeleted(resource, data) => match resource.clone() {
+            SessionAction::DataDeleted(resource, resource_id, data) => match resource.clone() {
                 Resource::Account => {
-                    let deleted_id = data
-                        .get(&DataFieldType::ResourceID)
-                        .unwrap()
-                        .as_str()
-                        .unwrap()
-                        .to_owned();
-                    let mut account_vec = store.data.accounts.borrow_mut();
-                    let index = account_vec.iter().position(|ac| deleted_id == ac.id);
-                    if let Some(index) = index {
-                        account_vec.remove(index);
-                    } else {
+                    let mut store_id = None;
+                    let mut stores_ptr = store.stores.borrow_mut().clone();
+                    for store_ptr in stores_ptr.values_mut() {
+                        let account_idx = store_ptr
+                            .accounts
+                            .borrow()
+                            .iter()
+                            .position(|ac| ac.id == resource_id);
+                        if let Some(account_idx) = account_idx {
+                            store_ptr.accounts.borrow_mut().remove(account_idx);
+                            store_id = Some(store_ptr.store_id.clone());
+                            break;
+                        }
                     }
                     (
                         SessionStore {
-                            data: StoreData {
-                                accounts: store.data.accounts.clone(),
-                                storage_status: store.data.storage_status.clone(),
-                            },
                             ..store.deref().clone()
                         }
                         .into(),
                         Some(SessionEvent {
+                            store_id,
                             event_type: SessionEventType::Delete,
                             data: Some(data),
                             meta,
@@ -342,6 +363,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }
                     .into(),
                     Some(SessionEvent {
+                        store_id: None,
                         event_type: SessionEventType::Delete,
                         data: None,
                         meta,
@@ -359,21 +381,23 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             create_response.data.remove(&DataFieldType::Data).unwrap();
                         let account: Rc<Account> =
                             Rc::new(serde_json::from_value(data_payload).unwrap());
-                        let current_state_data = &store.data;
-                        let mut account_vec = current_state_data.accounts.borrow_mut();
-                        account_vec.push(account.clone());
+                        let mut stores_ptr = store.stores.borrow_mut().clone();
                         let mut data = HashMap::new();
-                        data.insert(DataFieldType::Data, serde_json::to_value(account).unwrap());
+                        if let Some(store_updated) = stores_ptr.get_mut(&create_response.store_id) {
+                            let mut account_vec = store_updated.accounts.borrow_mut();
+                            account_vec.push(account.clone());
+                            data.insert(
+                                DataFieldType::Data,
+                                serde_json::to_value(account).unwrap(),
+                            );
+                        }
                         (
                             SessionStore {
-                                data: StoreData {
-                                    accounts: current_state_data.accounts.clone(),
-                                    storage_status: current_state_data.storage_status.clone(),
-                                },
                                 ..store.deref().clone()
                             }
                             .into(),
                             Some(SessionEvent {
+                                store_id: Some(create_response.store_id),
                                 event_type: SessionEventType::Create,
                                 data: Some(data),
                                 meta,
@@ -389,6 +413,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }
                         .into(),
                         Some(SessionEvent {
+                            store_id: None,
                             event_type: SessionEventType::Create,
                             data: None,
                             meta,
@@ -406,68 +431,67 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         let data_payload = edit_response.data.clone();
                         let updated_data = data_payload.get(&DataFieldType::UpdatedFields).unwrap();
                         let updated_data = updated_data.as_object().unwrap();
-                        let current_state_data = &store.data;
-                        let mut account_vec = current_state_data.accounts.borrow_mut();
-                        let account_id = edit_response.id.clone();
+                        let mut stores_ptr = store.stores.borrow_mut().clone();
+                        let mut data = HashMap::new();
                         let mut meta = meta.unwrap_or(json!({}));
-                        meta.as_object_mut().unwrap().insert(
-                            "id".to_owned(),
-                            serde_json::to_value(account_id.clone()).unwrap(),
-                        );
-                        let meta = Some(meta);
-                        let account_idx = account_vec
-                            .iter()
-                            .position(|ac| ac.id == account_id)
-                            .unwrap();
-                        let account = account_vec.get_mut(account_idx).unwrap();
-                        let new_account: &mut Account = Rc::make_mut(account);
-                        for (key, value) in updated_data {
-                            //TODO compare through each field's string value, rather than manually
-                            //checking each field with string literal
-                            if let Some(new_value) = value.get("new") {
-                                match key.as_str() {
-                                    "username" => {
-                                        new_account.username =
-                                            new_value.as_str().unwrap().to_owned();
+                        for store_ptr in stores_ptr.values_mut() {
+                            if let Some(account) = store_ptr
+                                .accounts
+                                .borrow_mut()
+                                .iter_mut()
+                                .find(|ac| ac.id == edit_response.id)
+                            {
+                                meta.as_object_mut().unwrap().insert(
+                                    "id".to_owned(),
+                                    serde_json::to_value(account.id.clone()).unwrap(),
+                                );
+                                let new_account: &mut Account = Rc::make_mut(account);
+                                for (key, value) in updated_data {
+                                    //TODO compare through each field's string value, rather than manually
+                                    //checking each field with string literal
+                                    if let Some(new_value) = value.get("new") {
+                                        match key.as_str() {
+                                            "username" => {
+                                                new_account.username =
+                                                    new_value.as_str().unwrap().to_owned();
+                                            }
+                                            "password" => {
+                                                new_account.password =
+                                                    Some(new_value.as_str().unwrap().to_owned());
+                                            }
+                                            "domain" => {
+                                                new_account.domain =
+                                                    Some(new_value.as_str().unwrap().to_owned());
+                                            }
+                                            "note" => {
+                                                new_account.note =
+                                                    Some(new_value.as_str().unwrap().to_owned());
+                                            }
+                                            "path" => {
+                                                new_account.path =
+                                                    Some(new_value.as_str().unwrap().to_owned());
+                                            }
+                                            _ => {}
+                                        }
                                     }
-                                    "password" => {
-                                        new_account.password =
-                                            Some(new_value.as_str().unwrap().to_owned());
-                                    }
-                                    "domain" => {
-                                        new_account.domain =
-                                            Some(new_value.as_str().unwrap().to_owned());
-                                    }
-                                    "note" => {
-                                        new_account.note =
-                                            Some(new_value.as_str().unwrap().to_owned());
-                                    }
-                                    "path" => {
-                                        new_account.path =
-                                            Some(new_value.as_str().unwrap().to_owned());
-                                    }
-                                    _ => {}
                                 }
+                                data.insert(
+                                    DataFieldType::Data,
+                                    serde_json::to_value(new_account).unwrap(),
+                                );
+                                break;
                             }
                         }
-                        let mut data = HashMap::new();
-                        data.insert(
-                            DataFieldType::Data,
-                            serde_json::to_value(new_account).unwrap(),
-                        );
                         (
                             SessionStore {
-                                data: StoreData {
-                                    accounts: current_state_data.accounts.clone(),
-                                    storage_status: current_state_data.storage_status.clone(),
-                                },
                                 ..store.deref().clone()
                             }
                             .into(),
                             Some(SessionEvent {
+                                store_id: Some(edit_response.store_id),
                                 event_type: SessionEventType::Update,
                                 data: Some(data),
-                                meta,
+                                meta: Some(meta),
                                 resource: Some(vec![resource]),
                                 is_global: true,
                                 acknowledgement,
@@ -480,6 +504,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }
                         .into(),
                         Some(SessionEvent {
+                            store_id: Some(edit_response.store_id),
                             event_type: SessionEventType::Create,
                             data: None,
                             meta,
@@ -491,53 +516,62 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 }
             }
             SessionAction::DataFetched(fetch_response) => {
-                let session_data = store.data.clone();
-                let data = fetch_response.data;
-                let mut meta = meta.unwrap_or(json!({}));
-                let meta_obj = meta.as_object_mut().unwrap();
-                let response_meta = fetch_response.meta.clone().unwrap_or(json!({}));
-                let path = response_meta.get("path");
-                let path = path.and_then(|v| v.as_str());
-                if path.is_some() {
-                    meta_obj.insert("path".to_owned(), path.unwrap().into());
-                }
-                let resource = fetch_response.resource.clone();
-                if resource == Resource::Account {
-                    let data_payload: Vec<Rc<Account>> = data
-                        .get(&DataFieldType::Data)
-                        .unwrap_or(&json!([]))
-                        .as_array()
-                        .unwrap_or(&vec![])
-                        .into_iter()
-                        .cloned()
-                        .map(|val| Rc::new(serde_json::from_value(val).unwrap()))
-                        .collect();
-                    let session_event = {
-                        match session_data.storage_status {
-                            _ => Some(SessionEvent {
-                                event_type: SessionEventType::Refreshed,
-                                data: Some(data),
-                                meta: Some(meta),
-                                resource: Some(vec![resource]),
-                                is_global: true,
-                                acknowledgement,
-                            }),
-                        }
-                    };
-                    let current_state_data = store.data.clone();
-                    let mut account_section = current_state_data.accounts.borrow_mut();
-                    *account_section = data_payload;
-                    (
-                        SessionStore {
-                            data: StoreData {
-                                accounts: current_state_data.accounts.clone(),
-                                storage_status: StorageStatus::Loaded,
-                            },
-                            ..store.deref().clone()
-                        }
-                        .into(),
-                        session_event,
-                    )
+                let mut stores_ptr = store.stores.borrow_mut();
+                let session_data = stores_ptr.get_mut(&fetch_response.store_id);
+                if let Some(session_data) = session_data {
+                    let data = fetch_response.data;
+                    let mut meta = meta.unwrap_or(json!({}));
+                    let meta_obj = meta.as_object_mut().unwrap();
+                    let response_meta = fetch_response.meta.clone().unwrap_or(json!({}));
+                    let path = response_meta.get("path");
+                    let path = path.and_then(|v| v.as_str());
+                    if path.is_some() {
+                        meta_obj.insert("path".to_owned(), path.unwrap().into());
+                    }
+                    let resource = fetch_response.resource.clone();
+                    if resource == Resource::Account {
+                        let data_payload: Vec<Rc<Account>> = data
+                            .get(&DataFieldType::Data)
+                            .unwrap_or(&json!([]))
+                            .as_array()
+                            .unwrap_or(&vec![])
+                            .into_iter()
+                            .cloned()
+                            .map(|val| Rc::new(serde_json::from_value(val).unwrap()))
+                            .collect();
+                        session_data.storage_status = StorageStatus::Loaded;
+                        session_data.verified = true;
+                        let session_event = {
+                            match session_data.storage_status {
+                                _ => Some(SessionEvent {
+                                    store_id: Some(fetch_response.store_id),
+                                    event_type: SessionEventType::Refreshed,
+                                    data: Some(data),
+                                    meta: Some(meta),
+                                    resource: Some(vec![resource]),
+                                    is_global: true,
+                                    acknowledgement,
+                                }),
+                            }
+                        };
+                        let mut account_section = session_data.accounts.borrow_mut();
+                        *account_section = data_payload;
+                        (
+                            SessionStore {
+                                ..store.deref().clone()
+                            }
+                            .into(),
+                            session_event,
+                        )
+                    } else {
+                        (
+                            SessionStore {
+                                ..store.deref().clone()
+                            }
+                            .into(),
+                            None,
+                        )
+                    }
                 } else {
                     (
                         SessionStore {
@@ -548,17 +582,53 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     )
                 }
             }
-            SessionAction::DataLoading(acknowledgement) => (
-                SessionStore {
-                    data: StoreData {
-                        storage_status: StorageStatus::Loading(acknowledgement),
-                        ..store.data.clone()
-                    },
-                    ..store.deref().clone()
+            SessionAction::Init(init_response) => {
+                let mut stores_ptr = store.stores.borrow_mut().clone();
+                for store_id in init_response
+                    .data
+                    .get(&DataFieldType::Data)
+                    .unwrap()
+                    .as_array()
+                    .unwrap()
+                {
+                    let store_id = store_id.as_str().unwrap().to_owned();
+                    if stores_ptr.get(&store_id).is_none() {
+                        stores_ptr.insert(
+                            store_id.clone(),
+                            StoreData {
+                                accounts: Mrc::new(Vec::new()),
+                                storage_status: StorageStatus::Uninitialized,
+                                store_id,
+                                signing_key: None,
+                                verified: false,
+                            },
+                        );
+                    } else {
+                        debug!("store already exists: {:?}", store_id);
+                    }
                 }
-                .into(),
-                None,
-            ),
+                (
+                    SessionStore {
+                        stores: Mrc::new(stores_ptr),
+                        ..store.deref().clone()
+                    }
+                    .into(),
+                    None,
+                )
+            }
+            SessionAction::DataLoading(store_id, acknowledgement) => {
+                let mut stores_ptr = store.stores.borrow_mut().clone();
+                if let Some(session_data) = stores_ptr.get_mut(&store_id) {
+                    session_data.storage_status = StorageStatus::Loading(acknowledgement.clone());
+                }
+                (
+                    SessionStore {
+                        ..store.deref().clone()
+                    }
+                    .into(),
+                    None,
+                )
+            }
             SessionAction::DataCreationFailed(resource, _data, request) => {
                 let session_event = {
                     if let Some(request) = request {
@@ -569,6 +639,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }
                         let session_event = match resource {
                             Resource::Account => Some(SessionEvent {
+                                store_id: request.get_store_id(),
                                 event_type: SessionEventType::CreationFailed,
                                 data: Some(_data),
                                 meta,
@@ -585,9 +656,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 };
                 (
                     SessionStore {
-                        data: StoreData {
-                            ..store.data.clone()
-                        },
                         ..store.deref().clone()
                     }
                     .into(),

@@ -7,7 +7,6 @@ use browser_rpass::{
 };
 use gloo_utils::format::JsValueSerdeExt;
 use log::*;
-use serde_json::json;
 use wasm_bindgen::{prelude::Closure, JsValue};
 use wasm_bindgen_futures::spawn_local;
 use yewdux::prelude::Dispatch;

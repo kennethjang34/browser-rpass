@@ -22,6 +22,7 @@ pub fn App(_props: &Props) -> Html {
         use_state(|| get_domain_name(&window().location().href().unwrap_or_default()));
     let username_input = use_state(|| "".to_owned());
     let username_input_element = find_username_input_element();
+    let store_id = use_state(|| None::<String>);
     let current_focus = use_state(|| None::<web_sys::HtmlInputElement>);
     let password_input = use_state(|| "".to_owned());
     let password_input_element = find_password_input_element();
@@ -139,8 +140,8 @@ pub fn App(_props: &Props) -> Html {
     use_effect_with(verified.clone(), {
         let accounts = accounts.clone();
         move |verified: &Rc<bool>| {
-            if **verified {
-                fetch_accounts(None);
+            if **verified && store_id.is_some() {
+                fetch_accounts((*store_id).clone().unwrap(), None);
             } else {
                 accounts.set(Rc::new(Vec::<Rc<Account>>::new()));
             }

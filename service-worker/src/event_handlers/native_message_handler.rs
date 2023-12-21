@@ -72,7 +72,7 @@ pub fn process_native_message(
                 match logout_response.status {
                     Status::Success => {
                         session_store_dispatch.apply(SessionActionWrapper {
-                            action: SessionAction::Logout,
+                            action: SessionAction::Logout(logout_response.store_id),
                             meta: None,
                         });
                     }
@@ -96,6 +96,7 @@ pub fn process_native_message(
                     session_store_dispatch.apply(SessionActionWrapper {
                         action: SessionAction::DataDeleted(
                             Resource::Account,
+                            delete_response.deleted_resource_id.clone(),
                             delete_response.data.clone(),
                         ),
                         meta: ctx,
@@ -131,7 +132,6 @@ pub fn process_native_message(
             return Ok(response);
         }
         ResponseEnum::EditResponse(edit_response) => {
-            dbg!(&json_msg);
             let response = ResponseEnum::EditResponse(edit_response.clone());
             let status = &edit_response.status;
             match status {
@@ -155,14 +155,10 @@ pub fn process_native_message(
             return Ok(response);
         }
         ResponseEnum::SearchResponse(search_response) => {
-            // let search_response: SearchResponse =
-            //     serde_json::from_value::<SearchResponse>(json_msg).unwrap();
             let response = ResponseEnum::SearchResponse(search_response);
             return Ok(response);
         }
         ResponseEnum::FetchResponse(fetch_response) => {
-            // let fetch_response: FetchResponse =
-            //     serde_json::from_value::<FetchResponse>(json_msg).unwrap();
             let response = ResponseEnum::FetchResponse(fetch_response.clone());
             match fetch_response.status.clone() {
                 Status::Success => {
@@ -177,12 +173,22 @@ pub fn process_native_message(
                 }
             }
         }
-        // RequestEnum::Init(ref _init_request) => {
         ResponseEnum::InitResponse(init_response) => {
-            // let init_response: InitResponse =
-            //     serde_json::from_value::<InitResponse>(json_msg).unwrap();
-            let response = ResponseEnum::InitResponse(init_response);
-            return Ok(response);
+            let status = &init_response.status;
+            debug!("init response: {:?}", init_response);
+            match status {
+                Status::Success => {
+                    let response = ResponseEnum::InitResponse(init_response.clone());
+                    session_store_dispatch.apply(SessionActionWrapper {
+                        meta: ctx,
+                        action: SessionAction::Init(init_response),
+                    });
+                    return Ok(response);
+                }
+                _ => {
+                    return Err("error happened while initializing".to_owned());
+                }
+            }
         }
         _ => {
             let error_response = ErrorResponse {

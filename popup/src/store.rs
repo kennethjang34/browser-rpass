@@ -365,7 +365,6 @@ impl Reducer<PopupStore> for LoginAction {
             }
             .into(),
             LoginAction::LoginError(_data, store_id) => {
-                debug!("LoginError: {:?}", store_id);
                 PopupStore {
                     page_loading: false,
                     login_status: LoginStatus::LoginError,
@@ -418,24 +417,28 @@ impl Reducer<PopupStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::Logout(_data) => PopupStore {
-                verified: false,
-                page_loading: false,
-                persistent_data: PersistentStoreData {
-                    remember_me: store.persistent_data.remember_me,
-                    store_id: if store.persistent_data.remember_me {
-                        store.persistent_data.store_id.clone()
-                    } else {
-                        None
+            LoginAction::Logout(_data) => {
+                debug!("Logout");
+                debug!("_data: {:?}", _data);
+                PopupStore {
+                    verified: false,
+                    page_loading: false,
+                    persistent_data: PersistentStoreData {
+                        remember_me: store.persistent_data.remember_me,
+                        store_id: if store.persistent_data.remember_me {
+                            store.persistent_data.store_id.clone()
+                        } else {
+                            None
+                        },
+                        dark_mode: store.persistent_data.dark_mode,
                     },
-                    dark_mode: store.persistent_data.dark_mode,
-                },
-                login_status: LoginStatus::LoggedOut,
-                data: StoreData {
-                    accounts: Mrc::new(vec![]),
-                    ..store.deref().clone().data
-                },
-                ..store.deref().clone()
+                    login_status: LoginStatus::LoggedOut,
+                    data: StoreData {
+                        accounts: Mrc::new(vec![]),
+                        ..store.deref().clone().data
+                    },
+                    ..store.deref().clone()
+                }
             }
             .into(),
             LoginAction::Login(store_id, _data) => {

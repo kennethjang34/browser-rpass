@@ -25,6 +25,7 @@ pub fn broadcast_session_event(session_event: SessionEvent) {
                                 None,
                                 session_event.clone(),
                                 None,
+                                None,
                             ));
                         port.post_message(
                             <JsValue as JsValueSerdeExt>::from_serde(&request).unwrap(),
@@ -40,6 +41,7 @@ pub fn broadcast_session_event(session_event: SessionEvent) {
                 None,
                 session_event.clone(),
                 None,
+                None,
             ));
             port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&request).unwrap());
         }
@@ -49,6 +51,7 @@ pub fn whisper_session_event(session_event: SessionEvent, port: &Port) {
     let msg = MessageEnum::Message(RequestEnum::create_session_event_request(
         None,
         session_event,
+        None,
         None,
     ));
     port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&msg).unwrap());

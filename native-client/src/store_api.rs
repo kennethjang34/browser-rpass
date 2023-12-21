@@ -1,8 +1,12 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 #[allow(unused_imports)]
 use log::*;
-use rpass::pass::{self, PasswordEntry};
+use rpass::pass::{self, PasswordEntry, PasswordStore};
 
 use crate::PasswordStoreType;
 /// Validates the config for password stores.
@@ -44,9 +48,11 @@ fn _validate_stores_config(
 
     Ok(incomplete_stores)
 }
-pub fn filter_entries(store: &PasswordStoreType, query: &str) -> pass::Result<Vec<PasswordEntry>> {
-    let first_locked = store.lock()?;
-    let locked_store = first_locked.lock()?;
+pub fn filter_entries(
+    store: &Arc<Mutex<PasswordStore>>,
+    query: &str,
+) -> pass::Result<Vec<PasswordEntry>> {
+    let locked_store = store.lock()?;
     let passwords = &*locked_store.passwords;
     pub fn normalized(s: &str) -> String {
         s.to_lowercase()

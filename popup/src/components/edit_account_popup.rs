@@ -18,6 +18,7 @@ use yewdux::{dispatch::Dispatch, functional::use_selector};
 #[derive(Properties, PartialEq)]
 pub struct Props {
     pub account: Rc<Account>,
+    pub store_id: String,
     pub handle_close: Callback<MouseEvent>,
 }
 
@@ -35,13 +36,21 @@ pub fn edit_account_popup(props: &Props) -> Html {
         let username_input = username_input.clone();
         let note_input = note_input.clone();
         let domain_input = domain_input.clone();
+        let store_id = props.store_id.clone();
         move |event: SubmitEvent| {
             event.prevent_default();
             let domain = Some((*domain_input).clone());
             let username = Some((*username_input).clone());
             let password = Some((*password_input).clone());
             let note = Some((*note_input).clone());
-            edit_account(account.id.clone(), domain, username, password, note);
+            edit_account(
+                account.id.clone(),
+                domain,
+                username,
+                password,
+                note,
+                Some(store_id.clone()),
+            );
         }
     });
     let on_reveal = {

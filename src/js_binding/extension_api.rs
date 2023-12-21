@@ -1,7 +1,6 @@
 use gloo::storage::errors::StorageError;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::Promise;
-use log::debug;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
@@ -181,10 +180,8 @@ impl StorageArea {
             storage.get(key.into()).await
         };
         let value = js_sys::Reflect::get(&entry, &JsValue::from_str(key));
-        debug!("current storage: {:?}", storage);
         console::log_1(&chrome.storage().local().get_all(storage).await.unwrap());
         if let Ok(value) = value {
-            debug!("value: {:?}", value);
             console::log_1(&value);
             return Ok(value);
         } else {
@@ -205,12 +202,7 @@ impl StorageArea {
             }
         };
         console::log_1(&entry);
-        debug!("entry: {:?}", entry);
-        debug!("entry.is_string(): {:?}", entry.is_string());
-        debug!("entry type: {:?}", entry.js_typeof());
-        debug!("entry: {:?}", entry);
         let fut = js_sys::Reflect::get(&entry, &JsValue::from_str(&"PromiseResult")).unwrap();
-        debug!("fut: {:?}", fut);
         console::log_1(&fut);
         Ok(None)
     }
@@ -233,7 +225,6 @@ impl StorageArea {
             store::StorageArea::Sync => chrome.storage().sync().set(js_val).await,
             store::StorageArea::Session => chrome.storage().session().set(js_val).await,
         }
-        debug!("current storage: {:?}", storage);
         console::log_1(&chrome.storage().local().get_all(storage).await.unwrap());
     }
 }

@@ -25,9 +25,14 @@ pub fn home_page(_props: &Props) -> Html {
     let loading = use_selector(|state: &PopupStore| state.page_loading.clone());
     let path = use_selector(|state: &PopupStore| state.path.clone());
     let store_id = use_selector(|state: &PopupStore| state.persistent_data.store_id.clone());
-    let on_logout_click = Callback::from(move |event: MouseEvent| {
-        event.prevent_default();
-        logout();
+    let on_logout_click = Callback::from({
+        let store_id = store_id.clone();
+        move |event: MouseEvent| {
+            event.prevent_default();
+            if let Some(store_id) = (*store_id).clone() {
+                logout(store_id);
+            }
+        }
     });
     let on_close = Callback::from(move |event: MouseEvent| {
         event.prevent_default();
@@ -35,9 +40,12 @@ pub fn home_page(_props: &Props) -> Html {
     });
     use_effect_with(verified.clone(), {
         let _path = path.clone();
+        let store_id = store_id.clone();
         move |verified: &Rc<bool>| {
-            if **verified {
-                fetch_accounts(None);
+            let store_id = (*store_id).clone();
+            // if **verified && store_id.is_some() {
+            if store_id.is_some() {
+                fetch_accounts((store_id).clone(), None);
             }
         }
     });
@@ -88,8 +96,8 @@ pub fn home_page(_props: &Props) -> Html {
                                   <MoonIcon/>
                               }
                           </button>
-                            if *verified{
-                                <AccountPage store_id={(*store_id).clone()} path={(*path).clone()}/>
+                            if store_id.is_some(){
+                                <AccountPage store_id={(*store_id.clone()).clone().unwrap()} path={(*path).clone()}/>
                                 <button type="button" class="fixed my-3 bottom-0 right-0 mr-3 warning-btn" onclick={on_logout_click}>{"logout"}</button>
                             }
                             else{
