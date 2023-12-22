@@ -17,8 +17,8 @@ use yewdux::{functional::use_selector, prelude::Dispatch};
 pub fn App() -> Html {
     trace!("App");
     let dispatch = Dispatch::<PopupStore>::new();
-    let verified = use_selector(|state: &PopupStore| state.verified.clone());
-    use_effect_with(verified.clone(), {
+    let activated = use_selector(|state: &PopupStore| state.persistent_data.store_activated);
+    use_effect_with(activated.clone(), {
         let state = dispatch.get();
         move |_| {
             wasm_bindgen_futures::spawn_local(async move {
@@ -53,12 +53,6 @@ pub fn App() -> Html {
                     )
                     .then(&cb);
                 cb.forget()
-            });
-            wasm_bindgen_futures::spawn_local(async move {
-                if state.verified {
-                } else {
-                    log!("not verified");
-                }
             });
         }
     });

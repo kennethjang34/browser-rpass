@@ -21,7 +21,7 @@ pub struct Props {}
 #[function_component(HomePage)]
 pub fn home_page(_props: &Props) -> Html {
     trace!("render home page");
-    let verified = use_selector(|state: &PopupStore| state.verified);
+    let activated = use_selector(|state: &PopupStore| state.persistent_data.store_activated);
     let loading = use_selector(|state: &PopupStore| state.page_loading.clone());
     let path = use_selector(|state: &PopupStore| state.path.clone());
     let store_id = use_selector(|state: &PopupStore| state.persistent_data.store_id.clone());
@@ -38,13 +38,12 @@ pub fn home_page(_props: &Props) -> Html {
         event.prevent_default();
         window().close().unwrap();
     });
-    use_effect_with(verified.clone(), {
+    use_effect_with(activated.clone(), {
         let _path = path.clone();
         let store_id = store_id.clone();
-        move |verified: &Rc<bool>| {
+        move |activated: &Rc<bool>| {
             let store_id = (*store_id).clone();
-            // if **verified && store_id.is_some() {
-            if store_id.is_some() {
+            if **activated && store_id.is_some() {
                 fetch_accounts((store_id).clone(), None);
             }
         }
@@ -96,7 +95,7 @@ pub fn home_page(_props: &Props) -> Html {
                                   <MoonIcon/>
                               }
                           </button>
-                            if store_id.is_some(){
+                            if store_id.is_some() && *activated{
                                 <AccountPage store_id={(*store_id.clone()).clone().unwrap()} path={(*path).clone()}/>
                                 <button type="button" class="fixed my-3 bottom-0 right-0 mr-3 warning-btn" onclick={on_logout_click}>{"logout"}</button>
                             }

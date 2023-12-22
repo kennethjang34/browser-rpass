@@ -6,7 +6,6 @@ use gloo::storage::errors::StorageError;
 use gloo_utils::document;
 use gloo_utils::format::JsValueSerdeExt;
 use lazy_static::lazy_static;
-use log::debug;
 use parking_lot::ReentrantMutex;
 use serde_json;
 use wasm_bindgen::prelude::Closure;
@@ -103,6 +102,7 @@ pub struct StoreData {
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct PersistentStoreData {
     pub store_id: Option<String>,
+    pub store_activated: bool,
     pub remember_me: bool,
     pub dark_mode: bool,
 }
@@ -112,7 +112,7 @@ pub struct PopupStore {
     pub persistent_data: PersistentStoreData,
     pub page_loading: bool,
     pub alert_input: AlertInput,
-    pub verified: bool,
+    // pub verified: bool,
     pub data_status: StoreDataStatus,
     pub login_status: LoginStatus,
     pub data: StoreData,
@@ -305,11 +305,19 @@ impl Reducer<PopupStore> for DataAction {
                     .into(),
                 }
             }
-            DataAction::Init(data) => PopupStore {
-                verified: data
-                    .get("verified")
-                    .map_or(false, |v| v.as_bool().unwrap_or(false)),
-                ..state.deref().clone()
+            DataAction::Init(data) => {
+                PopupStore {
+                    persistent_data: PersistentStoreData {
+                        store_activated: data
+                            .get("verified")
+                            .map_or(false, |v| v.as_bool().unwrap_or(false)),
+                        ..state.persistent_data.clone()
+                    },
+                    // verified: data
+                    //     .get("verified")
+                    //     .map_or(false, |v| v.as_bool().unwrap_or(false)),
+                    ..state.deref().clone()
+                }
             }
             .into(),
             DataAction::ResourceCreationFailed(_resource, _session_event_wrapper) => {
@@ -351,8 +359,7 @@ impl Reducer<PopupStore> for LoginAction {
                 page_loading: true,
                 persistent_data: PersistentStoreData {
                     store_id: Some(store_id),
-                    remember_me: store.persistent_data.remember_me,
-                    dark_mode: store.persistent_data.dark_mode,
+                    ..store.persistent_data
                 },
                 login_status: LoginStatus::Loading,
                 ..store.deref().clone()
@@ -374,7 +381,10 @@ impl Reducer<PopupStore> for LoginAction {
             .into(),
             LoginAction::LoginSucceeded(_data) => PopupStore {
                 page_loading: false,
-                verified: true,
+                persistent_data: PersistentStoreData {
+                    store_activated: true,
+                    ..store.persistent_data.clone()
+                },
                 login_status: LoginStatus::LoginSuccess,
                 ..store.deref().clone()
             }
@@ -387,15 +397,14 @@ impl Reducer<PopupStore> for LoginAction {
             .into(),
             LoginAction::LogoutSucceeded(_data) => PopupStore {
                 page_loading: false,
-                verified: false,
                 persistent_data: PersistentStoreData {
                     store_id: if store.persistent_data.remember_me {
                         store.persistent_data.store_id.clone()
                     } else {
                         None
                     },
-                    remember_me: store.persistent_data.remember_me,
-                    dark_mode: store.persistent_data.dark_mode,
+                    store_activated: false,
+                    ..store.persistent_data
                 },
                 login_status: LoginStatus::LogoutSuccess,
                 data: StoreData {
@@ -418,19 +427,16 @@ impl Reducer<PopupStore> for LoginAction {
             }
             .into(),
             LoginAction::Logout(_data) => {
-                debug!("Logout");
-                debug!("_data: {:?}", _data);
                 PopupStore {
-                    verified: false,
                     page_loading: false,
                     persistent_data: PersistentStoreData {
-                        remember_me: store.persistent_data.remember_me,
                         store_id: if store.persistent_data.remember_me {
                             store.persistent_data.store_id.clone()
                         } else {
                             None
                         },
-                        dark_mode: store.persistent_data.dark_mode,
+                        store_activated: false,
+                        ..store.persistent_data
                     },
                     login_status: LoginStatus::LoggedOut,
                     data: StoreData {
@@ -443,12 +449,11 @@ impl Reducer<PopupStore> for LoginAction {
             .into(),
             LoginAction::Login(store_id, _data) => {
                 PopupStore {
-                    verified: true,
                     page_loading: false,
                     persistent_data: PersistentStoreData {
-                        remember_me: store.persistent_data.remember_me,
                         store_id: Some(store_id),
-                        dark_mode: store.persistent_data.dark_mode,
+                        store_activated: true,
+                        ..store.persistent_data
                     },
                     login_status: LoginStatus::LoggedIn,
                     ..store.deref().clone()
@@ -458,13 +463,13 @@ impl Reducer<PopupStore> for LoginAction {
             LoginAction::RememberMe(remember_me) => {
                 PopupStore {
                     persistent_data: PersistentStoreData {
-                        remember_me,
                         store_id: if remember_me {
                             store.persistent_data.store_id.clone()
                         } else {
                             None
                         },
-                        dark_mode: store.persistent_data.dark_mode,
+                        remember_me: true,
+                        ..store.persistent_data
                     },
                     ..store.deref().clone()
                 }
