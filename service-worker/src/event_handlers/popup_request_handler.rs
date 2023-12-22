@@ -57,33 +57,6 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
             };
             if let RequestEnum::Init(init_request) = request {
                 let selected_store = init_request.config.get(&DataFieldType::StoreID);
-                if let Some(selected_store) = selected_store {
-                    let mut data = HashMap::new();
-                    data.insert(DataFieldType::StoreID, json!(selected_store));
-                    let mock_session_event = {
-                        SessionEvent {
-                            store_id: Some(selected_store.clone()),
-                            event_type: SessionEventType::Login,
-                            data: Some(data),
-                            meta,
-                            resource: None,
-                            is_global: false,
-                            acknowledgement: Some(session_event_acknowledgement.clone()),
-                        }
-                    };
-                    let message = MessageEnum::Message(RequestEnum::create_session_event_request(
-                        Some(session_event_acknowledgement.clone()),
-                        mock_session_event.clone(),
-                        Some(selected_store.clone()),
-                        None,
-                    ));
-                    PORT_ID_MAP
-                        .lock()
-                        .unwrap()
-                        .insert(session_event_acknowledgement.clone(), extension_port.name());
-                    extension_port
-                        .post_message(<JsValue as JsValueSerdeExt>::from_serde(&message).unwrap());
-                }
                 LISTENER_PORT
                     .lock()
                     .unwrap()
