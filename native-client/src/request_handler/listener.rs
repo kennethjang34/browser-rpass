@@ -32,7 +32,8 @@ fn get_store(request: &RequestEnum, stores: &StoreListType) -> Option<Arc<Mutex<
 }
 pub fn listen_to_native_messaging(
     mut stores: StoreListType,
-    passphrases: Option<Arc<RwLock<HashMap<String, String>>>>,
+    // passphrases: Option<Arc<RwLock<HashMap<String, String>>>>,
+    passphrase_provider: Option<Handler>,
 ) -> pass::Result<()> {
     trace!("start listening to native messaging");
     loop {
@@ -45,16 +46,14 @@ pub fn listen_to_native_messaging(
             debug!("received request: {:?}", request);
             let request_result = {
                 if let Some(store) = get_store(&request, &stores) {
-                    let passphrase_provider = Some(Handler::new(
-                        passphrases
-                            .clone()
-                            .unwrap_or(Arc::new(RwLock::new(HashMap::new()))),
-                        Some(request.get_type()),
-                    ));
+                    let passphrase_provider = passphrase_provider.clone();
                     match request.clone() {
                         RequestEnum::Get(request) => {
-                            let response =
-                                handle_get_request(request.clone(), &store, passphrase_provider);
+                            let response = handle_get_request(
+                                request.clone(),
+                                &store,
+                                passphrase_provider.clone(),
+                            );
                             if response.is_ok() {
                                 let response = ResponseEnum::GetResponse(response?);
                                 send_as_json(&response)?;
@@ -170,7 +169,6 @@ pub fn listen_to_native_messaging(
                             );
                             let mut data = HashMap::new();
                             if store_res.is_ok() {
-                                // store_opt = Some(store_res?);
                                 let response = ResponseEnum::LoginResponse(LoginResponse {
                                     status: Status::Success,
                                     acknowledgement: request.acknowledgement.clone(),
@@ -319,12 +317,6 @@ pub fn listen_to_native_messaging(
                         }
                     }
                 } else {
-                    let passphrase_provider = Some(Handler::new(
-                        passphrases
-                            .clone()
-                            .unwrap_or(Arc::new(RwLock::new(HashMap::new()))),
-                        Some(request.get_type()),
-                    ));
                     match request.clone() {
                         RequestEnum::Init(request) => {
                             let response = handle_init_request(request.clone());

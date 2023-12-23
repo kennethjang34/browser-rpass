@@ -107,7 +107,7 @@ lazy_static! {
     pub static ref EXTENSION_PORT: Mutex<HashMap<String, Port>> = Mutex::new(HashMap::new());
 }
 lazy_static! {
-    pub static ref LISTENER_PORT: Mutex<HashMap<Resource, HashSet<String>>> =
+    pub static ref LISTENER_PORT: Mutex<HashMap<String, HashSet<String>>> =
         Mutex::new(HashMap::new());
 }
 lazy_static! {

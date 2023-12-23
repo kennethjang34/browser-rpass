@@ -6,8 +6,10 @@ use gloo::storage::errors::StorageError;
 use gloo_utils::document;
 use gloo_utils::format::JsValueSerdeExt;
 use lazy_static::lazy_static;
+use log::debug;
 use parking_lot::ReentrantMutex;
 use serde_json;
+use serde_json::json;
 use wasm_bindgen::prelude::Closure;
 use yewdux::mrc::Mrc;
 
@@ -85,7 +87,7 @@ pub enum LoginStatus {
     LoggedOut,
     #[default]
     Idle,
-    Loading,
+    LoginStarted,
     LoginSuccess,
     LoginError,
     LogoutSuccess,
@@ -112,11 +114,11 @@ pub struct PopupStore {
     pub persistent_data: PersistentStoreData,
     pub page_loading: bool,
     pub alert_input: AlertInput,
-    // pub verified: bool,
     pub data_status: StoreDataStatus,
     pub login_status: LoginStatus,
     pub data: StoreData,
     pub path: Option<String>,
+    pub tab_id: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -153,6 +155,7 @@ pub enum DataAction {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum PopupAction {
+    TabIdSet(i32),
     PathSet(Option<String>),
     DarkModeToggle,
 }
@@ -161,6 +164,11 @@ impl Reducer<PopupStore> for PopupAction {
         match self {
             PopupAction::PathSet(path) => PopupStore {
                 path,
+                ..state.deref().clone()
+            }
+            .into(),
+            PopupAction::TabIdSet(tab_id) => PopupStore {
+                tab_id: Some(tab_id),
                 ..state.deref().clone()
             }
             .into(),
@@ -359,9 +367,10 @@ impl Reducer<PopupStore> for LoginAction {
                 page_loading: true,
                 persistent_data: PersistentStoreData {
                     store_id: Some(store_id),
+                    // store_activated: true,
                     ..store.persistent_data
                 },
-                login_status: LoginStatus::Loading,
+                login_status: LoginStatus::LoginStarted,
                 ..store.deref().clone()
             }
             .into(),
@@ -371,7 +380,7 @@ impl Reducer<PopupStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LoginError(_data, store_id) => {
+            LoginAction::LoginError(_data, _store_id) => {
                 PopupStore {
                     page_loading: false,
                     login_status: LoginStatus::LoginError,
@@ -417,12 +426,16 @@ impl Reducer<PopupStore> for LoginAction {
             LoginAction::LogoutFailed(_data) => PopupStore {
                 page_loading: false,
                 login_status: LoginStatus::LogoutFailed,
+                persistent_data: PersistentStoreData {
+                    store_activated: false,
+                    ..store.persistent_data.clone()
+                },
                 ..store.deref().clone()
             }
             .into(),
             LoginAction::LogoutStarted(_data) => PopupStore {
                 page_loading: true,
-                login_status: LoginStatus::Loading,
+                login_status: LoginStatus::LoginStarted,
                 ..store.deref().clone()
             }
             .into(),
@@ -451,9 +464,17 @@ impl Reducer<PopupStore> for LoginAction {
                 PopupStore {
                     page_loading: false,
                     persistent_data: PersistentStoreData {
-                        store_id: Some(store_id),
-                        store_activated: true,
-                        ..store.persistent_data
+                        store_activated: {
+                            if store.persistent_data.store_id.as_ref().is_some_and(|id| {
+                                id == &store_id
+                                    && store.login_status.clone() == LoginStatus::LoginStarted
+                            }) {
+                                true
+                            } else {
+                                store.persistent_data.store_activated
+                            }
+                        },
+                        ..store.persistent_data.clone()
                     },
                     login_status: LoginStatus::LoggedIn,
                     ..store.deref().clone()
@@ -497,38 +518,115 @@ impl Store for PopupStore {
     }
 }
 impl PopupStore {
-    pub fn save<T: Serialize>(state: &T, area: store::StorageArea) -> Result<(), StorageError> {
-        let value = serde_json::to_string(state)
+    pub fn save(store: Rc<Self>, area: store::StorageArea) -> Result<(), StorageError> {
+        let tab_id = store.tab_id.unwrap();
+        let json = json!({type_name::<PersistentStoreData>(): store.persistent_data});
+        let value = serde_json::to_string(&json)
             .map_err(|serde_error| StorageError::SerdeError(serde_error))?;
-
         wasm_bindgen_futures::spawn_local(async move {
             match area {
                 store::StorageArea::Local => {
                     let _ = chrome
                         .storage()
                         .local()
-                        .set_string_item(type_name::<T>().to_owned(), value, area)
+                        .set_string_item(tab_id.to_string(), value, area)
                         .await;
                 }
                 store::StorageArea::Sync => {
                     let _ = chrome
                         .storage()
                         .sync()
-                        .set_string_item(type_name::<T>().to_owned(), value, area)
+                        .set_string_item(tab_id.to_string(), value, area)
                         .await;
                 }
                 store::StorageArea::Session => {
                     let _ = chrome
                         .storage()
                         .session()
-                        .set_string_item(type_name::<T>().to_owned(), value, area)
+                        .set_string_item(tab_id.to_string(), value, area)
                         .await;
                 }
             }
         });
         Ok(())
+        // } else {
+        //     let value = serde_json::to_string(&store.persistent_data)
+        //         .map_err(|serde_error| StorageError::SerdeError(serde_error))?;
+        //     wasm_bindgen_futures::spawn_local(async move {
+        //         match area {
+        //             store::StorageArea::Local => {
+        //                 let _ = chrome
+        //                     .storage()
+        //                     .local()
+        //                     .set_string_item(
+        //                         type_name::<PersistentStoreData>().to_owned(),
+        //                         value,
+        //                         area,
+        //                     )
+        //                     .await;
+        //             }
+        //             store::StorageArea::Sync => {
+        //                 let _ = chrome
+        //                     .storage()
+        //                     .sync()
+        //                     .set_string_item(
+        //                         type_name::<PersistentStoreData>().to_owned(),
+        //                         value,
+        //                         area,
+        //                     )
+        //                     .await;
+        //             }
+        //             store::StorageArea::Session => {
+        //                 let _ = chrome
+        //                     .storage()
+        //                     .session()
+        //                     .set_string_item(
+        //                         type_name::<PersistentStoreData>().to_owned(),
+        //                         value,
+        //                         area,
+        //                     )
+        //                     .await;
+        //             }
+        //         }
+        //     });
+        //     Ok(())
+        // }
     }
 
+    pub async fn load_tab_storage(tab_id: i32) -> Option<PersistentStoreData> {
+        let tab_storage = chrome
+            .storage()
+            .local()
+            .get_item(&i32::to_string(&tab_id), store::StorageArea::Local)
+            .await;
+        if let Ok(tab_storage) = tab_storage {
+            debug!("tab_storage: {:?}", tab_storage);
+            if let Ok(tab_storage) =
+                <JsValue as JsValueSerdeExt>::into_serde::<String>(&tab_storage)
+            {
+                debug!("tab_storage: {:?}", tab_storage);
+                let tab_storage = serde_json::from_str::<serde_json::Value>(&tab_storage).unwrap();
+                debug!("tab_storage: {:?}", tab_storage);
+                if let Some(persistent_data) = tab_storage.get(&type_name::<PersistentStoreData>())
+                {
+                    debug!("persistent_data: {:?}", persistent_data);
+                    let state =
+                        serde_json::from_value::<PersistentStoreData>(persistent_data.clone());
+                    if let Ok(state) = state {
+                        return Some(state);
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
     pub async fn load() -> Option<PersistentStoreData> {
         let loaded = chrome
             .storage()
@@ -560,9 +658,7 @@ impl Listener for StorageListener {
     type Store = PopupStore;
 
     fn on_change(&mut self, state: Rc<Self::Store>) {
-        if let Err(err) =
-            Self::Store::save(&(state.as_ref().persistent_data), store::StorageArea::Local)
-        {
+        if let Err(err) = Self::Store::save(state.clone(), store::StorageArea::Local) {
             println!("Error saving state to storage: {:?}", err);
         } else {
         }

@@ -251,6 +251,11 @@ pub fn handle_fetch_request(
                             if let Ok(mut json_value) =
                                 json_value_res
                             {
+                                if let Some(passphrase_provider)=passphrase_provider.clone(){
+                                    if passphrase_provider.passphrases.read().unwrap().get(locked_store.get_name()).is_none(){
+                                        locked_store.try_passphrase(Some(passphrase_provider.clone())).unwrap();
+                                    }
+                                }
                                 if let Ok(decrypted) = encrypted_password_entry
                                     .secret(&locked_store, passphrase_provider.clone())
                                 {
@@ -479,7 +484,30 @@ pub fn handle_logout_request(
     let _acknowledgement = request.acknowledgement;
     let _status = Status::Success;
     if let Some(passphrase_provider) = passphrase_provider {
-        passphrase_provider.passphrases.write().unwrap().clear();
+        if let Some(store_id) = request.store_id {
+            let user_id_hint = passphrase_provider
+                .recipient_to_user_id_hint
+                .lock()
+                .unwrap()
+                .get(&store_id)
+                .or(Some(&store_id.to_string()))
+                .ok_or_else(|| {
+                    Error::GenericDyn(format!(
+                        "Failed to get user_id_hint for store: {:?}",
+                        store_id
+                    ))
+                })
+                .cloned();
+            let user_id_hint = user_id_hint?;
+            passphrase_provider
+                .passphrases
+                .write()
+                .unwrap()
+                .remove(&user_id_hint)
+                .expect("failed to remove passphrase");
+        } else {
+            passphrase_provider.passphrases.write().unwrap().clear();
+        }
     }
     Ok(())
 }

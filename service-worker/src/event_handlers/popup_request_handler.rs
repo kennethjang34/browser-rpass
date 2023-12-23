@@ -1,3 +1,4 @@
+use crate::api::extension_api::whisper_session_event;
 use crate::store::SessionAction;
 use crate::store::SessionActionWrapper;
 use crate::store::SessionStore;
@@ -6,7 +7,6 @@ use crate::store::EXTENSION_PORT;
 use crate::store::LISTENER_PORT;
 use crate::store::PORT_ID_MAP;
 use crate::store::REQUEST_MAP;
-use crate::Resource;
 use browser_rpass::js_binding::extension_api::*;
 use browser_rpass::types::Account;
 use browser_rpass::types::StorageStatus;
@@ -31,7 +31,6 @@ use crate::store::NATIVE_PORT;
 
 pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _native_port: Port) {
     let dispatch = Dispatch::<SessionStore>::new();
-    let meta = Some(json!({"requester_port_id":extension_port.name()}));
     wasm_bindgen_futures::spawn_local({
         let mut request = request.clone();
         let session_event_acknowledgement = request.get_acknowledgement().unwrap().clone();
@@ -56,19 +55,41 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                 }
             };
             if let RequestEnum::Init(init_request) = request {
-                let selected_store = init_request.config.get(&DataFieldType::StoreID);
-                LISTENER_PORT
-                    .lock()
-                    .unwrap()
-                    .entry(Resource::Auth)
-                    .and_modify(|v| {
-                        v.insert(extension_port.name());
-                    })
-                    .or_insert({
-                        let mut set = HashSet::new();
-                        set.insert(extension_port.name());
-                        set
-                    });
+                if let Some(store_id) = init_request.get_store_id() {
+                    LISTENER_PORT
+                        .lock()
+                        .unwrap()
+                        .entry(store_id)
+                        .and_modify(|v| {
+                            v.insert(extension_port.name());
+                        })
+                        .or_insert({
+                            let mut set = HashSet::new();
+                            set.insert(extension_port.name());
+                            set
+                        });
+                }
+                let store_ids = dispatch
+                    .get()
+                    .stores
+                    .clone()
+                    .borrow()
+                    .keys()
+                    .cloned()
+                    .collect::<Vec<String>>();
+                let store_ids = serde_json::to_value(store_ids).unwrap();
+                let mut data = HashMap::new();
+                data.insert(DataFieldType::Data, store_ids);
+                let session_event = SessionEvent {
+                    store_id: init_request.get_store_id(),
+                    event_type: SessionEventType::Init,
+                    data: Some(data),
+                    meta: None,
+                    resource: None,
+                    is_global: false,
+                    acknowledgement: init_request.get_acknowledgement(),
+                };
+                whisper_session_event(session_event, &extension_port);
             } else {
                 let header = {
                     let map = HashMap::new();
@@ -164,7 +185,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                         LISTENER_PORT
                             .lock()
                             .unwrap()
-                            .entry(fetch_request.resource.clone())
+                            .entry(fetch_request.store_id.clone().unwrap())
                             .and_modify(|v| {
                                 v.insert(extension_port.name());
                             })
@@ -255,6 +276,19 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                         }
                     }
                     RequestEnum::Login(login_request) => {
+                        LISTENER_PORT
+                            .lock()
+                            .unwrap()
+                            .entry(login_request.store_id.clone().unwrap())
+                            .and_modify(|v| {
+                                v.insert(extension_port.name());
+                            })
+                            .or_insert({
+                                let mut set = HashSet::new();
+                                set.insert(extension_port.name());
+                                set
+                            });
+
                         REQUEST_MAP
                             .lock()
                             .unwrap()
@@ -300,16 +334,16 @@ pub fn create_request_listener() -> Closure<dyn Fn(Port)> {
                 EXTENSION_PORT.lock().unwrap().remove(&port.name());
                 let locked = LISTENER_PORT.lock();
                 let mut port_map = locked.unwrap();
-                let mut resource_with_no_listeners = Vec::new();
-                for (resource, listeners) in port_map.iter_mut() {
+                let mut store_id_with_no_listeners = Vec::new();
+                for (store_id, listeners) in port_map.iter_mut() {
                     listeners.remove(&port.name());
                     if listeners.is_empty() {
-                        resource_with_no_listeners.push(resource.clone());
+                        store_id_with_no_listeners.push(store_id.clone());
                     }
                 }
                 drop(port_map);
-                resource_with_no_listeners.iter().for_each(|resource| {
-                    LISTENER_PORT.lock().unwrap().remove(resource);
+                store_id_with_no_listeners.iter().for_each(|store_id| {
+                    LISTENER_PORT.lock().unwrap().remove(store_id);
                 });
                 EXTENSION_PORT.lock().unwrap().remove(&port.name());
             })

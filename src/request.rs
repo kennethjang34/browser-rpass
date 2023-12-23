@@ -16,16 +16,16 @@ use serde::{Deserialize, Serialize};
 pub enum SessionEventType {
     Create,
     Update,
+    Refreshed,
+    Delete,
+    CreationFailed,
     Login,
     Logout,
     LogoutError,
     LoginError,
-    Delete,
     Search,
     Init,
     Error,
-    Refreshed,
-    CreationFailed,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]

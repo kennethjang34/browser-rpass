@@ -6,6 +6,7 @@ use log::*;
 use native_client::request_handler::*;
 use native_client::util::*;
 
+use rpass::crypto::Handler;
 use rpass::pass::{self, Error};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -45,7 +46,8 @@ fn main() -> pass::Result<()> {
                     send_as_json(&response)?;
                     let passphrases = Arc::new(RwLock::new(HashMap::new()));
                     thread::sleep(time::Duration::from_millis(200));
-                    listen_to_native_messaging(stores, Some(passphrases.clone()))
+                    let passphrase_provider = Some(Handler::new(passphrases));
+                    listen_to_native_messaging(stores, passphrase_provider)
                 } else {
                     let mut data = HashMap::new();
                     data.insert(
