@@ -33,12 +33,15 @@ pub fn fetch_accounts(store_id: Option<String>, path: Option<String>) -> String 
         .post_message(<JsValue as JsValueSerdeExt>::from_serde(&fetch_request).unwrap());
     return acknowledgement;
 }
-pub fn login(store_id: String) {
+pub fn login(store_id: String, is_default: bool) {
     let dispatch = Dispatch::<PopupStore>::new();
     dispatch.apply(LoginAction::LoginStarted(store_id.clone(), HashMap::new()));
     let acknowledgement = create_request_acknowledgement();
-    let login_request =
-        RequestEnum::create_login_request(Some(acknowledgement.clone()), Some(store_id.clone()));
+    let login_request = RequestEnum::create_login_request(
+        Some(acknowledgement.clone()),
+        Some(store_id.clone()),
+        is_default,
+    );
     MESSAGE_CONTEXT_POPUP
         .lock()
         .unwrap()

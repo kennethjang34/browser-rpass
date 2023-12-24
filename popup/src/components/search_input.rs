@@ -20,6 +20,5 @@ pub fn search_input(props: &Props) -> Html {
                              value={(props.value).clone()} oninput={props.onchange.clone()}/>
                         </div>
                     </>
-
     }
 }

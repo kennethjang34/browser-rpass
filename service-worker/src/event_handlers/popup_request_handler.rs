@@ -24,6 +24,7 @@ use serde_json;
 use serde_json::json;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::ops::Deref;
 use wasm_bindgen::prelude::Closure;
 use yewdux::mrc::Mrc;
 
@@ -55,41 +56,97 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                 }
             };
             if let RequestEnum::Init(init_request) = request {
-                if let Some(store_id) = init_request.get_store_id() {
-                    LISTENER_PORT
-                        .lock()
-                        .unwrap()
-                        .entry(store_id)
-                        .and_modify(|v| {
-                            v.insert(extension_port.name());
-                        })
-                        .or_insert({
-                            let mut set = HashSet::new();
-                            set.insert(extension_port.name());
-                            set
-                        });
+                let config = &init_request.config;
+                if config
+                    .get(&DataFieldType::ContentScript)
+                    .map(|v| v == "true")
+                    .unwrap_or(false)
+                {
+                    let stores = dispatch.get().stores.clone();
+                    let mut data = HashMap::new();
+                    if let Some(default_store_id) =
+                        dispatch.get().default_store.clone().borrow().deref()
+                    {
+                        LISTENER_PORT
+                            .lock()
+                            .unwrap()
+                            .entry(default_store_id.clone())
+                            .and_modify(|v| {
+                                v.insert(extension_port.name());
+                            })
+                            .or_insert({
+                                let mut set = HashSet::new();
+                                set.insert(extension_port.name());
+                                set
+                            });
+                        if stores.borrow().get(default_store_id).is_none() {
+                            data.insert(
+                                DataFieldType::DefaultStoreAvailable,
+                                serde_json::to_value(false).unwrap(),
+                            );
+                        } else {
+                            data.insert(
+                                DataFieldType::DefaultStoreID,
+                                serde_json::to_value(default_store_id).unwrap(),
+                            );
+                            data.insert(
+                                DataFieldType::DefaultStoreAvailable,
+                                serde_json::to_value(true).unwrap(),
+                            );
+                        }
+                    } else {
+                        data.insert(
+                            DataFieldType::DefaultStoreAvailable,
+                            serde_json::to_value(false).unwrap(),
+                        );
+                    }
+                    let session_event = SessionEvent {
+                        store_id: init_request.get_store_id(),
+                        event_type: SessionEventType::Init,
+                        data: Some(data),
+                        meta: None,
+                        resource: None,
+                        is_global: false,
+                        acknowledgement: init_request.get_acknowledgement(),
+                    };
+                    whisper_session_event(session_event, &extension_port);
+                } else {
+                    if let Some(store_id) = init_request.get_store_id() {
+                        LISTENER_PORT
+                            .lock()
+                            .unwrap()
+                            .entry(store_id)
+                            .and_modify(|v| {
+                                v.insert(extension_port.name());
+                            })
+                            .or_insert({
+                                let mut set = HashSet::new();
+                                set.insert(extension_port.name());
+                                set
+                            });
+                    }
+                    let store_ids = dispatch
+                        .get()
+                        .stores
+                        .clone()
+                        .borrow()
+                        .keys()
+                        .cloned()
+                        .collect::<Vec<String>>();
+                    let store_ids = serde_json::to_value(store_ids).unwrap();
+                    let mut data = HashMap::new();
+                    data.insert(DataFieldType::Data, store_ids);
+                    let session_event = SessionEvent {
+                        store_id: init_request.get_store_id(),
+                        event_type: SessionEventType::Init,
+                        data: Some(data),
+                        meta: None,
+                        resource: None,
+                        is_global: false,
+                        acknowledgement: init_request.get_acknowledgement(),
+                    };
+                    whisper_session_event(session_event, &extension_port);
                 }
-                let store_ids = dispatch
-                    .get()
-                    .stores
-                    .clone()
-                    .borrow()
-                    .keys()
-                    .cloned()
-                    .collect::<Vec<String>>();
-                let store_ids = serde_json::to_value(store_ids).unwrap();
-                let mut data = HashMap::new();
-                data.insert(DataFieldType::Data, store_ids);
-                let session_event = SessionEvent {
-                    store_id: init_request.get_store_id(),
-                    event_type: SessionEventType::Init,
-                    data: Some(data),
-                    meta: None,
-                    resource: None,
-                    is_global: false,
-                    acknowledgement: init_request.get_acknowledgement(),
-                };
-                whisper_session_event(session_event, &extension_port);
             } else {
                 let header = {
                     let map = HashMap::new();
@@ -162,11 +219,6 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                     RequestEnum::Fetch(fetch_request) => {
                         let meta = Some(json!({"requester_port_id":extension_port.name()}));
                         let data = dispatch.get().stores.clone();
-                        debug!("fetch_request: {:?}", fetch_request);
-                        debug!(
-                            "data: {:?}",
-                            data.borrow().get(&fetch_request.store_id.clone().unwrap())
-                        );
                         let current_status = data
                             .borrow_mut()
                             .entry(fetch_request.store_id.clone().unwrap())
@@ -181,7 +233,6 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                             })
                             .storage_status
                             .clone();
-                        debug!("fetch_request: {:?}", fetch_request);
                         LISTENER_PORT
                             .lock()
                             .unwrap()
@@ -194,7 +245,6 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                                 set.insert(extension_port.name());
                                 set
                             });
-                        debug!("current_status: {:?}", current_status);
                         match current_status {
                             StorageStatus::Uninitialized => {
                                 dispatch.apply(SessionActionWrapper {

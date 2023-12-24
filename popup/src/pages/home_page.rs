@@ -1,5 +1,5 @@
 use crate::{
-    api::extension_api::{fetch_accounts, logout},
+    api::extension_api::logout,
     pages::account_page::AccountPage,
     pages::login_page::LoginPage,
     store::PopupStore,
@@ -7,7 +7,6 @@ use crate::{
 };
 use gloo_utils::window;
 use log::*;
-use std::rc::Rc;
 
 use crate::components::*;
 use yew;
@@ -37,16 +36,6 @@ pub fn home_page(_props: &Props) -> Html {
     let on_close = Callback::from(move |event: MouseEvent| {
         event.prevent_default();
         window().close().unwrap();
-    });
-    use_effect_with(activated.clone(), {
-        let _path = path.clone();
-        let store_id = store_id.clone();
-        move |activated: &Rc<bool>| {
-            let store_id = (*store_id).clone();
-            if **activated && store_id.is_some() {
-                fetch_accounts((store_id).clone(), None);
-            }
-        }
     });
     let dark_mode = use_selector(|state: &PopupStore| state.persistent_data.dark_mode);
     let set_darkmode = Callback::from(move |_| {
@@ -87,7 +76,7 @@ pub fn home_page(_props: &Props) -> Html {
                                 }
                             }>
                           <button onclick={set_darkmode.clone()}
-                              class="fixed my-6 right-0 mr-5 z-10 h-12 w-12 inline-flex cursor-pointer justify-center items-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-600">
+                              class="fixed top-5 my-6 right-0 mr-5 z-10 h-12 w-12 inline-flex cursor-pointer justify-center items-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-600">
                               if *dark_mode {
                                   <SunIcon/>
                               }

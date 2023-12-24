@@ -40,7 +40,7 @@ use yewdux::{
 pub enum SessionAction {
     Login,
     LoginError(LoginRequest),
-    Logout(String),
+    Logout(String, Option<String>),
     Init(InitResponse),
     LogoutError(LogoutResponse),
     DataFetched(FetchResponse),
@@ -129,6 +129,7 @@ pub struct StoreData {
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct SessionStore {
     pub stores: Mrc<HashMap<String, StoreData>>,
+    pub default_store: Mrc<Option<String>>,
 }
 
 impl Store for SessionStore {
@@ -215,7 +216,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
             .map(|ack| ack.to_owned());
         let session_action = self.action;
         #[allow(unused_mut)]
-        let mut clear_ports = false;
+        let mut ports_to_disconnect = HashSet::new();
         let (session_store, session_event) = match session_action {
             SessionAction::Login => {
                 let store_id = {
@@ -227,9 +228,18 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         .unwrap()
                         .to_owned()
                 };
+                let is_default = {
+                    meta.as_ref()
+                        .unwrap()
+                        .get("is_default")
+                        .unwrap()
+                        .as_bool()
+                        .unwrap()
+                };
                 let mut data = HashMap::new();
                 data.insert(DataFieldType::Verified, json!(true));
                 data.insert(DataFieldType::StoreID, json!(store_id.clone()));
+                data.insert(DataFieldType::IsDefault, json!(is_default));
                 let mut stores_ptr = store.stores.borrow_mut();
                 if let Some(store) = stores_ptr.get_mut(&store_id.clone()) {
                     store.verified = true;
@@ -244,6 +254,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             verified: true,
                         },
                     );
+                }
+                if is_default {
+                    store.default_store.borrow_mut().replace(store_id.clone());
                 }
                 (
                     SessionStore {
@@ -284,13 +297,14 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }),
                 )
             }
-            SessionAction::Logout(store_id) => {
-                debug!("logout action");
-                debug!("stores: {:?}", store.stores.clone());
+            SessionAction::Logout(store_id, acknowledgement_opt) => {
+                if let Some(store) = LISTENER_PORT.lock().unwrap().get_mut(&store_id) {
+                    ports_to_disconnect.extend(store.clone());
+                }
+
                 if let Some(target_store) = store.stores.clone().borrow_mut().get_mut(&store_id) {
                     debug!("target store: {:?}", target_store);
                     if (*target_store).verified {
-                        // clear_ports = true;
                         let mut data = HashMap::new();
                         data.insert(DataFieldType::StoreID, json!(store_id));
                         target_store.storage_status = StorageStatus::Uninitialized;
@@ -672,17 +686,22 @@ impl Reducer<SessionStore> for SessionActionWrapper {
         };
         if let Some(session_event) = session_event {
             if session_event.is_global {
-                api::extension_api::broadcast_session_event(session_event.clone());
-                if clear_ports {
-                    let locked = EXTENSION_PORT.lock();
-                    let mut extension_ports = locked.unwrap();
-                    extension_ports.iter().for_each(|(_, port)| {
-                        port.disconnect();
-                    });
-                    extension_ports.clear();
-                    LISTENER_PORT.lock().unwrap().clear();
-                    trace!("cleared all ports in service worker");
-                }
+                api::extension_api::broadcast_session_event(
+                    session_event.clone(),
+                    Some(ports_to_disconnect.clone()),
+                );
+                // for port_name in ports_to_disconnect {
+                //     let locked = EXTENSION_PORT.lock();
+                //     let mut extension_ports = locked.unwrap();
+                //     extension_ports.iter().for_each(|(_, port)| {
+                //         if port.name() == port_name {
+                //             port.disconnect();
+                //         }
+                //     });
+                //     extension_ports.clear();
+                //     // LISTENER_PORT.lock().unwrap().clear();
+                //     trace!("cleared all ports in service worker");
+                // }
             } else {
                 if let Some(extension_port_name) = extension_port_name {
                     if let Some(extension_port) =

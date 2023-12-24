@@ -40,12 +40,12 @@ pub fn process_native_message(
                 let login_response2 = login_response.clone();
                 let mut ctx = ctx.unwrap_or(json!({}));
                 ctx["store_id"] = json!(login_request.store_id);
+                ctx["is_default"] = json!(login_request.is_default);
                 ctx["acknowledgement"] = json!(login_request.acknowledgement);
                 wasm_bindgen_futures::spawn_local(async move {
                     let login_response = login_response2;
                     match login_response.status {
                         Status::Success => {
-                            dbg!(&login_response);
                             session_store_dispatch.apply(SessionActionWrapper {
                                 action: SessionAction::Login,
                                 meta: Some(ctx),
@@ -61,8 +61,9 @@ pub fn process_native_message(
                 let response = ResponseEnum::LoginResponse(login_response);
                 return Ok(response);
             } else {
-                error!("response is for login request but request type is not login. Request: {:?}, Response: {:?}",request,login_response);
-                todo!()
+                return Err(
+                    "response is for login request but request type is not login".to_owned(),
+                );
             }
         }
         ResponseEnum::LogoutResponse(logout_response) => {
@@ -72,7 +73,10 @@ pub fn process_native_message(
                 match logout_response.status {
                     Status::Success => {
                         session_store_dispatch.apply(SessionActionWrapper {
-                            action: SessionAction::Logout(logout_response.store_id),
+                            action: SessionAction::Logout(
+                                logout_response.store_id,
+                                logout_response.acknowledgement,
+                            ),
                             meta: None,
                         });
                     }

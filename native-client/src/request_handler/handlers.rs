@@ -238,10 +238,6 @@ pub fn handle_fetch_request(
             let mut locked_store = store.lock()?;
             locked_store.reload_password_list()?;
             let encrypted_password_entries = locked_store.get_entries(None)?;
-            debug!(
-                "encrypted_password_entries: {:?}",
-                encrypted_password_entries
-            );
             let decrypted_password_entries = encrypted_password_entries
                         .iter()
                         .filter_map(|encrypted_password_entry| {
@@ -468,7 +464,6 @@ pub fn handle_login_request(
             }
         }
         Err(e) => {
-            debug!("Failed to verify passphrase: {:?}", e);
             return Err(Error::GenericDyn(format!(
                 "Failed to verify passphrase: {:?}",
                 e

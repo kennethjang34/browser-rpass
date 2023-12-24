@@ -32,6 +32,10 @@ pub enum SessionEventType {
 #[serde(rename_all = "snake_case")]
 pub enum DataFieldType {
     HomeDir,
+    IsDefault,
+    DefaultStoreID,
+    DefaultStoreAvailable,
+    ContentScript,
     Request,
     SigningKey,
     StoreDir,
@@ -64,6 +68,11 @@ pub enum DataFieldType {
     Status,
     Acknowledgement,
     Data,
+}
+impl fmt::Display for DataFieldType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", to_variant_name(&self).unwrap())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -143,6 +152,7 @@ pub struct FetchRequest {
 #[serde(tag = "type", rename = "login")]
 pub struct LoginRequest {
     pub store_id: Option<String>,
+    pub is_default: bool,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
     pub header: Option<HashMap<String, String>>,
@@ -399,8 +409,10 @@ impl RequestEnum {
     pub fn create_login_request(
         acknowledgement: Option<String>,
         store_id: Option<String>,
+        is_default: bool,
     ) -> RequestEnum {
         RequestEnum::Login(LoginRequest {
+            is_default,
             store_id,
             acknowledgement: {
                 if acknowledgement.is_some() {

@@ -35,7 +35,8 @@ fn port_disconnect_handler(_port: Port) {
         .on_message()
         .add_listener(create_message_listener(&new_port).into_js_value());
     let acknowledgement = create_request_acknowledgement();
-    let init_config = HashMap::new();
+    let mut init_config = HashMap::new();
+    init_config.insert(DataFieldType::ContentScript, "true".to_string());
     let init_request =
         RequestEnum::create_init_request(init_config, Some(acknowledgement.clone()), None);
     new_port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
@@ -68,13 +69,14 @@ pub enum StoreStatus {
 pub struct StoreData {
     pub accounts: Mrc<Vec<Rc<Account>>>,
     pub storage_status: StorageStatus,
+    pub store_id: Option<String>,
+    pub verified: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct ContentScriptStore {
     pub page_loading: bool,
     pub alert_input: AlertInput,
-    pub verified: bool,
     pub status: StoreStatus,
     pub data: StoreData,
     pub path: Option<String>,
@@ -84,19 +86,19 @@ pub struct ContentScriptStore {
 pub enum LoginAction {
     LoginStarted,
     LoginError,
-    LoginSucceeded,
+    LoginSucceeded(Option<HashMap<DataFieldType, Value>>),
     LoginFailed,
     LogoutSucceeded,
     LogoutFailed,
     LogoutStarted,
     Logout,
-    Login,
+    Login(Option<HashMap<DataFieldType, Value>>),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum DataAction {
     ResourceFetchStarted(Resource),
-    Init(Value),
+    Init(HashMap<DataFieldType, Value>),
     ResourceDeleted(Resource, HashMap<DataFieldType, Value>),
     ResourceCreated(Resource, HashMap<DataFieldType, Value>),
     ResourceDeletionFailed(Resource, HashMap<DataFieldType, Value>),
@@ -211,11 +213,22 @@ impl Reducer<ContentScriptStore> for DataAction {
                     .into(),
                 }
             }
-            DataAction::Init(data) => ContentScriptStore {
-                verified: data
-                    .get("verified")
-                    .map_or(false, |v| v.as_bool().unwrap_or(false)),
-                ..state.deref().clone()
+            DataAction::Init(data) => {
+                let default_store_available = data
+                    .get(&DataFieldType::DefaultStoreAvailable)
+                    .map_or(false, |v| v.as_bool().unwrap_or(false));
+                let store_id = data
+                    .get(&DataFieldType::DefaultStoreID)
+                    .map_or(None, |v| v.as_str().map_or(None, |v| Some(v.to_string())));
+                debug!("init event!!!: {:?}", data);
+                ContentScriptStore {
+                    data: StoreData {
+                        store_id,
+                        verified: default_store_available,
+                        ..state.data.clone()
+                    },
+                    ..state.deref().clone()
+                }
             }
             .into(),
             DataAction::ResourceCreationFailed(_resource, _session_event_wrapper) => {
@@ -244,9 +257,18 @@ impl Reducer<ContentScriptStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LoginSucceeded => ContentScriptStore {
+            LoginAction::LoginSucceeded(data) => ContentScriptStore {
+                data: StoreData {
+                    accounts: Mrc::new(vec![]),
+                    verified: true,
+                    store_id: data
+                        .as_ref()
+                        .and_then(|v| v.get(&DataFieldType::DefaultStoreID))
+                        .and_then(|v| v.as_str())
+                        .map(|v| v.to_string()),
+                    ..store.deref().clone().data
+                },
                 page_loading: false,
-                verified: true,
                 ..store.deref().clone()
             }
             .into(),
@@ -257,9 +279,9 @@ impl Reducer<ContentScriptStore> for LoginAction {
             .into(),
             LoginAction::LogoutSucceeded => ContentScriptStore {
                 page_loading: false,
-                verified: false,
                 status: StoreStatus::Success,
                 data: StoreData {
+                    verified: false,
                     accounts: Mrc::new(vec![]),
                     ..store.deref().clone().data
                 },
@@ -278,19 +300,29 @@ impl Reducer<ContentScriptStore> for LoginAction {
             }
             .into(),
             LoginAction::Logout => ContentScriptStore {
-                verified: false,
                 page_loading: false,
                 data: StoreData {
                     accounts: Mrc::new(vec![]),
+                    verified: false,
+
                     ..store.deref().clone().data
                 },
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::Login => {
-                dbg!("login event!!!");
+            LoginAction::Login(data) => {
+                debug!("login event!!!: {:?}", data);
                 ContentScriptStore {
-                    verified: true,
+                    data: StoreData {
+                        accounts: Mrc::new(vec![]),
+                        verified: true,
+                        store_id: data
+                            .as_ref()
+                            .and_then(|v| v.get(&DataFieldType::DefaultStoreID))
+                            .and_then(|v| v.as_str())
+                            .map(|v| v.to_string()),
+                        ..store.deref().clone().data
+                    },
                     page_loading: false,
                     ..store.deref().clone()
                 }
@@ -319,7 +351,8 @@ impl Store for ContentScriptStore {
 impl ContentScriptStore {
     pub fn load() {
         let acknowledgement = create_request_acknowledgement();
-        let init_config = HashMap::new();
+        let mut init_config = HashMap::new();
+        init_config.insert(DataFieldType::ContentScript, "true".to_string());
         let init_request =
             RequestEnum::create_init_request(init_config, Some(acknowledgement.clone()), None);
         EXTENSION_PORT

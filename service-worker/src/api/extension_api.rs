@@ -1,18 +1,20 @@
+use std::collections::HashSet;
+
 use browser_rpass::{
     js_binding::extension_api::*,
     request::{SessionEvent, SessionEventType},
     response::{MessageEnum, RequestEnum},
 };
 use gloo_utils::format::JsValueSerdeExt;
-use log::info;
+use log::*;
 use wasm_bindgen::JsValue;
 
 use crate::store::{EXTENSION_PORT, LISTENER_PORT};
 
-pub fn broadcast_session_event(session_event: SessionEvent) {
-    info!("broadcast_session_event: {:?}", session_event);
-    // if let Some(ref resources) = session_event.resource {
-    // for resource in resources {
+pub fn broadcast_session_event(
+    session_event: SessionEvent,
+    ports_to_disconnect: Option<HashSet<String>>,
+) {
     let event_type = session_event.event_type.clone();
     match event_type {
         SessionEventType::Create
@@ -21,8 +23,8 @@ pub fn broadcast_session_event(session_event: SessionEvent) {
         | SessionEventType::Refreshed => {}
         _ => {}
     }
-    let locked = LISTENER_PORT.lock().unwrap();
-    let listeners = locked.get(session_event.store_id.as_ref().unwrap());
+    let mut locked = LISTENER_PORT.lock().unwrap();
+    let listeners = locked.get_mut(session_event.store_id.as_ref().unwrap());
     if let Some(listeners) = listeners {
         for port in EXTENSION_PORT.lock().unwrap().values() {
             if listeners.contains(&port.name()) {
@@ -35,20 +37,10 @@ pub fn broadcast_session_event(session_event: SessionEvent) {
                 port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&request).unwrap());
             }
         }
+        if let Some(ports_to_disconnect) = ports_to_disconnect.clone() {
+            listeners.retain(|port_name| !ports_to_disconnect.contains(port_name));
+        }
     }
-    // }
-    // } else {
-    //     for port in EXTENSION_PORT.lock().unwrap().values() {
-    //         if let Some(ref _meta) = session_event.meta {}
-    //         let request = MessageEnum::Message(RequestEnum::create_session_event_request(
-    //             None,
-    //             session_event.clone(),
-    //             None,
-    //             None,
-    //         ));
-    //         port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&request).unwrap());
-    //     }
-    // }
 }
 pub fn whisper_session_event(session_event: SessionEvent, port: &Port) {
     let msg = MessageEnum::Message(RequestEnum::create_session_event_request(
@@ -57,5 +49,6 @@ pub fn whisper_session_event(session_event: SessionEvent, port: &Port) {
         None,
         None,
     ));
+    debug!("whisper_session_event: {:?}", msg);
     port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&msg).unwrap());
 }

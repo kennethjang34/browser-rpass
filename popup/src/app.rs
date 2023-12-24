@@ -33,7 +33,6 @@ pub fn App() -> Html {
                         .collect::<Vec<Tab>>();
                     let dispatch = Dispatch::<PopupStore>::new();
                     let tab = tabs.get(0).unwrap();
-                    let _tab_id = tab.id();
                     let host_name = url::Url::parse(&tab.url().unwrap())
                         .unwrap()
                         .host_str()

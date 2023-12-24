@@ -7,6 +7,8 @@ mod error_toast;
 mod form_input;
 mod loading_indicator;
 mod search_input;
+mod simple_popup;
+mod store_switcher;
 pub use account_entry::*;
 pub use account_entry_list::*;
 pub use close_button::*;
@@ -15,8 +17,14 @@ pub use edit_account_popup::*;
 pub use error_toast::*;
 pub use form_input::*;
 pub use loading_indicator::*;
+use log::debug;
 pub use search_input::*;
-use yew::{classes, function_component, html, AttrValue, Classes, Html, Properties};
+pub use simple_popup::*;
+pub use store_switcher::*;
+use web_sys::MouseEvent;
+use yew::{
+    classes, function_component, html, AttrValue, Callback, Classes, Html, NodeRef, Properties,
+};
 
 #[function_component(PlusSign)]
 pub fn plus_sign() -> Html {
@@ -113,5 +121,71 @@ pub fn sun_icon(props: &IconProps) -> Html {
                             <svg class={classes!("fill-gray-500", props.class.clone())} style={props.style.clone()} fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
                             </svg>
+    }
+}
+#[derive(Properties, PartialEq, Clone, Eq, Debug, Hash)]
+pub struct DropdownOption {
+    pub name: String,
+    pub value: String,
+}
+#[derive(Properties, PartialEq, Clone, Debug)]
+pub struct DropdownProps {
+    #[prop_or_default]
+    pub class: Classes,
+    #[prop_or_default]
+    pub style: AttrValue,
+    #[prop_or_default]
+    pub id: AttrValue,
+    #[prop_or_default]
+    pub node_ref: Option<NodeRef>,
+    #[prop_or_default]
+    pub on_select: Option<Callback<DropdownOption>>,
+    #[prop_or_default]
+    pub on_menu_click: Option<Callback<MouseEvent>>,
+    #[prop_or_default]
+    pub options: Vec<DropdownOption>,
+}
+
+#[function_component(Dropdown)]
+pub fn dropdown(props: &DropdownProps) -> Html {
+    let DropdownProps { class, style, .. } = props;
+    let on_select = props.on_select.clone();
+    html! {
+        <div
+            style={style.clone()}
+            class={classes!("dropdown-menu",class.clone())}
+            onclick={props.on_menu_click.clone()}
+            >
+                <ul class={classes!("dropdown-item-list")}>
+                { props.options.iter().cloned().map(|option| {
+                    let name = option.name.clone();
+                    html! {
+                        <li
+                            class="dropdown-item"
+                            id={option.value.clone()}
+                            onmousedown=
+                            {
+                                Callback::from(
+                                    {
+                                        let option = option.clone();
+                                        let on_select = on_select.clone();
+                                        move |event:MouseEvent| {
+                                            event.prevent_default();
+                                            if let Some(ref on_select) = on_select {
+                                                debug!("option selected: {:?}", option);
+                                                on_select.emit(option.clone());
+                                            }
+                                       }
+                                    }
+                                )
+                            }
+                            >
+                            {name}
+                        </li>
+                    }
+                }).collect::<Html>()
+                }
+                </ul>
+        </div>
     }
 }

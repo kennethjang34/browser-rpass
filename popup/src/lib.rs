@@ -16,6 +16,8 @@ pub use gloo_utils::format::JsValueSerdeExt;
 #[warn(unused_imports)]
 use log::{self, *};
 use std::panic;
+use std::rc::Rc;
+use yew::Reducible;
 use yewdux::dispatch::Dispatch;
 
 mod api;
@@ -49,7 +51,6 @@ pub async fn run_app() -> Result<(), JsValue> {
         ),
     )
     .await?;
-    debug!("tabs: {:?}", tabs);
     let tabs: Value = <JsValue as JsValueSerdeExt>::into_serde(&tabs).unwrap();
     let tabs = tabs.as_array().unwrap();
     let tabs = tabs
@@ -61,8 +62,8 @@ pub async fn run_app() -> Result<(), JsValue> {
         })
         .collect::<Vec<Tab>>();
     let tab = tabs.get(0).unwrap();
-    let tab_id = tab.id();
-    let persisted = PopupStore::load_tab_storage(tab_id).await;
+    let window_id = tab.window_id();
+    let persisted = PopupStore::load_window_storage(&window_id.to_string()).await;
     if let Some(parsed_state) = persisted {
         let mut popup_store = PopupStore::default();
         popup_store.persistent_data = parsed_state;
@@ -73,12 +74,11 @@ pub async fn run_app() -> Result<(), JsValue> {
         } else {
             let _ = document().body().unwrap().class_list().remove_1("dark");
         }
-        popup_store.tab_id = Some(tab_id);
-        debug!("popup_store: {:?}", popup_store);
+        popup_store.window_id = Some(window_id.to_string());
         Dispatch::<PopupStore>::new().set(popup_store);
     } else {
         Dispatch::<PopupStore>::new().set(PopupStore {
-            tab_id: Some(tab_id),
+            window_id: Some(window_id.to_string()),
             ..Default::default()
         })
     }
@@ -93,4 +93,35 @@ pub async fn run_app() -> Result<(), JsValue> {
 
     yew::Renderer::<app::App>::new().render();
     Ok(())
+}
+
+#[derive(Clone, Debug, Default, Copy)]
+pub struct BoolState {
+    value: bool,
+}
+impl From<&BoolState> for bool {
+    fn from(state: &BoolState) -> bool {
+        state.value
+    }
+}
+impl From<BoolState> for bool {
+    fn from(state: BoolState) -> bool {
+        state.value
+    }
+}
+#[derive(Clone, Debug)]
+pub enum BoolStateAction {
+    ToggleAction,
+    SetAction(bool),
+}
+
+impl Reducible for BoolState {
+    type Action = BoolStateAction;
+    fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
+        let next_value = match action {
+            BoolStateAction::ToggleAction => !self.value,
+            BoolStateAction::SetAction(value) => value,
+        };
+        Self { value: next_value }.into()
+    }
 }
