@@ -16,7 +16,7 @@ use crate::{store_api::*, util::*, PasswordStoreType, StoreListType};
 
 pub fn handle_edit_request(
     request: EditRequest,
-    store: &PasswordStoreType,
+    store: &Arc<Mutex<PasswordStore>>,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<EditResponse> {
     let value = &request.value;
@@ -43,7 +43,7 @@ pub fn handle_edit_request(
                 .get(&DataFieldType::CustomField)
                 .map(|v| v.as_object())
                 .flatten();
-            let updated_data = store.lock()?.lock()?.update_default_entry_fields(
+            let updated_data = store.lock()?.update_default_entry_fields(
                 &request.id,
                 domain,
                 username,
@@ -58,6 +58,7 @@ pub fn handle_edit_request(
                 Ok(updated_data) => {
                     data.insert(DataFieldType::UpdatedFields, updated_data.clone());
                     let edit_response = EditResponse {
+                        store_id: store.lock()?.get_name().clone(),
                         acknowledgement: request.acknowledgement,
                         data,
                         status: Status::Success,
@@ -83,7 +84,7 @@ pub fn handle_edit_request(
 
 pub fn handle_get_request(
     request: GetRequest,
-    store: &PasswordStoreType,
+    store: &Arc<Mutex<PasswordStore>>,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<GetResponse> {
     let resource = request.resource;
@@ -92,7 +93,6 @@ pub fn handle_get_request(
     match resource {
         Resource::Account => {
             let locked_store = store.lock()?;
-            let locked_store = locked_store.lock()?;
             let encrypted_password_entry = locked_store.get_entry(&id);
             let password_entry =
                 encrypted_password_entry.and_then(|encrypted_password_entry: PasswordEntry| {
@@ -147,7 +147,7 @@ pub fn handle_get_request(
 }
 pub fn handle_search_request(
     request: SearchRequest,
-    store: &PasswordStoreType,
+    store: &Arc<Mutex<PasswordStore>>,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<SearchResponse> {
     let resource = request.resource;
@@ -157,7 +157,7 @@ pub fn handle_search_request(
         Resource::Account => {
             let encrypted_password_entries = &filter_entries(&store, &query)?;
             let locked_store = store.lock()?;
-            let locked_store = &*locked_store.lock()?;
+            // let locked_store = &*locked_store.lock()?;
             let decrypted_password_entries = encrypted_password_entries
                 .iter()
                 .filter_map(|encrypted_password_entry| {
@@ -169,7 +169,7 @@ pub fn handle_search_request(
                             "password".to_owned(),
                             serde_json::Value::String(
                                 encrypted_password_entry
-                                    .secret(locked_store, passphrase_provider.clone())
+                                    .secret(&locked_store, passphrase_provider.clone())
                                     .unwrap_or("failed to decrypt password".to_string()),
                             ),
                         );
@@ -185,6 +185,7 @@ pub fn handle_search_request(
                     if let Some(data_arr) = data_value.as_array().cloned() {
                         data.insert(DataFieldType::Data, data_arr.into());
                         SearchResponse {
+                            store_id: locked_store.get_name().clone(),
                             data,
                             acknowledgement: acknowledgement.clone(),
                             status: Status::Success,
@@ -193,6 +194,7 @@ pub fn handle_search_request(
                         }
                     } else {
                         SearchResponse {
+                            store_id: locked_store.get_name().clone(),
                             data,
                             acknowledgement: acknowledgement.clone(),
                             status: Status::Failure,
@@ -204,6 +206,7 @@ pub fn handle_search_request(
                     }
                 } else {
                     SearchResponse {
+                        store_id: locked_store.get_name().clone(),
                         data,
                         acknowledgement,
                         status: Status::Failure,
@@ -225,15 +228,15 @@ pub fn handle_search_request(
 }
 pub fn handle_fetch_request(
     request: FetchRequest,
-    store: &PasswordStoreType,
+    store: &Arc<Mutex<PasswordStore>>,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<FetchResponse> {
     let resource = request.resource;
     let acknowledgement = request.acknowledgement;
     match resource {
         Resource::Account => {
-            let locked_store = store.lock()?;
-            let locked_store = &*locked_store.lock()?;
+            let mut locked_store = store.lock()?;
+            locked_store.reload_password_list()?;
             let encrypted_password_entries = locked_store.get_entries(None)?;
             let decrypted_password_entries = encrypted_password_entries
                         .iter()
@@ -244,8 +247,13 @@ pub fn handle_fetch_request(
                             if let Ok(mut json_value) =
                                 json_value_res
                             {
+                                if let Some(passphrase_provider)=passphrase_provider.clone(){
+                                    if passphrase_provider.passphrases.read().unwrap().get(locked_store.get_name()).is_none(){
+                                        locked_store.try_passphrase(Some(passphrase_provider.clone())).unwrap();
+                                    }
+                                }
                                 if let Ok(decrypted) = encrypted_password_entry
-                                    .secret(locked_store, passphrase_provider.clone())
+                                    .secret(&locked_store, passphrase_provider.clone())
                                 {
                                     if let Ok(decrypted) =
                                         serde_json::from_str::<serde_json::Value>(&decrypted)
@@ -271,6 +279,7 @@ pub fn handle_fetch_request(
                     if let Some(data_arr) = data_value.as_array().cloned() {
                         data.insert(DataFieldType::Data, json!(data_arr));
                         FetchResponse {
+                            store_id: locked_store.get_name().clone(),
                             data,
                             meta: Some(json!({"custom_field_prefix":CUSTOM_FIELD_PREFIX})),
                             resource,
@@ -279,6 +288,7 @@ pub fn handle_fetch_request(
                         }
                     } else {
                         FetchResponse {
+                            store_id: locked_store.get_name().clone(),
                             data,
                             meta: None,
                             resource,
@@ -288,6 +298,7 @@ pub fn handle_fetch_request(
                     }
                 } else {
                     FetchResponse {
+                        store_id: locked_store.get_name().clone(),
                         data,
                         meta: None,
                         resource,
@@ -307,7 +318,7 @@ pub fn handle_fetch_request(
     };
 }
 pub fn handle_init_request(request: InitRequest) -> pass::Result<StoreListType> {
-    let home_dir = request.config.get("home_dir");
+    let home_dir = request.config.get(&DataFieldType::HomeDir).cloned();
     let home = {
         if home_dir.is_some() {
             home_dir.map(|s| PathBuf::from(s))
@@ -318,7 +329,7 @@ pub fn handle_init_request(request: InitRequest) -> pass::Result<StoreListType> 
             }
         }
     };
-    let store_dir = request.config.get("store_dir").cloned();
+    let store_dir = request.config.get(&DataFieldType::StoreDir).cloned();
     let password_store_dir = {
         if store_dir.is_some() {
             store_dir
@@ -329,7 +340,7 @@ pub fn handle_init_request(request: InitRequest) -> pass::Result<StoreListType> 
             }
         }
     };
-    let password_store_signing_key = request.config.get("password_store_signing_key").cloned();
+    let password_store_signing_key = request.config.get(&DataFieldType::SigningKey).cloned();
     let password_store_signing_key = {
         if password_store_signing_key.is_some() {
             password_store_signing_key
@@ -397,42 +408,42 @@ pub fn handle_init_request(request: InitRequest) -> pass::Result<StoreListType> 
 }
 pub fn handle_login_request(
     request: LoginRequest,
-    stores: &StoreListType,
+    store: &Arc<Mutex<PasswordStore>>,
     passphrase_provider: Option<Handler>,
-) -> pass::Result<PasswordStoreType> {
-    let store_name = request.store_id;
-    let store = {
-        let stores_locked = stores.lock()?;
-        let filtered = stores_locked
-            .iter()
-            .filter(|s| {
-                s.lock()
-                    .map(|s| s.get_name() == &store_name)
-                    .unwrap_or(false)
-            })
-            .collect::<Vec<_>>();
-        if filtered.len() == 0 {
-            return Err(Error::GenericDyn(format!(
-                "No store found for username: {}",
-                store_name
-            )));
-        }
-        filtered[0].clone()
-    };
-    let store: PasswordStoreType = Arc::new(Mutex::new(store));
-    let res = store.lock()?.lock()?.reload_password_list();
+) -> pass::Result<&Arc<Mutex<PasswordStore>>> {
+    let store_name = request.store_id.unwrap();
+    // let store = {
+    //     let stores_locked = stores.lock()?;
+    //     let filtered = stores_locked
+    //         .iter()
+    //         .filter(|s| {
+    //             s.lock()
+    //                 .map(|s| s.get_name() == &store_name)
+    //                 .unwrap_or(false)
+    //         })
+    //         .collect::<Vec<_>>();
+    //     if filtered.len() == 0 {
+    //         return Err(Error::GenericDyn(format!(
+    //             "No store found for username: {}",
+    //             store_name
+    //         )));
+    //     }
+    //     filtered[0].clone()
+    // };
+    // let store: PasswordStoreType = Arc::new(Mutex::new(store));
+    let res = store.lock()?.reload_password_list();
     if let Err(err) = res {
         return Err(err);
     }
 
     // verify that the git config is correct (note: name field is not used for gpg
     // signing/encryption per se, but it is to record the user who made the commit)
-    if !store.lock()?.lock()?.has_configured_username() {
+    if !store.lock()?.has_configured_username() {
         Err(Error::GenericDyn(
             "Git user.name and user.email must be configured".to_string(),
         ))?;
     }
-    for password in &store.lock()?.lock()?.passwords {
+    for password in &store.lock()?.passwords {
         if password.is_in_git == pass::RepositoryStatus::NotInRepo {
             Err(Error::GenericDyn(
                 format!(
@@ -443,7 +454,7 @@ pub fn handle_login_request(
             ))?;
         }
     }
-    let verified = store.lock()?.lock()?.try_passphrase(passphrase_provider);
+    let verified = store.lock()?.try_passphrase(passphrase_provider);
     match verified {
         Ok(verified) => {
             if verified {
@@ -453,7 +464,6 @@ pub fn handle_login_request(
             }
         }
         Err(e) => {
-            debug!("Failed to verify passphrase: {:?}", e);
             return Err(Error::GenericDyn(format!(
                 "Failed to verify passphrase: {:?}",
                 e
@@ -463,19 +473,42 @@ pub fn handle_login_request(
 }
 pub fn handle_logout_request(
     request: LogoutRequest,
-    _store: &PasswordStoreType,
+    _store: &Arc<Mutex<PasswordStore>>,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<()> {
     let _acknowledgement = request.acknowledgement;
     let _status = Status::Success;
     if let Some(passphrase_provider) = passphrase_provider {
-        passphrase_provider.passphrases.write().unwrap().clear();
+        if let Some(store_id) = request.store_id {
+            let user_id_hint = passphrase_provider
+                .recipient_to_user_id_hint
+                .lock()
+                .unwrap()
+                .get(&store_id)
+                .or(Some(&store_id.to_string()))
+                .ok_or_else(|| {
+                    Error::GenericDyn(format!(
+                        "Failed to get user_id_hint for store: {:?}",
+                        store_id
+                    ))
+                })
+                .cloned();
+            let user_id_hint = user_id_hint?;
+            passphrase_provider
+                .passphrases
+                .write()
+                .unwrap()
+                .remove(&user_id_hint)
+                .expect("failed to remove passphrase");
+        } else {
+            passphrase_provider.passphrases.write().unwrap().clear();
+        }
     }
     Ok(())
 }
 pub fn handle_create_request(
     request: CreateRequest,
-    store: &PasswordStoreType,
+    store: &Arc<Mutex<PasswordStore>>,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<CreateResponse> {
     let username = request.username;
@@ -488,8 +521,7 @@ pub fn handle_create_request(
     let status;
     match resource {
         Resource::Account => {
-            let locked_store = store.lock()?;
-            let mut locked_store = locked_store.lock()?;
+            let mut locked_store = store.lock()?;
             let mut data = HashMap::new();
             let status = match locked_store.create_entry(
                 username.as_deref(),
@@ -532,6 +564,7 @@ pub fn handle_create_request(
                 }
             };
             let create_response: CreateResponse = CreateResponse {
+                store_id: locked_store.get_name().clone(),
                 acknowledgement,
                 data,
                 meta: None,
@@ -549,17 +582,14 @@ pub fn handle_create_request(
 }
 pub fn handle_delete_request(
     request: DeleteRequest,
-    store: &PasswordStoreType,
+    store: &Arc<Mutex<PasswordStore>>,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<DeleteResponse> {
     let id = request.id;
     let acknowledgement = request.acknowledgement;
     let mut data = HashMap::new();
     let status = {
-        let res = store
-            .lock()?
-            .lock()?
-            .delete_entry(&(id), passphrase_provider);
+        let res = store.lock()?.delete_entry(&(id), passphrase_provider);
         match res {
             Ok(entry_data) => {
                 data.insert(
@@ -576,6 +606,8 @@ pub fn handle_delete_request(
         }
     };
     let delete_response = DeleteResponse {
+        // store_id: store.lock().unwrap().lock().unwrap().get_name().clone(),
+        deleted_resource_id: id,
         acknowledgement,
         data,
         status,

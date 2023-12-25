@@ -17,16 +17,18 @@ use super::account_entry::AccountEntry;
 #[derive(Debug, PartialEq, Properties, Clone)]
 pub struct AccountEntryListProps {
     pub accounts: Rc<Vec<Rc<Account>>>,
+    pub store_id: String,
 }
 
 #[function_component(AccountEntryList)]
 pub fn account_entry_list_component(props: &AccountEntryListProps) -> Html {
     let delete_account = {
+        let store_id = props.store_id.clone();
         Callback::<(MouseEvent, Rc<Account>)>::from({
             move |(e, account): (MouseEvent, Rc<Account>)| {
                 e.prevent_default();
                 let id = account.id.clone();
-                delete_resource(id.clone(), Resource::Account);
+                delete_resource(id.clone(), Resource::Account, Some(store_id.clone()));
             }
         })
     };
@@ -91,7 +93,7 @@ pub fn account_entry_list_component(props: &AccountEntryListProps) -> Html {
             {account_list_component}
             if let Some(account) = (*show_edit_account).clone(){
                 <div class="fullscreen-container">
-                    <EditAccountPopup account={account.clone()} handle_close={close_edit_account_popup.clone()}/>
+                    <EditAccountPopup account={account.clone()} handle_close={close_edit_account_popup.clone()} store_id={props.store_id.clone()}/>
                 </div>
             }
         </>

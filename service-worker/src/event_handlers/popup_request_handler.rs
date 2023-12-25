@@ -1,11 +1,12 @@
+use crate::api::extension_api::whisper_session_event;
 use crate::store::SessionAction;
 use crate::store::SessionActionWrapper;
 use crate::store::SessionStore;
+use crate::store::StoreData;
 use crate::store::EXTENSION_PORT;
 use crate::store::LISTENER_PORT;
 use crate::store::PORT_ID_MAP;
 use crate::store::REQUEST_MAP;
-use crate::Resource;
 use browser_rpass::js_binding::extension_api::*;
 use browser_rpass::types::Account;
 use browser_rpass::types::StorageStatus;
@@ -23,13 +24,14 @@ use serde_json;
 use serde_json::json;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::ops::Deref;
 use wasm_bindgen::prelude::Closure;
+use yewdux::mrc::Mrc;
 
 use crate::store::NATIVE_PORT;
 
 pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _native_port: Port) {
     let dispatch = Dispatch::<SessionStore>::new();
-    let meta = Some(json!({"requester_port_id":extension_port.name()}));
     wasm_bindgen_futures::spawn_local({
         let mut request = request.clone();
         let session_event_acknowledgement = request.get_acknowledgement().unwrap().clone();
@@ -53,56 +55,101 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                     acknowledgement
                 }
             };
-            if let RequestEnum::Init(_init_request) = request {
-                let dispatch = Dispatch::<SessionStore>::new();
-                if dispatch.get().current_store_id.is_some() {
+            if let RequestEnum::Init(init_request) = request {
+                let config = &init_request.config;
+                if config
+                    .get(&DataFieldType::ContentScript)
+                    .map(|v| v == "true")
+                    .unwrap_or(false)
+                {
+                    let stores = dispatch.get().stores.clone();
                     let mut data = HashMap::new();
-                    data.insert(DataFieldType::Verified, json!(false));
-                    data.insert(
-                        DataFieldType::StoreID,
-                        json!(dispatch.get().current_store_id.clone().unwrap_or_default()),
-                    );
-                    let mock_session_event = {
-                        SessionEvent {
-                            event_type: SessionEventType::Login,
-                            data: Some(data),
-                            meta,
-                            resource: None,
-                            is_global: false,
-                            acknowledgement: Some(session_event_acknowledgement.clone()),
+                    if let Some(default_store_id) =
+                        dispatch.get().default_store.clone().borrow().deref()
+                    {
+                        LISTENER_PORT
+                            .lock()
+                            .unwrap()
+                            .entry(default_store_id.clone())
+                            .and_modify(|v| {
+                                v.insert(extension_port.name());
+                            })
+                            .or_insert({
+                                let mut set = HashSet::new();
+                                set.insert(extension_port.name());
+                                set
+                            });
+                        if stores.borrow().get(default_store_id).is_none() {
+                            data.insert(
+                                DataFieldType::DefaultStoreAvailable,
+                                serde_json::to_value(false).unwrap(),
+                            );
+                        } else {
+                            data.insert(
+                                DataFieldType::DefaultStoreID,
+                                serde_json::to_value(default_store_id).unwrap(),
+                            );
+                            data.insert(
+                                DataFieldType::DefaultStoreAvailable,
+                                serde_json::to_value(true).unwrap(),
+                            );
                         }
+                    } else {
+                        data.insert(
+                            DataFieldType::DefaultStoreAvailable,
+                            serde_json::to_value(false).unwrap(),
+                        );
+                    }
+                    let session_event = SessionEvent {
+                        store_id: init_request.get_store_id(),
+                        event_type: SessionEventType::Init,
+                        data: Some(data),
+                        meta: None,
+                        resource: None,
+                        is_global: false,
+                        acknowledgement: init_request.get_acknowledgement(),
                     };
-                    let message = MessageEnum::Message(RequestEnum::create_session_event_request(
-                        Some(session_event_acknowledgement.clone()),
-                        mock_session_event.clone(),
-                        None,
-                    ));
-                    PORT_ID_MAP
-                        .lock()
-                        .unwrap()
-                        .insert(session_event_acknowledgement.clone(), extension_port.name());
-                    extension_port
-                        .post_message(<JsValue as JsValueSerdeExt>::from_serde(&message).unwrap());
+                    whisper_session_event(session_event, &extension_port);
+                } else {
+                    if let Some(store_id) = init_request.get_store_id() {
+                        LISTENER_PORT
+                            .lock()
+                            .unwrap()
+                            .entry(store_id)
+                            .and_modify(|v| {
+                                v.insert(extension_port.name());
+                            })
+                            .or_insert({
+                                let mut set = HashSet::new();
+                                set.insert(extension_port.name());
+                                set
+                            });
+                    }
+                    let store_ids = dispatch
+                        .get()
+                        .stores
+                        .clone()
+                        .borrow()
+                        .keys()
+                        .cloned()
+                        .collect::<Vec<String>>();
+                    let store_ids = serde_json::to_value(store_ids).unwrap();
+                    let mut data = HashMap::new();
+                    data.insert(DataFieldType::Data, store_ids);
+                    let session_event = SessionEvent {
+                        store_id: init_request.get_store_id(),
+                        event_type: SessionEventType::Init,
+                        data: Some(data),
+                        meta: None,
+                        resource: None,
+                        is_global: false,
+                        acknowledgement: init_request.get_acknowledgement(),
+                    };
+                    whisper_session_event(session_event, &extension_port);
                 }
-                LISTENER_PORT
-                    .lock()
-                    .unwrap()
-                    .entry(Resource::Auth)
-                    .and_modify(|v| {
-                        v.insert(extension_port.name());
-                    })
-                    .or_insert({
-                        let mut set = HashSet::new();
-                        set.insert(extension_port.name());
-                        set
-                    });
             } else {
                 let header = {
-                    let mut map = HashMap::new();
-                    let store_id = dispatch.get().current_store_id.clone();
-                    if let Some(store_id) = store_id {
-                        map.insert("store_id".to_owned(), store_id);
-                    }
+                    let map = HashMap::new();
                     map
                 };
                 request.set_header(header);
@@ -171,12 +218,25 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                     }
                     RequestEnum::Fetch(fetch_request) => {
                         let meta = Some(json!({"requester_port_id":extension_port.name()}));
-                        let data = dispatch.get().data.clone();
-                        let current_status = &dispatch.get().data.storage_status;
+                        let data = dispatch.get().stores.clone();
+                        let current_status = data
+                            .borrow_mut()
+                            .entry(fetch_request.store_id.clone().unwrap())
+                            .or_insert({
+                                StoreData {
+                                    accounts: Mrc::new(Vec::new()),
+                                    storage_status: StorageStatus::Uninitialized,
+                                    store_id: fetch_request.store_id.clone().unwrap(),
+                                    signing_key: None,
+                                    verified: false,
+                                }
+                            })
+                            .storage_status
+                            .clone();
                         LISTENER_PORT
                             .lock()
                             .unwrap()
-                            .entry(fetch_request.resource.clone())
+                            .entry(fetch_request.store_id.clone().unwrap())
                             .and_modify(|v| {
                                 v.insert(extension_port.name());
                             })
@@ -190,6 +250,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                                 dispatch.apply(SessionActionWrapper {
                                     meta,
                                     action: SessionAction::DataLoading(
+                                        fetch_request.store_id.clone().unwrap(),
                                         request.get_acknowledgement(),
                                     ),
                                 });
@@ -209,7 +270,13 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                             StorageStatus::Loading(_acknowledgement) => {}
                             StorageStatus::Loaded => {
                                 let resource = fetch_request.resource.clone();
-                                let accounts = data.accounts.clone();
+                                let store = dispatch.get().stores.clone();
+                                let accounts = store
+                                    .borrow()
+                                    .get(&fetch_request.store_id.clone().unwrap())
+                                    .unwrap()
+                                    .accounts
+                                    .clone();
                                 let mut data = HashMap::new();
                                 data.insert(
                                     DataFieldType::Data,
@@ -224,6 +291,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                                 );
                                 let mock_session_event = {
                                     SessionEvent {
+                                        store_id: fetch_request.store_id.clone(),
                                         event_type: SessionEventType::Refreshed,
                                         data: Some(data),
                                         meta,
@@ -238,6 +306,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                                     RequestEnum::create_session_event_request(
                                         None,
                                         mock_session_event.clone(),
+                                        fetch_request.store_id.clone(),
                                         None,
                                     ),
                                 );
@@ -249,6 +318,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                                 dispatch.apply(SessionActionWrapper {
                                     meta,
                                     action: SessionAction::DataLoading(
+                                        fetch_request.store_id.clone().unwrap(),
                                         request.get_acknowledgement(),
                                     ),
                                 });
@@ -256,6 +326,19 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                         }
                     }
                     RequestEnum::Login(login_request) => {
+                        LISTENER_PORT
+                            .lock()
+                            .unwrap()
+                            .entry(login_request.store_id.clone().unwrap())
+                            .and_modify(|v| {
+                                v.insert(extension_port.name());
+                            })
+                            .or_insert({
+                                let mut set = HashSet::new();
+                                set.insert(extension_port.name());
+                                set
+                            });
+
                         REQUEST_MAP
                             .lock()
                             .unwrap()
@@ -288,6 +371,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
     });
 }
 pub fn create_request_listener() -> Closure<dyn Fn(Port)> {
+    let native_port = NATIVE_PORT.lock().borrow().clone();
     let on_connect_with_popup_cb = Closure::<dyn Fn(Port)>::new(move |port: Port| {
         trace!("popup connected. Port info: {:?}", port);
         let mut ports = EXTENSION_PORT.lock().unwrap();
@@ -300,27 +384,29 @@ pub fn create_request_listener() -> Closure<dyn Fn(Port)> {
                 EXTENSION_PORT.lock().unwrap().remove(&port.name());
                 let locked = LISTENER_PORT.lock();
                 let mut port_map = locked.unwrap();
-                let mut resource_with_no_listeners = Vec::new();
-                for (resource, listeners) in port_map.iter_mut() {
+                let mut store_id_with_no_listeners = Vec::new();
+                for (store_id, listeners) in port_map.iter_mut() {
                     listeners.remove(&port.name());
                     if listeners.is_empty() {
-                        resource_with_no_listeners.push(resource.clone());
+                        store_id_with_no_listeners.push(store_id.clone());
                     }
                 }
                 drop(port_map);
-                resource_with_no_listeners.iter().for_each(|resource| {
-                    LISTENER_PORT.lock().unwrap().remove(resource);
+                store_id_with_no_listeners.iter().for_each(|store_id| {
+                    LISTENER_PORT.lock().unwrap().remove(store_id);
                 });
                 EXTENSION_PORT.lock().unwrap().remove(&port.name());
             })
             .into_js_value(),
         );
         let cb = Closure::<dyn Fn(JsValue, Port)>::new({
+            let native_port = native_port.clone();
             move |msg: JsValue, port: Port| {
+                let native_port = native_port.clone();
                 wasm_bindgen_futures::spawn_local(async move {
                     let request: RequestEnum =
                         <JsValue as JsValueSerdeExt>::into_serde(&msg).unwrap();
-                    handle_request_from_popup(request, port, NATIVE_PORT.lock().borrow().clone());
+                    handle_request_from_popup(request, port, native_port.clone());
                 });
             }
         });

@@ -6,9 +6,11 @@ use gloo::storage::errors::StorageError;
 use gloo_utils::document;
 use gloo_utils::format::JsValueSerdeExt;
 use lazy_static::lazy_static;
+#[allow(unused_imports)]
 use log::debug;
 use parking_lot::ReentrantMutex;
 use serde_json;
+use serde_json::json;
 use wasm_bindgen::prelude::Closure;
 use yewdux::mrc::Mrc;
 
@@ -86,7 +88,8 @@ pub enum LoginStatus {
     LoggedOut,
     #[default]
     Idle,
-    Loading,
+    LoginStarted(String),
+    LogoutStarted,
     LoginSuccess,
     LoginError,
     LogoutSuccess,
@@ -103,6 +106,7 @@ pub struct StoreData {
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct PersistentStoreData {
     pub store_id: Option<String>,
+    pub store_activated: bool,
     pub remember_me: bool,
     pub dark_mode: bool,
 }
@@ -112,11 +116,13 @@ pub struct PopupStore {
     pub persistent_data: PersistentStoreData,
     pub page_loading: bool,
     pub alert_input: AlertInput,
-    pub verified: bool,
     pub data_status: StoreDataStatus,
     pub login_status: LoginStatus,
     pub data: StoreData,
+    pub store_ids: Vec<String>,
     pub path: Option<String>,
+    pub window_id: Option<String>,
+    pub default_store_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -128,7 +134,7 @@ pub enum LoginAction {
     LogoutSucceeded(HashMap<DataFieldType, Value>),
     LogoutFailed(HashMap<DataFieldType, Value>),
     LogoutStarted(HashMap<DataFieldType, Value>),
-    Logout(HashMap<DataFieldType, Value>),
+    Logout(String, HashMap<DataFieldType, Value>),
     Login(String, HashMap<DataFieldType, Value>),
     LoginIdle,
     RememberMe(bool),
@@ -136,8 +142,9 @@ pub enum LoginAction {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum DataAction {
+    StoreIdSet(String),
     ResourceFetchStarted(Resource),
-    Init(Value),
+    Init(HashMap<DataFieldType, Value>),
     ResourceDeleted(Resource, HashMap<DataFieldType, Value>),
     ResourceCreated(Resource, HashMap<DataFieldType, Value>),
     ResourceEdited(Resource, HashMap<DataFieldType, Value>, String),
@@ -153,6 +160,7 @@ pub enum DataAction {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum PopupAction {
+    WindowIdSet(String),
     PathSet(Option<String>),
     DarkModeToggle,
 }
@@ -161,6 +169,11 @@ impl Reducer<PopupStore> for PopupAction {
         match self {
             PopupAction::PathSet(path) => PopupStore {
                 path,
+                ..state.deref().clone()
+            }
+            .into(),
+            PopupAction::WindowIdSet(window_id) => PopupStore {
+                window_id: Some(window_id),
                 ..state.deref().clone()
             }
             .into(),
@@ -186,6 +199,16 @@ impl Reducer<PopupStore> for PopupAction {
 impl Reducer<PopupStore> for DataAction {
     fn apply(self, state: Rc<PopupStore>) -> Rc<PopupStore> {
         match self {
+            DataAction::StoreIdSet(store_id) => {
+                PopupStore {
+                    persistent_data: PersistentStoreData {
+                        store_id: Some(store_id),
+                        ..state.persistent_data.clone()
+                    },
+                    ..state.deref().clone()
+                }
+            }
+            .into(),
             DataAction::ResourceCreationStarted(_resource, _data) => PopupStore {
                 page_loading: true,
                 data_status: StoreDataStatus::CreationStarted,
@@ -221,6 +244,15 @@ impl Reducer<PopupStore> for DataAction {
                             storage_status: StorageStatus::Loaded,
                             accounts: Mrc::new(accounts),
                             ..state_data
+                        },
+                        persistent_data: PersistentStoreData {
+                            store_id: data
+                                .get(&DataFieldType::StoreID)
+                                .map_or(state.persistent_data.store_id.clone(), |v| {
+                                    Some(v.as_str().unwrap().to_string())
+                                }),
+                            store_activated: true,
+                            ..state.persistent_data.clone()
                         },
                         data_status: StoreDataStatus::FetchSuccess,
                         ..state.deref().clone()
@@ -305,11 +337,25 @@ impl Reducer<PopupStore> for DataAction {
                     .into(),
                 }
             }
-            DataAction::Init(data) => PopupStore {
-                verified: data
-                    .get("verified")
-                    .map_or(false, |v| v.as_bool().unwrap_or(false)),
-                ..state.deref().clone()
+            DataAction::Init(data) => {
+                PopupStore {
+                    persistent_data: PersistentStoreData {
+                        ..state.persistent_data.clone()
+                    },
+                    store_ids: data
+                        .get(&DataFieldType::Data)
+                        .map_or(vec![], |v| {
+                            v.as_array()
+                                .unwrap_or(&vec![])
+                                .iter()
+                                .map(|v| v.as_str().unwrap_or("").to_owned())
+                                .collect::<Vec<String>>()
+                        })
+                        .into_iter()
+                        .filter(|v| !v.is_empty())
+                        .collect::<Vec<String>>(),
+                    ..state.deref().clone()
+                }
             }
             .into(),
             DataAction::ResourceCreationFailed(_resource, _session_event_wrapper) => {
@@ -350,22 +396,18 @@ impl Reducer<PopupStore> for LoginAction {
             LoginAction::LoginStarted(store_id, _data) => PopupStore {
                 page_loading: true,
                 persistent_data: PersistentStoreData {
-                    store_id: Some(store_id),
-                    remember_me: store.persistent_data.remember_me,
-                    dark_mode: store.persistent_data.dark_mode,
+                    ..store.persistent_data.clone()
                 },
-                login_status: LoginStatus::Loading,
+                login_status: LoginStatus::LoginStarted(store_id.clone()),
                 ..store.deref().clone()
             }
             .into(),
             LoginAction::LoginIdle => PopupStore {
-                page_loading: false,
                 login_status: LoginStatus::Idle,
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LoginError(_data, store_id) => {
-                debug!("LoginError: {:?}", store_id);
+            LoginAction::LoginError(_data, _store_id) => {
                 PopupStore {
                     page_loading: false,
                     login_status: LoginStatus::LoginError,
@@ -373,9 +415,17 @@ impl Reducer<PopupStore> for LoginAction {
                 }
             }
             .into(),
-            LoginAction::LoginSucceeded(_data) => PopupStore {
+            LoginAction::LoginSucceeded(data) => PopupStore {
                 page_loading: false,
-                verified: true,
+                persistent_data: PersistentStoreData {
+                    store_id: data
+                        .get(&DataFieldType::StoreID)
+                        .map_or(store.persistent_data.store_id.clone(), |v| {
+                            Some(v.as_str().unwrap().to_string())
+                        }),
+                    store_activated: true,
+                    ..store.persistent_data.clone()
+                },
                 login_status: LoginStatus::LoginSuccess,
                 ..store.deref().clone()
             }
@@ -388,15 +438,14 @@ impl Reducer<PopupStore> for LoginAction {
             .into(),
             LoginAction::LogoutSucceeded(_data) => PopupStore {
                 page_loading: false,
-                verified: false,
                 persistent_data: PersistentStoreData {
                     store_id: if store.persistent_data.remember_me {
                         store.persistent_data.store_id.clone()
                     } else {
                         None
                     },
-                    remember_me: store.persistent_data.remember_me,
-                    dark_mode: store.persistent_data.dark_mode,
+                    store_activated: false,
+                    ..store.persistent_data
                 },
                 login_status: LoginStatus::LogoutSuccess,
                 data: StoreData {
@@ -409,43 +458,68 @@ impl Reducer<PopupStore> for LoginAction {
             LoginAction::LogoutFailed(_data) => PopupStore {
                 page_loading: false,
                 login_status: LoginStatus::LogoutFailed,
+                persistent_data: PersistentStoreData {
+                    ..store.persistent_data.clone()
+                },
                 ..store.deref().clone()
             }
             .into(),
             LoginAction::LogoutStarted(_data) => PopupStore {
                 page_loading: true,
-                login_status: LoginStatus::Loading,
+                login_status: LoginStatus::LogoutStarted,
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::Logout(_data) => PopupStore {
-                verified: false,
-                page_loading: false,
-                persistent_data: PersistentStoreData {
-                    remember_me: store.persistent_data.remember_me,
-                    store_id: if store.persistent_data.remember_me {
-                        store.persistent_data.store_id.clone()
-                    } else {
-                        None
-                    },
-                    dark_mode: store.persistent_data.dark_mode,
-                },
-                login_status: LoginStatus::LoggedOut,
-                data: StoreData {
-                    accounts: Mrc::new(vec![]),
-                    ..store.deref().clone().data
-                },
-                ..store.deref().clone()
+            LoginAction::Logout(store_id, _data) => {
+                let current_store_id = store.persistent_data.store_id.as_ref();
+                if current_store_id.is_some_and(|v| *v != store_id) {
+                    store
+                } else {
+                    PopupStore {
+                        page_loading: false,
+                        persistent_data: PersistentStoreData {
+                            store_id: if store.persistent_data.remember_me {
+                                store.persistent_data.store_id.clone()
+                            } else {
+                                None
+                            },
+                            store_activated: false,
+                            ..store.persistent_data
+                        },
+                        login_status: LoginStatus::LoggedOut,
+                        data: StoreData {
+                            accounts: Mrc::new(vec![]),
+                            ..store.deref().clone().data
+                        },
+                        ..store.deref().clone()
+                    }
+                    .into()
+                }
             }
-            .into(),
-            LoginAction::Login(store_id, _data) => {
+            LoginAction::Login(store_id, data) => {
                 PopupStore {
-                    verified: true,
                     page_loading: false,
                     persistent_data: PersistentStoreData {
-                        remember_me: store.persistent_data.remember_me,
-                        store_id: Some(store_id),
-                        dark_mode: store.persistent_data.dark_mode,
+                        store_activated: {
+                            if let LoginStatus::LoginStarted(current_store_id) =
+                                store.login_status.clone()
+                            {
+                                &store_id == &current_store_id
+                            } else {
+                                store.persistent_data.store_activated
+                            }
+                        },
+                        ..store.persistent_data.clone()
+                    },
+                    default_store_id: {
+                        if data
+                            .get(&DataFieldType::IsDefault)
+                            .map_or(false, |v| v.as_bool().unwrap_or(false))
+                        {
+                            Some(store_id)
+                        } else {
+                            store.default_store_id.clone()
+                        }
                     },
                     login_status: LoginStatus::LoggedIn,
                     ..store.deref().clone()
@@ -455,13 +529,13 @@ impl Reducer<PopupStore> for LoginAction {
             LoginAction::RememberMe(remember_me) => {
                 PopupStore {
                     persistent_data: PersistentStoreData {
-                        remember_me,
                         store_id: if remember_me {
                             store.persistent_data.store_id.clone()
                         } else {
                             None
                         },
-                        dark_mode: store.persistent_data.dark_mode,
+                        remember_me,
+                        ..store.persistent_data
                     },
                     ..store.deref().clone()
                 }
@@ -479,9 +553,7 @@ pub struct AlertInput {
 
 impl Store for PopupStore {
     fn new() -> Self {
-        log::debug!("PopupStore::new");
         init_listener(StorageListener);
-        // PopupStore::init();
         PopupStore::default()
     }
     fn should_notify(&self, old: &Self) -> bool {
@@ -489,31 +561,48 @@ impl Store for PopupStore {
     }
 }
 impl PopupStore {
-    pub fn save<T: Serialize>(state: &T, area: store::StorageArea) -> Result<(), StorageError> {
-        let value = serde_json::to_string(state)
+    pub fn save(store: Rc<Self>, area: store::StorageArea) -> Result<(), StorageError> {
+        let window_id = store.window_id.clone().unwrap();
+        let json = json!({type_name::<PersistentStoreData>(): store.persistent_data});
+        let value = serde_json::to_string(&json)
             .map_err(|serde_error| StorageError::SerdeError(serde_error))?;
-
+        wasm_bindgen_futures::spawn_local({
+            let window_id = window_id.clone();
+            let value = value.clone();
+            async move {
+                let _old_data = chrome
+                    .storage()
+                    .local()
+                    .get_item(&window_id, store::StorageArea::Local)
+                    .await;
+                let _ = chrome
+                    .storage()
+                    .local()
+                    .set_string_item("default".to_string(), value, area)
+                    .await;
+            }
+        });
         wasm_bindgen_futures::spawn_local(async move {
             match area {
                 store::StorageArea::Local => {
                     let _ = chrome
                         .storage()
                         .local()
-                        .set_string_item(type_name::<T>().to_owned(), value, area)
+                        .set_string_item(window_id, value, area)
                         .await;
                 }
                 store::StorageArea::Sync => {
                     let _ = chrome
                         .storage()
                         .sync()
-                        .set_string_item(type_name::<T>().to_owned(), value, area)
+                        .set_string_item(window_id, value, area)
                         .await;
                 }
                 store::StorageArea::Session => {
                     let _ = chrome
                         .storage()
                         .session()
-                        .set_string_item(type_name::<T>().to_owned(), value, area)
+                        .set_string_item(window_id, value, area)
                         .await;
                 }
             }
@@ -521,26 +610,63 @@ impl PopupStore {
         Ok(())
     }
 
-    pub async fn load() -> Option<PersistentStoreData> {
-        let loaded = chrome
+    pub async fn load_window_storage(window_id: &str) -> Option<PersistentStoreData> {
+        let window_storage = chrome
             .storage()
             .local()
-            .get_item(
-                &type_name::<PersistentStoreData>(),
-                store::StorageArea::Local,
-            )
+            .get_item(window_id, store::StorageArea::Local)
             .await;
-        if let Ok(value) = loaded {
-            let parsed = <JsValue as JsValueSerdeExt>::into_serde::<String>(&value);
-            if let Ok(json_string) = parsed {
-                let state = serde_json::from_str::<PersistentStoreData>(&json_string);
-                if let Ok(state) = state {
-                    return Some(state);
+        if let Ok(window_storage) = window_storage {
+            if let Ok(window_storage) =
+                <JsValue as JsValueSerdeExt>::into_serde::<String>(&window_storage)
+            {
+                let window_storage =
+                    serde_json::from_str::<serde_json::Value>(&window_storage).unwrap();
+                if let Some(persistent_data) =
+                    window_storage.get(&type_name::<PersistentStoreData>())
+                {
+                    let state =
+                        serde_json::from_value::<PersistentStoreData>(persistent_data.clone());
+                    if let Ok(state) = state {
+                        return Some(state);
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
             } else {
-                None
+                let default_storage = chrome
+                    .storage()
+                    .local()
+                    .get_item("default", store::StorageArea::Local)
+                    .await;
+                if let Ok(default_storage) = default_storage {
+                    if let Ok(default_storage) =
+                        <JsValue as JsValueSerdeExt>::into_serde::<String>(&default_storage)
+                    {
+                        let default_storage =
+                            serde_json::from_str::<serde_json::Value>(&default_storage).unwrap();
+                        if let Some(persistent_data) =
+                            default_storage.get(&type_name::<PersistentStoreData>())
+                        {
+                            let state = serde_json::from_value::<PersistentStoreData>(
+                                persistent_data.clone(),
+                            );
+                            if let Ok(state) = state {
+                                return Some(state);
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             }
         } else {
             None
@@ -552,9 +678,7 @@ impl Listener for StorageListener {
     type Store = PopupStore;
 
     fn on_change(&mut self, state: Rc<Self::Store>) {
-        if let Err(err) =
-            Self::Store::save(&(state.as_ref().persistent_data), store::StorageArea::Local)
-        {
+        if let Err(err) = Self::Store::save(state.clone(), store::StorageArea::Local) {
             println!("Error saving state to storage: {:?}", err);
         } else {
         }

@@ -16,22 +16,29 @@ use serde::{Deserialize, Serialize};
 pub enum SessionEventType {
     Create,
     Update,
+    Refreshed,
+    Delete,
+    CreationFailed,
     Login,
     Logout,
     LogoutError,
     LoginError,
-    Delete,
     Search,
     Init,
     Error,
-    Refreshed,
-    CreationFailed,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum DataFieldType {
+    HomeDir,
+    IsDefault,
+    DefaultStoreID,
+    DefaultStoreAvailable,
+    ContentScript,
     Request,
+    SigningKey,
+    StoreDir,
     StoreID,
     ResourceID,
     UserID,
@@ -62,22 +69,28 @@ pub enum DataFieldType {
     Acknowledgement,
     Data,
 }
+impl fmt::Display for DataFieldType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", to_variant_name(&self).unwrap())
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SessionEvent {
-    // pub data: Option<Value>,
     pub data: Option<HashMap<DataFieldType, Value>>,
     pub event_type: SessionEventType,
     pub meta: Option<Value>,
     pub resource: Option<Vec<Resource>>,
     pub is_global: bool,
     pub acknowledgement: Option<String>,
+    pub store_id: Option<String>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SessionEventWrapper {
     pub acknowledgement: Option<String>,
     pub session_event: SessionEvent,
     pub header: Option<HashMap<String, String>>,
+    pub store_id: Option<String>,
 }
 
 use crate::{types::Resource, util::create_request_acknowledgement};
@@ -85,6 +98,7 @@ use crate::{types::Resource, util::create_request_acknowledgement};
 #[serde(tag = "type", rename = "get")]
 pub struct GetRequest {
     pub id: String,
+    pub store_id: Option<String>,
     pub resource: Resource,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
@@ -94,6 +108,7 @@ pub struct GetRequest {
 #[serde(tag = "type", rename = "edit")]
 pub struct EditRequest {
     pub id: String,
+    pub store_id: Option<String>,
     pub resource: Resource,
     pub domain: Option<String>,
     pub value: HashMap<DataFieldType, Value>,
@@ -106,6 +121,7 @@ pub struct EditRequest {
 #[serde(tag = "type", rename = "delete")]
 pub struct DeleteRequest {
     pub id: String,
+    pub store_id: Option<String>,
     pub resource: Resource,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
@@ -116,6 +132,7 @@ pub struct DeleteRequest {
 pub struct SearchRequest {
     pub query: Option<String>,
     pub resource: Resource,
+    pub store_id: Option<String>,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
     pub header: Option<HashMap<String, String>>,
@@ -123,6 +140,7 @@ pub struct SearchRequest {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", rename = "fetch")]
 pub struct FetchRequest {
+    pub store_id: Option<String>,
     pub path: Option<String>,
     pub resource: Resource,
     pub acknowledgement: Option<String>,
@@ -133,7 +151,8 @@ pub struct FetchRequest {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", rename = "login")]
 pub struct LoginRequest {
-    pub store_id: String,
+    pub store_id: Option<String>,
+    pub is_default: bool,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
     pub header: Option<HashMap<String, String>>,
@@ -143,6 +162,7 @@ pub struct LoginRequest {
 #[serde(tag = "type", rename = "logout")]
 pub struct LogoutRequest {
     pub acknowledgement: Option<String>,
+    pub store_id: Option<String>,
     #[serde(flatten)]
     pub header: Option<HashMap<String, String>>,
 }
@@ -151,16 +171,18 @@ pub struct LogoutRequest {
 #[serde(tag = "type", rename = "init")]
 pub struct InitRequest {
     #[serde(flatten)]
-    pub config: HashMap<String, String>,
+    pub config: HashMap<DataFieldType, String>,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
     pub header: Option<HashMap<String, String>>,
+    store_id: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", rename = "create")]
 pub struct CreateRequest {
     pub username: Option<String>,
     pub resource: Resource,
+    pub store_id: Option<String>,
     pub note: Option<String>,
     pub custom_fields: Option<HashMap<String, Value>>,
     pub domain: Option<String>,
@@ -184,10 +206,33 @@ macro_rules! request_enum_trait_impl {
     fn set_header(&mut self, header: HashMap<String, String>) {
         self.header = Some(header);
     }
+    fn get_store_id(&self) -> Option<String> {
+        self.store_id.clone()
+    }
         }
 
     )*)
 }
+
+// trait StoreID {
+//     fn get_store_id(&self) -> String;
+// }
+// macro_rules! store_id_impl {
+//     ($($t:ty)*) => ($(
+//         impl StoreID for $t {
+//             fn get_store_id(&self) -> String {
+//                 self.store_id.clone()
+//             }
+//         }
+//
+//     )*)
+// }
+
+// store_id_impl!(FetchRequest);
+// store_id_impl!(LoginRequest);
+// store_id_impl!(LogoutRequest);
+// store_id_impl!(CreateRequest);
+
 request_enum_trait_impl!(GetRequest);
 request_enum_trait_impl!(SearchRequest);
 request_enum_trait_impl!(FetchRequest);
@@ -253,6 +298,7 @@ impl RequestEnum {
         resource: Resource,
         acknowledgement: Option<String>,
         header: Option<HashMap<String, String>>,
+        store_id: Option<String>,
     ) -> RequestEnum {
         RequestEnum::Get(GetRequest {
             id,
@@ -265,6 +311,7 @@ impl RequestEnum {
                 }
             },
             header,
+            store_id,
         })
     }
     pub fn create_delete_request(
@@ -272,6 +319,7 @@ impl RequestEnum {
         resource: Resource,
         acknowledgement: Option<String>,
         header: Option<HashMap<String, String>>,
+        store_id: Option<String>,
     ) -> RequestEnum {
         RequestEnum::Delete(DeleteRequest {
             id,
@@ -284,9 +332,11 @@ impl RequestEnum {
                 }
             },
             header,
+            store_id,
         })
     }
     pub fn create_create_request(
+        store_id: Option<String>,
         username: Option<String>,
         domain: Option<String>,
         note: Option<String>,
@@ -297,6 +347,7 @@ impl RequestEnum {
         header: Option<HashMap<String, String>>,
     ) -> RequestEnum {
         RequestEnum::Create(CreateRequest {
+            store_id,
             username,
             domain,
             resource,
@@ -318,8 +369,10 @@ impl RequestEnum {
         resource: Resource,
         acknowledgement: Option<String>,
         header: Option<HashMap<String, String>>,
+        store_id: Option<String>,
     ) -> RequestEnum {
         RequestEnum::Search(SearchRequest {
+            store_id,
             query,
             resource,
             acknowledgement: {
@@ -333,6 +386,7 @@ impl RequestEnum {
         })
     }
     pub fn create_fetch_request(
+        store_id: Option<String>,
         path: Option<String>,
         resource: Resource,
         acknowledgement: Option<String>,
@@ -341,6 +395,7 @@ impl RequestEnum {
         RequestEnum::Fetch(FetchRequest {
             path,
             resource,
+            store_id,
             acknowledgement: {
                 if acknowledgement.is_some() {
                     acknowledgement
@@ -351,9 +406,14 @@ impl RequestEnum {
             header,
         })
     }
-    pub fn create_login_request(acknowledgement: Option<String>, user_id: String) -> RequestEnum {
+    pub fn create_login_request(
+        acknowledgement: Option<String>,
+        store_id: Option<String>,
+        is_default: bool,
+    ) -> RequestEnum {
         RequestEnum::Login(LoginRequest {
-            store_id: user_id,
+            is_default,
+            store_id,
             acknowledgement: {
                 if acknowledgement.is_some() {
                     acknowledgement
@@ -367,6 +427,7 @@ impl RequestEnum {
     pub fn create_logout_request(
         acknowledgement: Option<String>,
         header: Option<HashMap<String, String>>,
+        store_id: Option<String>,
     ) -> RequestEnum {
         RequestEnum::Logout(LogoutRequest {
             acknowledgement: {
@@ -376,6 +437,7 @@ impl RequestEnum {
                     Some(create_request_acknowledgement())
                 }
             },
+            store_id,
             header,
         })
     }
@@ -386,11 +448,13 @@ impl RequestEnum {
         value: HashMap<DataFieldType, Value>,
         acknowledgement: Option<String>,
         header: Option<HashMap<String, String>>,
+        store_id: Option<String>,
     ) -> RequestEnum {
         RequestEnum::Edit(EditRequest {
             id,
             resource,
             domain,
+            store_id,
             value,
             acknowledgement: {
                 if acknowledgement.is_some() {
@@ -405,9 +469,11 @@ impl RequestEnum {
     pub fn create_session_event_request(
         acknowledgement: Option<String>,
         session_event: SessionEvent,
+        store_id: Option<String>,
         header: Option<HashMap<String, String>>,
     ) -> RequestEnum {
         RequestEnum::SessionEventRequest(SessionEventWrapper {
+            store_id,
             acknowledgement: {
                 if acknowledgement.is_some() {
                     acknowledgement
@@ -420,7 +486,7 @@ impl RequestEnum {
         })
     }
     pub fn create_init_request(
-        config: HashMap<String, String>,
+        config: HashMap<DataFieldType, String>,
         acknowledgement: Option<String>,
         header: Option<HashMap<String, String>>,
     ) -> RequestEnum {
@@ -434,6 +500,7 @@ impl RequestEnum {
                 }
             },
             header,
+            store_id: None,
         })
     }
     pub fn get_type(&self) -> String {
@@ -447,6 +514,7 @@ pub trait RequestEnumTrait {
     fn get_header(&self) -> Option<HashMap<String, String>>;
     fn set_header(&mut self, header: HashMap<String, String>);
     fn set_acknowledgement(&mut self, acknowledgement: String);
+    fn get_store_id(&self) -> Option<String>;
 }
 impl fmt::Display for Resource {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

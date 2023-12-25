@@ -14,7 +14,7 @@ pub use crate::{request::RequestEnum, types::Resource};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GetResponse {
     pub acknowledgement: Option<String>,
-    #[serde(default)]
+    #[serde(flatten)]
     pub data: HashMap<DataFieldType, Value>,
     pub status: Status,
     pub resource: Resource,
@@ -23,8 +23,9 @@ pub struct GetResponse {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CreateResponse {
     pub acknowledgement: Option<String>,
-    #[serde(default)]
+    #[serde(flatten)]
     pub data: HashMap<DataFieldType, Value>,
+    pub store_id: String,
     pub status: Status,
     pub resource: Resource,
     pub meta: Option<Value>,
@@ -32,56 +33,70 @@ pub struct CreateResponse {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EditResponse {
     pub acknowledgement: Option<String>,
-    #[serde(default)]
+    #[serde(flatten)]
     pub data: HashMap<DataFieldType, Value>,
     pub status: Status,
     pub resource: Resource,
     pub id: String,
     pub meta: Option<Value>,
+    pub store_id: String,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SearchResponse {
     pub acknowledgement: Option<String>,
-    #[serde(default)]
-    // pub data: Vec<Value>,
+    #[serde(flatten)]
     pub data: HashMap<DataFieldType, Value>,
     pub status: Status,
     pub resource: Resource,
     pub meta: Option<Value>,
+    pub store_id: String,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FetchResponse {
     pub acknowledgement: Option<String>,
     pub status: Status,
+    pub store_id: String,
     pub resource: Resource,
+    #[serde(flatten)]
     pub data: HashMap<DataFieldType, Value>,
     pub meta: Option<Value>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LoginResponse {
+    pub store_id: String,
     pub acknowledgement: Option<String>,
-    #[serde(default)]
+    #[serde(flatten)]
     pub data: HashMap<DataFieldType, Value>,
     pub status: Status,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InitResponse {
     pub acknowledgement: Option<String>,
-    #[serde(default)]
+    #[serde(flatten)]
     pub data: HashMap<DataFieldType, Value>,
     pub status: Status,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LogoutResponse {
+    pub store_id: String,
     pub acknowledgement: Option<String>,
-    #[serde(default)]
+    #[serde(flatten)]
     pub data: HashMap<DataFieldType, Value>,
     pub status: Status,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeleteResponse {
+    // pub store_id: String,
+    pub deleted_resource_id: String,
     pub acknowledgement: Option<String>,
-    #[serde(default)]
+    #[serde(flatten)]
+    pub data: HashMap<DataFieldType, Value>,
+    pub status: Status,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GenericError {
+    pub acknowledgement: Option<String>,
+    #[serde(flatten)]
     pub data: HashMap<DataFieldType, Value>,
     pub status: Status,
 }
@@ -112,13 +127,6 @@ pub struct ErrorResponse {
     pub acknowledgement: Option<String>,
     pub message: Option<String>,
     pub code: Option<ErrorCode>,
-}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GenericError {
-    pub acknowledgement: Option<String>,
-    #[serde(default)]
-    pub data: HashMap<DataFieldType, Value>,
-    pub status: Status,
 }
 impl Into<JsValue> for ErrorResponse {
     fn into(self) -> JsValue {

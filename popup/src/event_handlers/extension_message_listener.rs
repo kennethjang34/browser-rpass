@@ -14,7 +14,10 @@ use wasm_bindgen::{prelude::Closure, JsValue};
 use wasm_bindgen_futures::spawn_local;
 use yewdux::prelude::Dispatch;
 
-use crate::store::{DataAction, LoginAction, PopupStore};
+use crate::{
+    api::extension_api::fetch_accounts,
+    store::{DataAction, LoginAction, LoginStatus, PopupStore},
+};
 pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
     let port = port.clone();
     Closure::<dyn Fn(JsValue)>::new(move |msg: JsValue| {
@@ -46,12 +49,20 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                         let resource = event_request.resource.unwrap_or(vec![]);
                         match event_type {
                             &SessionEventType::Login => {
-                                dispatch.apply(LoginAction::Login(
-                                    data.get(&DataFieldType::StoreID)
-                                        .map(|v| v.as_str().unwrap().to_owned())
-                                        .unwrap(),
-                                    data,
-                                ));
+                                let store_id = data
+                                    .get(&DataFieldType::StoreID)
+                                    .map(|v| v.as_str().unwrap().to_owned())
+                                    .unwrap();
+                                if let LoginStatus::LoginStarted(current_store_id) =
+                                    dispatch.get().login_status.clone()
+                                {
+                                    if current_store_id == store_id {
+                                        dispatch.apply(LoginAction::LoginSucceeded(data));
+                                        fetch_accounts(Some(store_id.clone()), None);
+                                    }
+                                } else {
+                                    dispatch.apply(LoginAction::Login(store_id.clone(), data));
+                                }
                             }
                             &SessionEventType::LoginError => {
                                 let context = contexts
@@ -66,7 +77,11 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                 dispatch.apply(LoginAction::LoginError(data, store_id));
                             }
                             &SessionEventType::Logout => {
-                                dispatch.apply(LoginAction::Logout(data));
+                                let store_id = data
+                                    .get(&DataFieldType::StoreID)
+                                    .map(|v| v.as_str().unwrap().to_owned())
+                                    .unwrap();
+                                dispatch.apply(LoginAction::Logout(store_id, data));
                             }
                             &SessionEventType::Delete => {
                                 let resource = resource[0].clone();
@@ -96,7 +111,6 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                         dispatch.apply(DataAction::ResourceEdited(
                                             resource,
                                             data.clone().into(),
-                                            //TODO!!!!! following line should not be needed
                                             meta.get("id").unwrap().as_str().unwrap().to_string(),
                                         ));
                                     }
@@ -117,7 +131,6 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                             &SessionEventType::Refreshed => match resource[0] {
                                 Resource::Account => match &dispatch.get().data.storage_status {
                                     _ => {
-                                        dbg!(&data);
                                         dispatch.apply(DataAction::ResourceFetched(
                                             Resource::Account,
                                             data.clone().into(),
@@ -127,6 +140,15 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                 },
                                 _ => {}
                             },
+                            &SessionEventType::Init => {
+                                let store = dispatch.get();
+                                if let Some(store_id) = store.persistent_data.store_id.as_ref() {
+                                    if store.persistent_data.store_activated {
+                                        fetch_accounts(Some(store_id.to_string()), None);
+                                    }
+                                }
+                                dispatch.apply(DataAction::Init(data));
+                            }
                             _ => {}
                         }
                     }

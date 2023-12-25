@@ -1,5 +1,5 @@
 use crate::{
-    api::extension_api::{fetch_accounts, logout},
+    api::extension_api::logout,
     pages::account_page::AccountPage,
     pages::login_page::LoginPage,
     store::PopupStore,
@@ -7,7 +7,6 @@ use crate::{
 };
 use gloo_utils::window;
 use log::*;
-use std::rc::Rc;
 
 use crate::components::*;
 use yew;
@@ -21,25 +20,22 @@ pub struct Props {}
 #[function_component(HomePage)]
 pub fn home_page(_props: &Props) -> Html {
     trace!("render home page");
-    let verified = use_selector(|state: &PopupStore| state.verified);
+    let activated = use_selector(|state: &PopupStore| state.persistent_data.store_activated);
     let loading = use_selector(|state: &PopupStore| state.page_loading.clone());
     let path = use_selector(|state: &PopupStore| state.path.clone());
     let store_id = use_selector(|state: &PopupStore| state.persistent_data.store_id.clone());
-    let on_logout_click = Callback::from(move |event: MouseEvent| {
-        event.prevent_default();
-        logout();
+    let on_logout_click = Callback::from({
+        let store_id = store_id.clone();
+        move |event: MouseEvent| {
+            event.prevent_default();
+            if let Some(store_id) = (*store_id).clone() {
+                logout(store_id);
+            }
+        }
     });
     let on_close = Callback::from(move |event: MouseEvent| {
         event.prevent_default();
         window().close().unwrap();
-    });
-    use_effect_with(verified.clone(), {
-        let _path = path.clone();
-        move |verified: &Rc<bool>| {
-            if **verified {
-                fetch_accounts(None);
-            }
-        }
     });
     let dark_mode = use_selector(|state: &PopupStore| state.persistent_data.dark_mode);
     let set_darkmode = Callback::from(move |_| {
@@ -80,7 +76,7 @@ pub fn home_page(_props: &Props) -> Html {
                                 }
                             }>
                           <button onclick={set_darkmode.clone()}
-                              class="fixed my-6 right-0 mr-5 z-10 h-12 w-12 inline-flex cursor-pointer justify-center items-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-600">
+                              class="fixed top-5 my-6 right-0 mr-5 z-10 h-12 w-12 inline-flex cursor-pointer justify-center items-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-600">
                               if *dark_mode {
                                   <SunIcon/>
                               }
@@ -88,8 +84,8 @@ pub fn home_page(_props: &Props) -> Html {
                                   <MoonIcon/>
                               }
                           </button>
-                            if *verified{
-                                <AccountPage store_id={(*store_id).clone()} path={(*path).clone()}/>
+                            if store_id.is_some() && *activated{
+                                <AccountPage store_id={(*store_id.clone()).clone().unwrap()} path={(*path).clone()}/>
                                 <button type="button" class="fixed my-3 bottom-0 right-0 mr-3 warning-btn" onclick={on_logout_click}>{"logout"}</button>
                             }
                             else{

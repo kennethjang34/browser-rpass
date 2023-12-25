@@ -25,7 +25,8 @@ pub fn App(_props: &Props) -> Html {
     let current_focus = use_state(|| None::<web_sys::HtmlInputElement>);
     let password_input = use_state(|| "".to_owned());
     let password_input_element = find_password_input_element();
-    let verified = use_selector(|state: &ContentScriptStore| state.verified);
+    let verified = use_selector(|state: &ContentScriptStore| state.data.verified);
+    let store_id = use_selector(|state: &ContentScriptStore| state.data.store_id.clone());
     let account_selector = use_selector(|state: &ContentScriptStore| state.data.accounts.clone());
     let accounts = use_state(|| Rc::new(Vec::<Rc<Account>>::new()));
     use_effect_with((), {
@@ -136,11 +137,15 @@ pub fn App(_props: &Props) -> Html {
             }
         }
     });
+    // debug!("verified: {}", *verified);
+    let store_data = use_selector(|state: &ContentScriptStore| state.data.clone());
+    // debug!("store: {:?}", store_data);
     use_effect_with(verified.clone(), {
         let accounts = accounts.clone();
         move |verified: &Rc<bool>| {
-            if **verified {
-                fetch_accounts(None);
+            if **verified && store_id.is_some() {
+                debug!("fetching accounts");
+                fetch_accounts((*store_id).clone(), None);
             } else {
                 accounts.set(Rc::new(Vec::<Rc<Account>>::new()));
             }
