@@ -168,6 +168,7 @@ pub fn account_page(props: &Props) -> Html {
                     if *store_status==StoreDataStatus::DeletionFailed{
                         <ErrorToast on_close_button_clicked={close_error} text={"Deletion Failed"} class="absolute right-0 top-5 z-10"/>
                     }
+                <div class={classes!("h-72", "overflow-y-auto")}>
                     <table class="dark:text-gray-400 relative rtl:text-right text-gray-500 text-left text-sm w-full top-3" border="1">
                             <colgroup>
                             <col  span="1" />
@@ -187,6 +188,7 @@ pub fn account_page(props: &Props) -> Html {
                             <AccountEntryList accounts={account_selector} store_id={props.store_id.clone()}/>
                         </tbody>
                     </table>
+                    </div>
                     </div>
                     <button  class="primary-btn block  my-4 mx-2" type="button" onclick={on_create_account}>
                     {"Create Account"}
