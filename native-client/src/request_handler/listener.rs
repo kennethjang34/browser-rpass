@@ -43,7 +43,6 @@ pub fn listen_to_native_messaging(
         }
         let received_message = received_message_res?;
         if let Ok(request) = serde_json::from_value::<RequestEnum>(received_message.clone()) {
-            debug!("received request: {:?}", request);
             let request_result = {
                 if let Some(store) = get_store(&request, &stores) {
                     let passphrase_provider = passphrase_provider.clone();
@@ -107,6 +106,7 @@ pub fn listen_to_native_messaging(
                                 request.clone(),
                                 &store,
                                 passphrase_provider.clone(),
+                                &stores,
                             );
                             if response.is_ok() {
                                 let response = response?;
@@ -137,7 +137,6 @@ pub fn listen_to_native_messaging(
                                 for store in stores.clone().lock().unwrap().iter() {
                                     store_ids.push(store.lock().unwrap().get_name().clone());
                                 }
-                                debug!("store_ids: {:?}", store_ids);
                                 data.insert(DataFieldType::Data, serde_json::to_value(store_ids)?);
                                 let response = ResponseEnum::InitResponse(InitResponse {
                                     status: Status::Success,
@@ -197,7 +196,6 @@ pub fn listen_to_native_messaging(
                                 handle_logout_request(request.clone(), &store, passphrase_provider);
                             let mut data = HashMap::new();
                             if res.is_ok() {
-                                // store_opt = None;
                                 let response = ResponseEnum::LogoutResponse(LogoutResponse {
                                     status: Status::Success,
                                     acknowledgement: request.acknowledgement.clone(),
@@ -344,38 +342,6 @@ pub fn listen_to_native_messaging(
                                 Err(response)
                             }
                         }
-                        // RequestEnum::Login(request) => {
-                        //     let store_res = handle_login_request(
-                        //         request.clone(),
-                        //         &store,
-                        //         passphrase_provider.clone(),
-                        //     );
-                        //     let mut data = HashMap::new();
-                        //     if store_res.is_ok() {
-                        //         // store_opt = Some(store_res?);
-                        //         let response = ResponseEnum::LoginResponse(LoginResponse {
-                        //             store_id: request.store_id.clone().unwrap(),
-                        //             status: Status::Success,
-                        //             acknowledgement: request.acknowledgement.clone(),
-                        //             data,
-                        //         });
-                        //         send_as_json(&response)?;
-                        //         Ok(response)
-                        //     } else {
-                        //         data.insert(
-                        //             DataFieldType::ErrorMessage,
-                        //             serde_json::to_value(store_res.unwrap_err()).unwrap(),
-                        //         );
-                        //         let response = ResponseEnum::LoginResponse(LoginResponse {
-                        //             store_id: request.store_id.clone().unwrap(),
-                        //             status: Status::Failure,
-                        //             acknowledgement: request.acknowledgement.clone(),
-                        //             data,
-                        //         });
-                        //         send_as_json(&response)?;
-                        //         Err(response)
-                        //     }
-                        // }
                         _ => {
                             let mut data = HashMap::new();
                             data.insert(DataFieldType::ErrorMessage, json!("Unknown request"));

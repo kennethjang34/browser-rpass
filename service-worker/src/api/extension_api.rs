@@ -49,6 +49,5 @@ pub fn whisper_session_event(session_event: SessionEvent, port: &Port) {
         None,
         None,
     ));
-    debug!("whisper_session_event: {:?}", msg);
     port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&msg).unwrap());
 }

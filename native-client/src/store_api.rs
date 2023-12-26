@@ -8,7 +8,6 @@ use std::{
 use log::*;
 use rpass::pass::{self, PasswordEntry, PasswordStore};
 
-use crate::PasswordStoreType;
 /// Validates the config for password stores.
 /// Returns a list of paths that the new store wizard should be run for
 fn _validate_stores_config(

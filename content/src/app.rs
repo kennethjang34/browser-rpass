@@ -137,14 +137,10 @@ pub fn App(_props: &Props) -> Html {
             }
         }
     });
-    // debug!("verified: {}", *verified);
-    let store_data = use_selector(|state: &ContentScriptStore| state.data.clone());
-    // debug!("store: {:?}", store_data);
     use_effect_with(verified.clone(), {
         let accounts = accounts.clone();
         move |verified: &Rc<bool>| {
             if **verified && store_id.is_some() {
-                debug!("fetching accounts");
                 fetch_accounts((*store_id).clone(), None);
             } else {
                 accounts.set(Rc::new(Vec::<Rc<Account>>::new()));

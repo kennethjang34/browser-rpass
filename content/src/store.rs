@@ -220,7 +220,6 @@ impl Reducer<ContentScriptStore> for DataAction {
                 let store_id = data
                     .get(&DataFieldType::DefaultStoreID)
                     .map_or(None, |v| v.as_str().map_or(None, |v| Some(v.to_string())));
-                debug!("init event!!!: {:?}", data);
                 ContentScriptStore {
                     data: StoreData {
                         store_id,
@@ -311,7 +310,6 @@ impl Reducer<ContentScriptStore> for LoginAction {
             }
             .into(),
             LoginAction::Login(data) => {
-                debug!("login event!!!: {:?}", data);
                 ContentScriptStore {
                     data: StoreData {
                         accounts: Mrc::new(vec![]),

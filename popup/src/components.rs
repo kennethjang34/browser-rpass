@@ -172,7 +172,6 @@ pub fn dropdown(props: &DropdownProps) -> Html {
                                         move |event:MouseEvent| {
                                             event.prevent_default();
                                             if let Some(ref on_select) = on_select {
-                                                debug!("option selected: {:?}", option);
                                                 on_select.emit(option.clone());
                                             }
                                        }

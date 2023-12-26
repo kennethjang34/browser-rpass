@@ -12,7 +12,7 @@ use log::*;
 use rpass::pass::{self, Error, PasswordEntry, PasswordStore};
 use serde_json::json;
 
-use crate::{store_api::*, util::*, PasswordStoreType, StoreListType};
+use crate::{store_api::*, util::*, StoreListType};
 
 pub fn handle_edit_request(
     request: EditRequest,
@@ -230,13 +230,30 @@ pub fn handle_fetch_request(
     request: FetchRequest,
     store: &Arc<Mutex<PasswordStore>>,
     passphrase_provider: Option<Handler>,
+    store_list: &StoreListType,
 ) -> pass::Result<FetchResponse> {
     let resource = request.resource;
     let acknowledgement = request.acknowledgement;
     match resource {
         Resource::Account => {
+            let store_path = {
+                let mut locked_store = store.lock()?;
+                locked_store.reload_password_list()?;
+                locked_store.get_store_path()
+            };
+            let mut substores = vec![];
+            for candidate_store in store_list.lock()?.iter() {
+                let locked_candidate_store = candidate_store.lock()?;
+                if locked_candidate_store
+                    .get_store_path()
+                    .parent()
+                    .is_some_and(|p| p == store_path)
+                {
+                    substores.push(locked_candidate_store.get_name().clone());
+                }
+            }
+
             let mut locked_store = store.lock()?;
-            locked_store.reload_password_list()?;
             let encrypted_password_entries = locked_store.get_entries(None)?;
             let decrypted_password_entries = encrypted_password_entries
                         .iter()
@@ -275,9 +292,10 @@ pub fn handle_fetch_request(
                         .collect::<Vec<serde_json::Value>>();
             let fetch_response = {
                 let mut data = HashMap::new();
-                if let Ok(data_value) = serde_json::to_value(decrypted_password_entries) {
-                    if let Some(data_arr) = data_value.as_array().cloned() {
-                        data.insert(DataFieldType::Data, json!(data_arr));
+                if let Ok(entries) = serde_json::to_value(decrypted_password_entries) {
+                    if let Some(entry_arr) = entries.as_array().cloned() {
+                        data.insert(DataFieldType::Data, json!(entry_arr));
+                        data.insert(DataFieldType::SubStore, json!(substores));
                         FetchResponse {
                             store_id: locked_store.get_name().clone(),
                             data,
@@ -407,30 +425,10 @@ pub fn handle_init_request(request: InitRequest) -> pass::Result<StoreListType> 
     Ok(stores)
 }
 pub fn handle_login_request(
-    request: LoginRequest,
+    _request: LoginRequest,
     store: &Arc<Mutex<PasswordStore>>,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<&Arc<Mutex<PasswordStore>>> {
-    let store_name = request.store_id.unwrap();
-    // let store = {
-    //     let stores_locked = stores.lock()?;
-    //     let filtered = stores_locked
-    //         .iter()
-    //         .filter(|s| {
-    //             s.lock()
-    //                 .map(|s| s.get_name() == &store_name)
-    //                 .unwrap_or(false)
-    //         })
-    //         .collect::<Vec<_>>();
-    //     if filtered.len() == 0 {
-    //         return Err(Error::GenericDyn(format!(
-    //             "No store found for username: {}",
-    //             store_name
-    //         )));
-    //     }
-    //     filtered[0].clone()
-    // };
-    // let store: PasswordStoreType = Arc::new(Mutex::new(store));
     let res = store.lock()?.reload_password_list();
     if let Err(err) = res {
         return Err(err);
@@ -442,17 +440,6 @@ pub fn handle_login_request(
         Err(Error::GenericDyn(
             "Git user.name and user.email must be configured".to_string(),
         ))?;
-    }
-    for password in &store.lock()?.passwords {
-        if password.is_in_git == pass::RepositoryStatus::NotInRepo {
-            Err(Error::GenericDyn(
-                format!(
-                    "Password entry: {:?}  not found in the current store",
-                    password
-                )
-                .to_string(),
-            ))?;
-        }
     }
     let verified = store.lock()?.try_passphrase(passphrase_provider);
     match verified {
@@ -473,33 +460,36 @@ pub fn handle_login_request(
 }
 pub fn handle_logout_request(
     request: LogoutRequest,
-    _store: &Arc<Mutex<PasswordStore>>,
+    store: &Arc<Mutex<PasswordStore>>,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<()> {
     let _acknowledgement = request.acknowledgement;
     let _status = Status::Success;
     if let Some(passphrase_provider) = passphrase_provider {
         if let Some(store_id) = request.store_id {
-            let user_id_hint = passphrase_provider
-                .recipient_to_user_id_hint
-                .lock()
-                .unwrap()
-                .get(&store_id)
-                .or(Some(&store_id.to_string()))
-                .ok_or_else(|| {
-                    Error::GenericDyn(format!(
-                        "Failed to get user_id_hint for store: {:?}",
-                        store_id
-                    ))
-                })
-                .cloned();
-            let user_id_hint = user_id_hint?;
-            passphrase_provider
-                .passphrases
-                .write()
-                .unwrap()
-                .remove(&user_id_hint)
-                .expect("failed to remove passphrase");
+            if let Some(login_recipient) = store.lock()?.get_login_recipient() {
+                let login_key = &login_recipient.key_id;
+                let user_id_hint = passphrase_provider
+                    .recipient_to_user_id_hint
+                    .lock()
+                    .unwrap()
+                    .get(login_key)
+                    .or(Some(login_key))
+                    .ok_or_else(|| {
+                        Error::GenericDyn(format!(
+                            "Failed to get user_id_hint for store: {:?}",
+                            store_id
+                        ))
+                    })
+                    .cloned();
+                let user_id_hint = user_id_hint?;
+                passphrase_provider
+                    .passphrases
+                    .write()
+                    .unwrap()
+                    .remove(&user_id_hint)
+                    .expect("failed to remove passphrase");
+            }
         } else {
             passphrase_provider.passphrases.write().unwrap().clear();
         }

@@ -18,7 +18,6 @@ use std::collections::HashSet;
 use std::{any::type_name, collections::HashMap, ops::Deref, rc::Rc, sync::Mutex};
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
-use web_sys::console;
 use yewdux::mrc::Mrc;
 
 use yewdux::prelude::Reducer;
@@ -197,7 +196,6 @@ impl SessionStore {
                         .get_all(store::StorageArea::Session)
                         .await
                         .unwrap();
-                    console::log_1(&current);
                 }
             }
         });
@@ -303,7 +301,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 }
 
                 if let Some(target_store) = store.stores.clone().borrow_mut().get_mut(&store_id) {
-                    debug!("target store: {:?}", target_store);
                     if (*target_store).verified {
                         let mut data = HashMap::new();
                         data.insert(DataFieldType::StoreID, json!(store_id));
@@ -618,7 +615,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             },
                         );
                     } else {
-                        debug!("store already exists: {:?}", store_id);
                     }
                 }
                 (

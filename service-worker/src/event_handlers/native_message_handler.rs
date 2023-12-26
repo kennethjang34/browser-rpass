@@ -22,7 +22,6 @@ pub fn process_native_message(
     ctx: Option<Value>,
 ) -> Result<ResponseEnum, String> {
     let session_store_dispatch = Dispatch::<SessionStore>::new();
-    debug!("process_native_message: {:?}", json_msg);
     let response_wrapper = serde_json::from_value::<ResponseEnum>(json_msg.clone()).unwrap();
     let acknowledgement = response_wrapper.get_acknowledgement();
     let request = if let Some(ref acknowledgement) = acknowledgement {
@@ -179,7 +178,6 @@ pub fn process_native_message(
         }
         ResponseEnum::InitResponse(init_response) => {
             let status = &init_response.status;
-            debug!("init response: {:?}", init_response);
             match status {
                 Status::Success => {
                     let response = ResponseEnum::InitResponse(init_response.clone());
