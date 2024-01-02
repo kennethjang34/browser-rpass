@@ -51,14 +51,36 @@ pub fn login(store_id: String, is_default: bool) {
         .borrow()
         .post_message(<JsValue as JsValueSerdeExt>::from_serde(&login_request).unwrap());
 }
-pub fn logout(store_id: String) {
+pub fn delete_store(store_id: String, force: bool) {
     let dispatch = Dispatch::<PopupStore>::new();
-    dispatch.apply(LoginAction::LogoutStarted(HashMap::new()));
-    let logout_request = RequestEnum::create_logout_request(None, None, Some(store_id));
+    let acknowledgement = create_request_acknowledgement();
+    let delete_store_request = RequestEnum::create_delete_store_request(
+        store_id.clone(),
+        force,
+        Some(acknowledgement.clone()),
+        None,
+    );
+    dispatch.apply(DataAction::StoreDeletionStarted(
+        Some(delete_store_request.clone()),
+        store_id.clone(),
+    ));
+    MESSAGE_CONTEXT_POPUP
+        .lock()
+        .unwrap()
+        .insert(acknowledgement, json!({"store_id":store_id.clone()}));
+    EXTENSION_PORT
+        .lock()
+        .borrow()
+        .post_message(<JsValue as JsValueSerdeExt>::from_serde(&delete_store_request).unwrap());
+}
+pub fn logout(store_id: Option<String>) {
+    let dispatch = Dispatch::<PopupStore>::new();
+    let logout_request = RequestEnum::create_logout_request(None, None, store_id, None);
     EXTENSION_PORT
         .lock()
         .borrow()
         .post_message(<JsValue as JsValueSerdeExt>::from_serde(&logout_request).unwrap());
+    dispatch.apply(LoginAction::LogoutStarted(HashMap::new()));
 }
 
 pub fn create_account(
@@ -199,5 +221,36 @@ pub fn delete_resource(id: String, resource: Resource, store_id: Option<String>)
         .lock()
         .borrow()
         .post_message(<JsValue as JsValueSerdeExt>::from_serde(&delete_request).unwrap());
+    return acknowledgement;
+}
+
+pub fn create_store(
+    store_id: String,
+    parent_store: Option<String>,
+    recipients: Vec<String>,
+    signers: Vec<String>,
+    is_repo: bool,
+    repo_signing_key: Option<String>,
+) -> String {
+    let dispatch = Dispatch::<PopupStore>::new();
+    let acknowledgement = create_request_acknowledgement();
+    let create_request = RequestEnum::create_create_store_request(
+        parent_store,
+        store_id,
+        recipients.clone(),
+        Some(signers.clone()),
+        is_repo,
+        repo_signing_key,
+        Some(acknowledgement.clone()),
+        None,
+    );
+    dispatch.apply(DataAction::StoreCreationStarted(
+        Some(create_request.clone()),
+        acknowledgement.clone(),
+    ));
+    EXTENSION_PORT
+        .lock()
+        .borrow()
+        .post_message(<JsValue as JsValueSerdeExt>::from_serde(&create_request).unwrap());
     return acknowledgement;
 }

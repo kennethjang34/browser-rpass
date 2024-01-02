@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use serde_repr::*;
 use serde_variant::to_variant_name;
-use std::{collections::HashMap, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 use wasm_bindgen::JsValue;
 
 use crate::request::DataFieldType;
@@ -29,6 +29,44 @@ pub struct CreateResponse {
     pub status: Status,
     pub resource: Resource,
     pub meta: Option<Value>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CreateStoreResponse {
+    pub acknowledgement: Option<String>,
+    #[serde(flatten)]
+    pub data: HashMap<DataFieldType, Value>,
+    pub store_path: PathBuf,
+    pub store_id: String,
+    pub status: Status,
+    pub meta: Option<HashMap<DataFieldType, Value>>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DeleteStoreResponse {
+    pub acknowledgement: Option<String>,
+    #[serde(flatten)]
+    pub data: HashMap<DataFieldType, Value>,
+    pub store_id: String,
+    pub status: Status,
+    pub meta: Option<HashMap<DataFieldType, Value>>,
+}
+impl CreateStoreResponse {
+    pub fn new(
+        store_id: String,
+        store_path: PathBuf,
+        status: Status,
+        acknowledgement: Option<String>,
+        data: Option<HashMap<DataFieldType, Value>>,
+        meta: Option<HashMap<DataFieldType, Value>>,
+    ) -> Self {
+        Self {
+            store_id,
+            store_path,
+            status,
+            data: data.unwrap_or_default(),
+            acknowledgement,
+            meta,
+        }
+    }
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EditResponse {
@@ -153,6 +191,16 @@ impl Into<JsValue> for CreateResponse {
         <JsValue as JsValueSerdeExt>::from_serde(&self).unwrap()
     }
 }
+impl Into<JsValue> for DeleteStoreResponse {
+    fn into(self) -> JsValue {
+        <JsValue as JsValueSerdeExt>::from_serde(&self).unwrap()
+    }
+}
+impl Into<JsValue> for CreateStoreResponse {
+    fn into(self) -> JsValue {
+        <JsValue as JsValueSerdeExt>::from_serde(&self).unwrap()
+    }
+}
 impl Into<JsValue> for LogoutResponse {
     fn into(self) -> JsValue {
         <JsValue as JsValueSerdeExt>::from_serde(&self).unwrap()
@@ -225,13 +273,13 @@ response_enum_trait_impl!(FetchResponse);
 response_enum_trait_impl!(LoginResponse);
 response_enum_trait_impl!(GenericError);
 response_enum_trait_impl!(SearchResponse);
+response_enum_trait_impl!(CreateStoreResponse);
 response_enum_trait_impl!(CreateResponse);
 response_enum_trait_impl!(LogoutResponse);
-// response_enum_trait_impl!(ErrorResponse);
 response_enum_trait_impl!(InitResponse);
 response_enum_trait_impl!(DeleteResponse);
 response_enum_trait_impl!(EditResponse);
-// response_enum_trait_impl!(GenericError);
+response_enum_trait_impl!(DeleteStoreResponse);
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[enum_dispatch(ResponseEnumTrait,Into<JsValue>)]
@@ -252,10 +300,14 @@ pub enum ResponseEnum {
     LogoutResponse(LogoutResponse),
     #[serde(rename = "create_response")]
     CreateResponse(CreateResponse),
+    #[serde(rename = "create_store_response")]
+    CreateStoreResponse(CreateStoreResponse),
     #[serde(rename = "edit_response")]
     EditResponse(EditResponse),
     #[serde(rename = "delete_response")]
     DeleteResponse(DeleteResponse),
+    #[serde(rename = "delete_store_response")]
+    DeleteStoreResponse(DeleteStoreResponse),
     #[serde(rename = "generic_error")]
     GenericError(GenericError),
 }
@@ -273,8 +325,6 @@ pub trait ResponseEnumTrait: Debug {
     fn get_data(&self) -> HashMap<DataFieldType, Value>;
     fn set_acknowledgement(&mut self, acknowledgement: Option<String>);
     fn get_status(&self) -> Status;
-
-    // fn get_response_type(&self) -> String;
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

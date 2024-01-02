@@ -92,6 +92,18 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                     _ => {}
                                 }
                             }
+                            &SessionEventType::StoreDeleted(ref data, ref store_id) => {
+                                dispatch.apply(DataAction::StoreDeleted(
+                                    data.clone(),
+                                    store_id.clone(),
+                                ));
+                            }
+                            &SessionEventType::StoreDeletionFailed(ref data, ref store_id) => {
+                                dispatch.apply(DataAction::StoreDeletionFailed(
+                                    data.clone(),
+                                    store_id.clone(),
+                                ));
+                            }
                             &SessionEventType::Create => {
                                 let resource = resource[0].clone();
                                 match resource {
@@ -128,6 +140,18 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                     _ => {}
                                 }
                             }
+                            &SessionEventType::StoreCreated(ref data, ref store_id) => {
+                                dispatch.apply(DataAction::StoreCreated(
+                                    data.clone(),
+                                    store_id.clone(),
+                                ));
+                            }
+                            &SessionEventType::StoreCreationFailed(ref data, ref store_id) => {
+                                dispatch.apply(DataAction::StoreCreationFailed(
+                                    data.clone(),
+                                    store_id.clone(),
+                                ));
+                            }
                             &SessionEventType::Refreshed => match resource[0] {
                                 Resource::Account => match &dispatch.get().data.storage_status {
                                     _ => {
@@ -140,19 +164,23 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                 },
                                 _ => {}
                             },
-                            &SessionEventType::Init => {
+                            &SessionEventType::Init(ref data) => {
                                 let store = dispatch.get();
+                                dispatch.apply(DataAction::Init(data.clone()));
                                 if let Some(store_id) = store.persistent_data.store_id.as_ref() {
                                     if store.persistent_data.store_activated {
                                         fetch_accounts(Some(store_id.to_string()), None);
                                     }
                                 }
-                                dispatch.apply(DataAction::Init(data));
                             }
-                            _ => {}
+                            _ => {
+                                error!("unhandled event: {:?}", event_type);
+                            }
                         }
                     }
-                    _ => {}
+                    _ => {
+                        error!("unhandled request: {:?}", request);
+                    }
                 },
             },
             Err(e) => {

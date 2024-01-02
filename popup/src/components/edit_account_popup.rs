@@ -128,7 +128,7 @@ pub fn edit_account_popup(props: &Props) -> Html {
             }
         }
     });
-    let close_error = {
+    let close_toast = {
         let dispatch = store_dispatch.clone();
         Callback::from(move |_| dispatch.apply(DataAction::Idle))
     };
@@ -167,10 +167,19 @@ pub fn edit_account_popup(props: &Props) -> Html {
                         {"Edit Account"}
                         </h3>
                         if *store_status == StoreDataStatus::EditionFailed{
-                            <ErrorToast
+                            <Toast
                                 text={"Edition Failed"}
-                                on_close_button_clicked={close_error}
+                                on_close_button_clicked={close_toast.clone()}
                                 class="absolute right-0 mr-5 my-4"
+                                toast_type={ToastType::Error}
+                            />
+                        }
+                        if *store_status == StoreDataStatus::EditionSuccess{
+                            <Toast
+                                text={"Edition Success"}
+                                on_close_button_clicked={close_toast.clone()}
+                                class="absolute right-0 mr-5 my-4"
+                                toast_type={ToastType::Success}
                             />
                         }
                         <CloseButton onclick={&props.handle_close}/>

@@ -112,3 +112,10 @@ impl JsonValueExt for serde_json::Map<String, Value> {
         Ok(None)
     }
 }
+
+pub fn string_filter<'a, 'b>(options: Vec<&'a str>, query: &'b str) -> Vec<&'a str> {
+    options
+        .into_iter()
+        .filter(|option| option.to_lowercase().contains(&query.to_lowercase()))
+        .collect()
+}

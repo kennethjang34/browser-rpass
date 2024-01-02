@@ -3,7 +3,6 @@ use crate::store::SessionActionWrapper;
 use crate::store::SessionStore;
 use crate::store::REQUEST_MAP;
 use crate::Resource;
-use browser_rpass::dbg;
 use browser_rpass::js_binding::extension_api::Port;
 use log::*;
 pub use wasm_bindgen;
@@ -33,6 +32,7 @@ pub fn process_native_message(
     } else {
         None
     };
+    debug!("response {:?}", response_wrapper);
     match response_wrapper {
         ResponseEnum::LoginResponse(login_response) => {
             if let RequestEnum::Login(login_request) = request.clone().unwrap() {
@@ -111,7 +111,6 @@ pub fn process_native_message(
             return Ok(response);
         }
         ResponseEnum::CreateResponse(create_response) => {
-            dbg!(&json_msg);
             let response = ResponseEnum::CreateResponse(create_response.clone());
             let status = &create_response.status;
             match status {
@@ -128,6 +127,51 @@ pub fn process_native_message(
                             create_response.resource.clone(),
                             create_response.data.clone(),
                             request,
+                        ),
+                    });
+                }
+            }
+            return Ok(response);
+        }
+        ResponseEnum::CreateStoreResponse(create_store_response) => {
+            debug!("create store response {:?}", create_store_response);
+            let response = ResponseEnum::CreateStoreResponse(create_store_response.clone());
+            let status = &create_store_response.status;
+            match status {
+                &Status::Success => {
+                    session_store_dispatch.apply(SessionActionWrapper {
+                        action: SessionAction::StoreCreated(create_store_response),
+                        meta: ctx,
+                    });
+                }
+                _ => {
+                    session_store_dispatch.apply(SessionActionWrapper {
+                        meta: ctx,
+                        action: SessionAction::StoreCreationFailed(
+                            request.clone().unwrap(),
+                            response.clone(),
+                        ),
+                    });
+                }
+            }
+            return Ok(response);
+        }
+        ResponseEnum::DeleteStoreResponse(delete_store_response) => {
+            let response = ResponseEnum::DeleteStoreResponse(delete_store_response.clone());
+            let status = &delete_store_response.status;
+            match status {
+                &Status::Success => {
+                    session_store_dispatch.apply(SessionActionWrapper {
+                        action: SessionAction::StoreDeleted(delete_store_response),
+                        meta: ctx,
+                    });
+                }
+                _ => {
+                    session_store_dispatch.apply(SessionActionWrapper {
+                        meta: ctx,
+                        action: SessionAction::StoreDeletionFailed(
+                            request.clone().unwrap(),
+                            response.clone(),
                         ),
                     });
                 }
@@ -188,6 +232,7 @@ pub fn process_native_message(
                     return Ok(response);
                 }
                 _ => {
+                    error!("error happened while initializing");
                     return Err("error happened while initializing".to_owned());
                 }
             }

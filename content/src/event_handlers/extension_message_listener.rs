@@ -39,7 +39,9 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
 
                         let resource = event_request.resource.unwrap_or(vec![]);
                         match event_type {
-                            &SessionEventType::Init => {
+                            &SessionEventType::Init(
+                                ref _not_implemented_for_content_script_yet,
+                            ) => {
                                 dispatch.apply(DataAction::Init(data));
                             }
                             &SessionEventType::Login => {

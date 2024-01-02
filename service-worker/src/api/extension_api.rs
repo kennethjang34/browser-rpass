@@ -6,7 +6,7 @@ use browser_rpass::{
     response::{MessageEnum, RequestEnum},
 };
 use gloo_utils::format::JsValueSerdeExt;
-use log::*;
+use log::debug;
 use wasm_bindgen::JsValue;
 
 use crate::store::{EXTENSION_PORT, LISTENER_PORT};
@@ -24,21 +24,34 @@ pub fn broadcast_session_event(
         _ => {}
     }
     let mut locked = LISTENER_PORT.lock().unwrap();
-    let listeners = locked.get_mut(session_event.store_id.as_ref().unwrap());
-    if let Some(listeners) = listeners {
+    if session_event.store_id_index.is_none() {
         for port in EXTENSION_PORT.lock().unwrap().values() {
-            if listeners.contains(&port.name()) {
-                let request = MessageEnum::Message(RequestEnum::create_session_event_request(
-                    None,
-                    session_event.clone(),
-                    None,
-                    None,
-                ));
-                port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&request).unwrap());
-            }
+            let request = MessageEnum::Message(RequestEnum::create_session_event_request(
+                None,
+                session_event.clone(),
+                None,
+                None,
+            ));
+            port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&request).unwrap());
         }
-        if let Some(ports_to_disconnect) = ports_to_disconnect.clone() {
-            listeners.retain(|port_name| !ports_to_disconnect.contains(port_name));
+        return;
+    } else {
+        let listeners = locked.get_mut(session_event.store_id_index.as_ref().unwrap());
+        if let Some(listeners) = listeners {
+            for port in EXTENSION_PORT.lock().unwrap().values() {
+                if listeners.contains(&port.name()) {
+                    let request = MessageEnum::Message(RequestEnum::create_session_event_request(
+                        None,
+                        session_event.clone(),
+                        None,
+                        None,
+                    ));
+                    port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&request).unwrap());
+                }
+            }
+            if let Some(ports_to_disconnect) = ports_to_disconnect.clone() {
+                listeners.retain(|port_name| !ports_to_disconnect.contains(port_name));
+            }
         }
     }
 }
@@ -49,5 +62,7 @@ pub fn whisper_session_event(session_event: SessionEvent, port: &Port) {
         None,
         None,
     ));
+    debug!("whispering session event: {:?}", msg);
+    debug!("to port: {:?}", port);
     port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&msg).unwrap());
 }

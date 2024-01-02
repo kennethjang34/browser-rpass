@@ -9,6 +9,7 @@ use crate::store::PORT_ID_MAP;
 use crate::store::REQUEST_MAP;
 use browser_rpass::js_binding::extension_api::*;
 use browser_rpass::types::Account;
+use browser_rpass::types::StateStoreStatus;
 use browser_rpass::types::StorageStatus;
 use browser_rpass::util::*;
 use log::*;
@@ -100,9 +101,14 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                             serde_json::to_value(false).unwrap(),
                         );
                     }
+                    let mut payload = HashMap::new();
+                    payload.insert(
+                        DataFieldType::Data,
+                        serde_json::to_value(data.clone()).unwrap(),
+                    );
                     let session_event = SessionEvent {
-                        store_id: init_request.get_store_id(),
-                        event_type: SessionEventType::Init,
+                        store_id_index: init_request.get_store_id(),
+                        event_type: SessionEventType::Init(payload),
                         data: Some(data),
                         meta: None,
                         resource: None,
@@ -125,27 +131,45 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                                 set
                             });
                     }
-                    let store_ids = dispatch
-                        .get()
-                        .stores
-                        .clone()
-                        .borrow()
-                        .keys()
-                        .cloned()
-                        .collect::<Vec<String>>();
-                    let store_ids = serde_json::to_value(store_ids).unwrap();
-                    let mut data = HashMap::new();
-                    data.insert(DataFieldType::Data, store_ids);
-                    let session_event = SessionEvent {
-                        store_id: init_request.get_store_id(),
-                        event_type: SessionEventType::Init,
-                        data: Some(data),
-                        meta: None,
-                        resource: None,
-                        is_global: false,
-                        acknowledgement: init_request.get_acknowledgement(),
-                    };
-                    whisper_session_event(session_event, &extension_port);
+                    let current_status = dispatch.get().status.clone();
+                    match current_status {
+                        StateStoreStatus::Uninitialized => {
+                            todo!();
+                        }
+                        StateStoreStatus::Loading(_acknowledgement) => {}
+                        StateStoreStatus::Loaded | StateStoreStatus::Idle => {
+                            let store_ids = dispatch
+                                .get()
+                                .stores
+                                .clone()
+                                .borrow()
+                                .keys()
+                                .cloned()
+                                .collect::<Vec<String>>();
+                            let store_ids = serde_json::to_value(store_ids).unwrap();
+                            let keys = dispatch.get().keys.borrow().clone();
+                            let mut payload = HashMap::new();
+                            payload.insert(
+                                DataFieldType::StoreIDList,
+                                serde_json::to_value(store_ids.clone()).unwrap(),
+                            );
+                            payload
+                                .insert(DataFieldType::Keys, serde_json::to_value(keys).unwrap());
+                            let session_event = SessionEvent {
+                                store_id_index: init_request.get_store_id(),
+                                event_type: SessionEventType::Init(payload),
+                                data: None,
+                                meta: None,
+                                resource: None,
+                                is_global: false,
+                                acknowledgement: init_request.get_acknowledgement(),
+                            };
+                            whisper_session_event(session_event, &extension_port);
+                        }
+                        StateStoreStatus::Error => {
+                            todo!()
+                        }
+                    }
                 }
             } else {
                 let header = {
@@ -188,6 +212,34 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                             .insert(session_event_acknowledgement.clone(), extension_port.name());
                         native_port.post_message(
                             <JsValue as JsValueSerdeExt>::from_serde(&create_request).unwrap(),
+                        );
+                    }
+                    RequestEnum::CreateStore(create_store_request) => {
+                        REQUEST_MAP
+                            .lock()
+                            .unwrap()
+                            .insert(native_request_acknowledgement.clone(), request.clone());
+                        PORT_ID_MAP
+                            .lock()
+                            .unwrap()
+                            .insert(session_event_acknowledgement.clone(), extension_port.name());
+                        native_port.post_message(
+                            <JsValue as JsValueSerdeExt>::from_serde(&create_store_request)
+                                .unwrap(),
+                        );
+                    }
+                    RequestEnum::DeleteStore(delete_store_request) => {
+                        REQUEST_MAP
+                            .lock()
+                            .unwrap()
+                            .insert(native_request_acknowledgement.clone(), request.clone());
+                        PORT_ID_MAP
+                            .lock()
+                            .unwrap()
+                            .insert(session_event_acknowledgement.clone(), extension_port.name());
+                        native_port.post_message(
+                            <JsValue as JsValueSerdeExt>::from_serde(&delete_store_request)
+                                .unwrap(),
                         );
                     }
                     RequestEnum::Edit(edit_request) => {
@@ -291,7 +343,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                                 );
                                 let mock_session_event = {
                                     SessionEvent {
-                                        store_id: fetch_request.store_id.clone(),
+                                        store_id_index: fetch_request.store_id.clone(),
                                         event_type: SessionEventType::Refreshed,
                                         data: Some(data),
                                         meta,
@@ -315,13 +367,7 @@ pub fn handle_request_from_popup(request: RequestEnum, extension_port: Port, _na
                                 );
                             }
                             StorageStatus::Error => {
-                                dispatch.apply(SessionActionWrapper {
-                                    meta,
-                                    action: SessionAction::DataLoading(
-                                        fetch_request.store_id.clone().unwrap(),
-                                        request.get_acknowledgement(),
-                                    ),
-                                });
+                                todo!();
                             }
                         }
                     }

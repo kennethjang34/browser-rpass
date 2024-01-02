@@ -112,10 +112,8 @@ pub fn account_page(props: &Props) -> Html {
     let close_create_account_popup = {
         let show_create_account_popup = show_create_account_popup.clone();
         Callback::from({
-            let store_dispatch = store_dispatch.clone();
             move |_: MouseEvent| {
                 show_create_account_popup.set(false);
-                store_dispatch.apply(DataAction::Idle);
             }
         })
     };
@@ -129,7 +127,7 @@ pub fn account_page(props: &Props) -> Html {
             }
         })
     };
-    let close_error = {
+    let close_toast = {
         let dispatch = store_dispatch.clone();
         Callback::from(move |_| dispatch.apply(DataAction::Idle))
     };
@@ -157,17 +155,83 @@ pub fn account_page(props: &Props) -> Html {
         store_dispatch.apply(LoginAction::LoginIdle);
         store_switcher_visible.dispatch(BoolStateAction::SetAction(false));
     }
+    let show_create_store_popup = use_reducer(|| BoolState::new(false));
+    let show_delete_store_popup = use_reducer(|| BoolState::new(false));
+    let on_create_store = Callback::from({
+        let show_create_store_popup = show_create_store_popup.clone();
+        move |event: MouseEvent| {
+            event.prevent_default();
+            show_create_store_popup.dispatch(BoolStateAction::ToggleAction);
+        }
+    });
+    let close_create_store_popup = {
+        let show_create_store_popup = show_create_store_popup.clone();
+        Callback::from({
+            move |_: MouseEvent| {
+                show_create_store_popup.dispatch(BoolStateAction::SetAction(false));
+            }
+        })
+    };
+    let on_delete_store = Callback::from({
+        let show_delete_store_popup = show_delete_store_popup.clone();
+        move |event: MouseEvent| {
+            event.prevent_default();
+            show_delete_store_popup.dispatch(BoolStateAction::ToggleAction);
+        }
+    });
+    let close_delete_store_popup = {
+        let show_delete_store_popup = show_delete_store_popup.clone();
+        Callback::from({
+            move |_: MouseEvent| {
+                show_delete_store_popup.dispatch(BoolStateAction::SetAction(false));
+            }
+        })
+    };
+    debug!("store status: {:?}", *store_status);
     html! {
             <>
                 <div class="relative overflow-hidden shadow-md sm:rounded-lg w-full h-full">
                 <div class="w-full top-2.5" style="border-bottom:outset; height: 80%;">
                 <SearchInput onchange={on_search} value={(*search_string).clone()}/>
+            <div class={classes!("flex")}>
                 <button  class="primary-btn block  my-4 mx-2" type="button" onclick={&on_switch_stores}>
                     {"Switch stores"}
                 </button>
-                    if *store_status==StoreDataStatus::DeletionFailed{
-                        <ErrorToast on_close_button_clicked={close_error} text={"Deletion Failed"} class="absolute right-0 top-5 z-10"/>
-                    }
+                <button type="button" class="my-4 mx-2 accent-btn" onclick={on_create_store}>{"create store"}</button>
+                <button type="button" class="my-4 mx-2 warning-btn" onclick={on_delete_store}>{"delete store"}</button>
+                    </div>
+                            if (*show_create_store_popup).into(){
+                                <div class="fullscreen-container">
+                                    <CreateStorePopup handle_close={close_create_store_popup}/>
+                                </div>
+                            }
+                            if (*show_delete_store_popup).into(){
+                                <div class="fullscreen-container">
+                                    <DeleteStorePopup handle_close={close_delete_store_popup}/>
+                                </div>
+                            }
+                            if show_create_store_popup.value == false && show_delete_store_popup.value==false {
+                                if let StoreDataStatus::StoreCreationFailed(_,ref store_id)=*store_status{
+                                    <Toast toast_type={ToastType::Error} on_close_button_clicked={close_toast.clone()} text={format!("Failed to create store: {store_id}")} class="absolute right-0 top-5 z-10"/>
+                                }
+                                if let StoreDataStatus::StoreCreated(_,ref store_id)=*store_status{
+                                    <Toast toast_type={ToastType::Success} on_close_button_clicked={close_toast.clone()} text={format!("Successfully created store: {store_id}")} class="absolute right-0 top-5 z-10"/>
+                                }
+                                if let StoreDataStatus::StoreDeletionFailed(_,ref store_id)=*store_status{
+                                    <Toast toast_type={ToastType::Error} on_close_button_clicked={close_toast.clone()} text={format!("Failed to delete store: {store_id}")} class="absolute right-0 top-5 z-10"/>
+                                }
+                                if let StoreDataStatus::StoreDeleted(_,ref store_id)=*store_status{
+                                    <Toast toast_type={ToastType::Success} on_close_button_clicked={close_toast.clone()} text={format!("Successfully deleted store: {store_id}")} class="absolute right-0 top-5 z-10"/>
+                                }
+                            }
+
+
+                        if *store_status==StoreDataStatus::DeletionFailed{
+                            <Toast toast_type={ToastType::Error} on_close_button_clicked={close_toast.clone()} text={"Deletion Failed"} class="absolute right-0 top-5 z-10"/>
+                        }
+                        if *store_status==StoreDataStatus::DeletionSuccess{
+                            <Toast toast_type={ToastType::Success} on_close_button_clicked={close_toast.clone()} text={"Deletion Success"} class="absolute right-0 top-5 z-10"/>
+                        }
                 <div class={classes!("h-72", "overflow-y-auto")}>
                     <table class="dark:text-gray-400 relative rtl:text-right text-gray-500 text-left text-sm w-full top-3" border="1">
                             <colgroup>

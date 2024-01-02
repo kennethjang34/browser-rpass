@@ -1,8 +1,12 @@
-use std::time::SystemTime;
+use std::{collections::HashMap, time::SystemTime};
 
+use browser_rpass::request::DataFieldType;
 use fern::colors::{Color, ColoredLevelConfig};
 use log::LevelFilter;
-use rpass::{crypto::Handler, pass};
+use rpass::{
+    crypto::{Handler, Key},
+    pass,
+};
 use serde_json::Value;
 
 use crate::PasswordStoreType;
@@ -84,4 +88,48 @@ pub fn do_rename_file(
         .lock()?
         .rename_file(old_name, &new_name, passphrase_provider);
     res.map(|_| ())
+}
+
+pub trait ToJson {
+    fn to_json(&self) -> Value;
+}
+impl ToJson for dyn Key {
+    fn to_json(&self) -> Value {
+        let mut map = HashMap::new();
+        let fingerprint = self.fingerprint().unwrap();
+        let fingerprint = hex::encode(fingerprint);
+        map.insert(
+            DataFieldType::KeyFingerprint,
+            serde_json::to_value(fingerprint.clone()).unwrap(),
+        );
+        map.insert(
+            DataFieldType::KeyID,
+            serde_json::to_value(fingerprint).unwrap(),
+        );
+        map.insert(
+            DataFieldType::KeyUsername,
+            serde_json::to_value(self.get_user_name()).unwrap(),
+        );
+        map.insert(
+            DataFieldType::KeyUserID,
+            serde_json::to_value(self.primary_user_id()).unwrap(),
+        );
+        map.insert(
+            DataFieldType::KeyHasSecret,
+            serde_json::to_value(self.has_secret()).unwrap(),
+        );
+        map.insert(
+            DataFieldType::KeyUsable,
+            serde_json::to_value(!self.is_not_usable()).unwrap(),
+        );
+        map.insert(
+            DataFieldType::CanSign,
+            serde_json::to_value(self.can_sign()).unwrap(),
+        );
+        map.insert(
+            DataFieldType::CanEncrypt,
+            serde_json::to_value(self.can_encrypt()).unwrap(),
+        );
+        serde_json::to_value(map).unwrap()
+    }
 }

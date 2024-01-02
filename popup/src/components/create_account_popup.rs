@@ -160,7 +160,10 @@ pub fn create_account_popup(props: &Props) -> Html {
                         {"Create Account"}
                         </h3>
                         if *store_status == StoreDataStatus::CreationFailed{
-                            <ErrorToast class="absolute right-0 mr-5 my-4" text={"Creation Failed"} on_close_button_clicked={close_error}/>
+                            <Toast toast_type={ToastType::Error} class="absolute right-0 mr-5 my-4" text={"Creation Failed"} on_close_button_clicked={close_error.clone()}/>
+                        }
+                        if *store_status == StoreDataStatus::CreationSuccess{
+                            <Toast toast_type={ToastType::Success} class="absolute right-0 mr-5 my-4" text={"Creation Success"} on_close_button_clicked={close_error.clone()}/>
                         }
                         <CloseButton onclick={&props.handle_close}/>
                     </div>

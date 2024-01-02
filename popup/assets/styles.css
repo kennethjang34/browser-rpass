@@ -50,7 +50,7 @@
     @apply m-4 mx-auto translate-y-full transition-opacity px-1  text-sm border-gray-800  dark:border-gray-400 rounded-md opacity-0  text-black dark:text-white peer-hover:opacity-100;
   }
   .dropdown-menu {
-    @apply absolute z-10 p-0.5 origin-top-right bg-white rounded-md shadow-lg dark:bg-gray-800 right-0 ring-1 ring-black ring-opacity-5 focus:outline-none;
+    @apply w-full h-full z-10 p-0.5 origin-top-right bg-white rounded-md shadow-lg dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none overflow-y-auto;
   }
   .dropdown-item-list {
     @apply text-sm text-gray-700 py-2 dark:text-gray-200;

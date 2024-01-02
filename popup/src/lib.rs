@@ -4,6 +4,7 @@ pub use browser_rpass::dbg;
 use browser_rpass::js_binding::extension_api::chrome;
 use browser_rpass::js_binding::extension_api::Tab;
 pub use browser_rpass::types::*;
+use components::DropdownOption;
 use gloo_utils::document;
 use serde_json::json;
 use serde_json::Value;
@@ -15,10 +16,12 @@ use cfg_if::cfg_if;
 pub use gloo_utils::format::JsValueSerdeExt;
 #[warn(unused_imports)]
 use log::{self, *};
+use std::cell::RefCell;
 use std::panic;
 use std::rc::Rc;
 use yew::Reducible;
 use yewdux::dispatch::Dispatch;
+use yewdux::mrc::Mrc;
 
 mod api;
 mod app;
@@ -29,6 +32,8 @@ mod store;
 use std::collections::HashMap;
 
 use browser_rpass::{create_request_acknowledgement, response::RequestEnum};
+
+use crate::store::PersistentStoreData;
 
 cfg_if! {
     if #[cfg(feature = "console_log")] {
@@ -64,28 +69,28 @@ pub async fn run_app() -> Result<(), JsValue> {
     let tab = tabs.get(0).unwrap();
     let window_id = tab.window_id();
     let persisted = PopupStore::load_window_storage(&window_id.to_string()).await;
-    if let Some(parsed_state) = persisted {
-        let mut popup_store = PopupStore::default();
-        popup_store.persistent_data = parsed_state;
-
-        let dark_mode = popup_store.persistent_data.dark_mode;
+    let dispatch = Dispatch::<PopupStore>::new();
+    let persistent_data = if let Some(parsed_state) = persisted {
+        let dark_mode = parsed_state.dark_mode;
         if dark_mode {
             let _ = document().body().unwrap().set_class_name("dark");
         } else {
             let _ = document().body().unwrap().class_list().remove_1("dark");
         }
-        popup_store.window_id = Some(window_id.to_string());
-        Dispatch::<PopupStore>::new().set(popup_store);
+        parsed_state
     } else {
-        Dispatch::<PopupStore>::new().set(PopupStore {
-            window_id: Some(window_id.to_string()),
-            ..Default::default()
-        })
-    }
+        PersistentStoreData::default()
+    };
     let acknowledgement = create_request_acknowledgement();
     let init_config = HashMap::new();
     let init_request =
         RequestEnum::create_init_request(init_config, Some(acknowledgement.clone()), None);
+    dispatch.set(PopupStore {
+        window_id: Some(window_id.to_string()),
+        persistent_data,
+        page_loading: true,
+        ..Default::default()
+    });
     EXTENSION_PORT
         .lock()
         .borrow()
@@ -98,6 +103,11 @@ pub async fn run_app() -> Result<(), JsValue> {
 #[derive(Clone, Debug, Default, Copy)]
 pub struct BoolState {
     value: bool,
+}
+impl BoolState {
+    pub fn new(value: bool) -> Self {
+        Self { value }
+    }
 }
 impl From<&BoolState> for bool {
     fn from(state: &BoolState) -> bool {
@@ -124,4 +134,24 @@ impl Reducible for BoolState {
         };
         Self { value: next_value }.into()
     }
+}
+pub fn dropdown_filter<'a, 'b>(
+    query: &'a str,
+    options: &mut Vec<Rc<RefCell<DropdownOption>>>,
+    include_selected: bool,
+) -> Vec<Rc<RefCell<DropdownOption>>> {
+    let query = query.to_lowercase();
+    let filtered_options = options
+        .iter()
+        .filter_map(|option| {
+            if option.borrow().name.to_lowercase().contains(&query)
+                && (include_selected || !option.borrow().selected())
+            {
+                Some((*option).clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    filtered_options
 }

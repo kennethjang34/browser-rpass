@@ -1,8 +1,11 @@
 use std::io::{self, Read, Write};
+use std::sync::{Arc, Mutex};
 
-use rpass::pass;
 use rpass::pass::Error;
+use rpass::pass::{self, PasswordStore};
 use serde::Serialize;
+
+use crate::StoreListType;
 
 pub fn get_message() -> pass::Result<serde_json::Value> {
     let mut raw_length = [0; 4];
@@ -53,4 +56,18 @@ pub fn filter_by_query(
     _entries: &Vec<pass::PasswordEntry>,
 ) -> Vec<pass::PasswordEntry> {
     todo!();
+}
+pub fn get_store<'a, 'b>(
+    store_id: &str,
+    stores: &StoreListType,
+) -> Option<Arc<Mutex<PasswordStore>>> {
+    let stores = stores.lock().unwrap();
+    let store = stores
+        .iter()
+        .find(|store| store.lock().unwrap().get_name() == store_id);
+    if let Some(store) = store {
+        Some(store.clone())
+    } else {
+        None
+    }
 }

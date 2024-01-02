@@ -8,11 +8,13 @@ use crate::{
 #[allow(unused_imports)]
 use log::*;
 use serde::{Deserialize, Serialize};
-use sublime_fuzzy::best_match;
 use validator::{Validate, ValidationErrors};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
-use yewdux::{dispatch::Dispatch, functional::use_selector};
+use yewdux::{
+    dispatch::Dispatch,
+    functional::{use_selector, use_selector_with_deps},
+};
 
 #[derive(Validate, Debug, Default, Clone, Serialize, Deserialize)]
 struct LoginSchema {
@@ -25,72 +27,61 @@ pub struct StoreSwitcherProps {
     pub class: Classes,
     #[prop_or_default]
     pub handle_close: Callback<MouseEvent>,
+    #[prop_or_default]
+    pub input: NodeRef,
 }
 
 #[function_component(StoreSwitcher)]
 #[allow(unused_variables)]
 pub fn store_switcher(props: &StoreSwitcherProps) -> Html {
     let popup_store_dispatch = Dispatch::<PopupStore>::new();
-    let store_ids = use_selector(|state: &PopupStore| state.store_ids.clone());
-    let dropdown_open = use_state(|| false);
+    let input_ref = props.input.clone();
     let validation_errors = use_state(|| Rc::new(RefCell::new(ValidationErrors::new())));
     let is_default = use_state(|| true);
-    let store_id_text_input = use_state(|| {
-        popup_store_dispatch
-            .get()
-            .persistent_data
-            .store_id
-            .clone()
-            .unwrap_or_default()
-    });
-    let handle_store_id_input = Callback::from({
-        let store_id_text_input = store_id_text_input.clone();
-        move |event: InputEvent| {
-            let value = event.target_unchecked_into::<HtmlInputElement>().value();
-            store_id_text_input.set(value);
-        }
-    });
-    let dropdown_options = {
-        let mut non_matched: Vec<String> = vec![];
-        let mut result = vec![];
-        store_ids.iter().cloned().for_each(|store_id| {
-            let m_res = best_match(&store_id_text_input, store_id.as_str());
-            if let Some(m_res) = m_res {
-                let score = m_res.score();
-                result.push((score, store_id));
-            } else {
-                non_matched.push(store_id);
+    let current_store_id =
+        use_selector(|state: &PopupStore| state.persistent_data.store_id.clone());
+    let current_store_active =
+        use_selector(|state: &PopupStore| state.persistent_data.store_activated.clone());
+    let dropdown_options = use_selector_with_deps(
+        {
+            move |state: &PopupStore, current_store_id: &Rc<Option<String>>| {
+                let store_ids = state.store_ids.clone();
+                Rc::new(RefCell::new(
+                    store_ids
+                        .iter()
+                        .cloned()
+                        .map(|store_id| {
+                            let selected = current_store_id.is_some()
+                                && store_id == (**current_store_id).clone().unwrap();
+                            let option = Rc::new(RefCell::new(DropdownOption {
+                                name: store_id.clone(),
+                                value: store_id.clone(),
+                                selected,
+                            }));
+                            option
+                        })
+                        .collect::<Vec<Rc<RefCell<DropdownOption>>>>(),
+                ))
             }
-        });
-        let mut result_vec: Vec<DropdownOption> = vec![];
-        result.sort_by(|a, b| a.0.cmp(&b.0));
-        for vac in result {
-            result_vec.push(DropdownOption {
-                name: vac.1.clone(),
-                value: vac.1.clone(),
-            });
+        },
+        current_store_id.clone(),
+    );
+    let selected = use_state(|| {
+        if current_store_id.is_some() {
+            let store_id = (*current_store_id).clone().unwrap();
+            dropdown_options.borrow().iter().find_map(|option| {
+                if option.borrow().value == store_id {
+                    Some(option.clone())
+                } else {
+                    None
+                }
+            })
+        } else {
+            None
         }
-        for v in non_matched {
-            result_vec.push(DropdownOption {
-                name: v.clone(),
-                value: v.clone(),
-            });
-        }
-        result_vec
-    };
+    });
+
     let page_loading = use_selector(|state: &PopupStore| state.page_loading);
-    let store_id_input_focused = Callback::from({
-        let dropdown_open = dropdown_open.clone();
-        move |_event: FocusEvent| {
-            dropdown_open.set(true);
-        }
-    });
-    let store_id_input_blur = Callback::from({
-        let dropdown_open = dropdown_open.clone();
-        move |_event: FocusEvent| {
-            dropdown_open.set(false);
-        }
-    });
 
     let remember_me = use_selector(|state: &PopupStore| state.persistent_data.remember_me);
 
@@ -110,53 +101,59 @@ pub fn store_switcher(props: &StoreSwitcherProps) -> Html {
     });
     let _is_loading = use_selector(|state: &PopupStore| state.page_loading);
     let login_status = use_selector(|state: &PopupStore| state.login_status.clone());
-    let on_submit = {
+    let on_submit = Callback::from(|event: SubmitEvent| {
+        event.prevent_default();
+    });
+    let on_switch = {
         let cloned_validation_errors = validation_errors.clone();
         let popup_store_dispatch = popup_store_dispatch.clone();
         let is_default = is_default.clone();
-        let store_id_text_input = store_id_text_input.clone();
-        Callback::from(move |event: SubmitEvent| {
-            event.prevent_default();
-            let form = LoginSchema {
-                store_id: (*store_id_text_input).clone(),
-            };
-            let validation_errors = cloned_validation_errors.clone();
-            let store_id_text_input = store_id_text_input.clone();
+        let input_ref = input_ref.clone();
+        let selected = selected.clone();
+        Callback::from({
+            move |event: MouseEvent| {
+                event.prevent_default();
+                if let Some(option) = (*selected).clone() {
+                    let store_id = option.borrow().value.clone();
+                    let form = LoginSchema {
+                        store_id: store_id.clone(),
+                    };
+                    let validation_errors = cloned_validation_errors.clone();
 
-            match form.validate() {
-                Ok(_) => {
-                    let _form_data = form.clone();
-                    popup_store_dispatch.apply(LoginAction::LoginStarted(
-                        form.store_id.clone(),
-                        HashMap::new(),
-                    ));
-                    let store_id = (*store_id_text_input).clone();
-                    login(store_id, *is_default);
+                    match form.validate() {
+                        Ok(_) => {
+                            let _form_data = form.clone();
+                            popup_store_dispatch.apply(LoginAction::LoginStarted(
+                                form.store_id.clone(),
+                                HashMap::new(),
+                            ));
+                            login(store_id, *is_default);
+                        }
+                        Err(e) => {
+                            validation_errors.set(Rc::new(RefCell::new(e)));
+                        }
+                    };
+                } else {
+                    let input = input_ref.cast::<HtmlInputElement>().unwrap();
+                    login(input.value(), *is_default);
                 }
-                Err(e) => {
-                    validation_errors.set(Rc::new(RefCell::new(e)));
-                }
-            };
+            }
         })
     };
-    let close_login_error = {
+    let on_select = {
+        let selected = selected.clone();
+        Callback::from(move |option: Rc<RefCell<DropdownOption>>| {
+            if option.borrow().selected {
+                selected.set(Some(option.clone()));
+            } else {
+                selected.set(None);
+            }
+        })
+    };
+    let close_toast = {
         let dispatch = popup_store_dispatch.clone();
         Callback::from(move |_| {
             dispatch.apply(LoginAction::LoginIdle);
-        })
-    };
-    let on_dropdown_click = {
-        let dropdown_open = dropdown_open.clone();
-        Callback::from(move |_e: MouseEvent| {
-            dropdown_open.set(!*dropdown_open);
-        })
-    };
-    let option_selected = {
-        let dropdown_open = dropdown_open.clone();
-        let store_id_text_input = store_id_text_input.clone();
-        Callback::from(move |option: DropdownOption| {
-            store_id_text_input.set(option.value.clone());
-            dropdown_open.set(false);
         })
     };
 
@@ -164,33 +161,29 @@ pub fn store_switcher(props: &StoreSwitcherProps) -> Html {
         <>
                     <div class={classes!(String::from("flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600"),props.class.clone())}>
                     if *login_status == LoginStatus::LoginFailed || *login_status == LoginStatus::LoginError {
-                        <ErrorToast class="absolute right-0 mr-5 my-4" text={"Login Failed"} on_close_button_clicked={close_login_error}/>
+                        <Toast toast_type={ToastType::Error} class="absolute right-0 mr-5 my-4" text={"Login Failed"} on_close_button_clicked={close_toast.clone()}/>
+                    }
+                    if *login_status == LoginStatus::LoginSuccess  {
+                        <Toast toast_type={ToastType::Success} class="absolute right-0 mr-5 my-4" text={"Login Success"} on_close_button_clicked={close_toast.clone()}/>
                     }
                     </div>
                            <form
                               onsubmit={on_submit}
-                                        class="space-y-1.5 p-2.5 relative max-h-full h-80" action="#"
+                                        class="space-y-1.5 p-2.5 relative max-h-full h-80"
 
                               >
                                     <label for="store-menu" class=
         "block mb-auto text-sm font-medium text-gray-900 dark:text-white">
                                         {"Store"}
                                     </label>
-                                    <input type="text" id="store-menu" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" aria-haspopup="true" aria-expanded="true" aria-labelledby="store-menu-label" value={(*store_id_text_input).clone()} oninput={handle_store_id_input}
-                                onfocus={store_id_input_focused}
-                                onblur={store_id_input_blur}
-                                autocomplete="off"
-                                />
-                                    if *dropdown_open && !store_ids.is_empty() && !store_id_text_input.is_empty() {
-                                      <Dropdown
-                                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white absolute"
-                                        style="transform:translateX(-50%); width:calc(100% - 1.25rem); left:50%; transform: translateX(-50%);"
-                                      on_menu_click={on_dropdown_click}
-                                      options={
-                                      dropdown_options} on_select={option_selected}
-                                      ></Dropdown>
-                                    }
-                                  <div class="flex-col">
+
+                                         <DropdownSearch options={(*dropdown_options).clone()}
+                                    default_input_text={(*current_store_id).clone().unwrap_or("".to_string())}
+                                    force_option=true
+                                    on_select={on_select.clone()}
+                                    input_ref={input_ref.clone()}
+                                    multiple=false/>
+                     <div class="flex-col">
                         <div class="flex items-start">
                             <div class="flex items-center h-5">
                                 <input id="remember" type="checkbox" checked={*remember_me} class="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300 dark:bg-gray-600 dark:border-gray-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800" required={false} onchange={handle_rememeber_me_input}/>
@@ -204,8 +197,12 @@ pub fn store_switcher(props: &StoreSwitcherProps) -> Html {
                             <label for="is-default" class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">{"For Autofill Suggestions"}</label>
                         </div>
                     </div>
-                                                      <button type="submit" class="absolute bottom-0 left-1/2 text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-                                                      style="transform:translateX(-50%); width: calc(100% - 1.25rem);"
+                                                      <button type="button" onclick={on_switch} class="absolute bottom-0 left-1/2 text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 disabled:opacity-25"
+                                                      style="transform:translateX(-50%); width: calc(100% - 1.25rem);" disabled={
+                                                          selected.is_none() || (current_store_id.is_some()
+                                                                                 && (*current_store_active)
+                                                                                 && (*selected).clone().unwrap().borrow().value==(*current_store_id).clone().unwrap())
+                                                      }
                                                       >{"Switch stores"}</button>
 
                            </form>

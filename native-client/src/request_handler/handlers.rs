@@ -1,7 +1,12 @@
-use rpass::{crypto::Handler, pass::CUSTOM_FIELD_PREFIX};
+use rpass::{
+    crypto::{self, Handler, Key},
+    git::RepoExt,
+    pass::{save_config, Recipient, CUSTOM_FIELD_PREFIX},
+};
 use std::{
     collections::HashMap,
-    path::PathBuf,
+    fs::{remove_dir, remove_dir_all},
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
 
@@ -335,94 +340,10 @@ pub fn handle_fetch_request(
         }
     };
 }
-pub fn handle_init_request(request: InitRequest) -> pass::Result<StoreListType> {
-    let home_dir = request.config.get(&DataFieldType::HomeDir).cloned();
-    let home = {
-        if home_dir.is_some() {
-            home_dir.map(|s| PathBuf::from(s))
-        } else {
-            match std::env::var("HOME") {
-                Err(_) => None,
-                Ok(home_path) => Some(PathBuf::from(home_path)),
-            }
-        }
-    };
-    let store_dir = request.config.get(&DataFieldType::StoreDir).cloned();
-    let password_store_dir = {
-        if store_dir.is_some() {
-            store_dir
-        } else {
-            match std::env::var("PASSWORD_STORE_DIR") {
-                Err(_) => None,
-                Ok(password_store_dir) => Some(password_store_dir),
-            }
-        }
-    };
-    let password_store_signing_key = request.config.get(&DataFieldType::SigningKey).cloned();
-    let password_store_signing_key = {
-        if password_store_signing_key.is_some() {
-            password_store_signing_key
-        } else {
-            match std::env::var("PASSWORD_STORE_SIGNING_KEY") {
-                Err(_) => None,
-                Ok(password_store_signing_key) => Some(password_store_signing_key),
-            }
-        }
-    };
-    let _xdg_data_home = match std::env::var("XDG_DATA_HOME") {
-        Err(_) => match &home {
-            Some(home_path) => home_path.join(".local"),
-            None => {
-                return Err(pass::Error::from("No home directory set"));
-            }
-        },
-        Ok(data_home_path) => PathBuf::from(data_home_path),
-    };
-
-    let config_res = {
-        let xdg_config_home = match std::env::var("XDG_CONFIG_HOME") {
-            Err(_) => None,
-            Ok(config_home_path) => Some(PathBuf::from(config_home_path)),
-        };
-        pass::read_config(
-            &password_store_dir,
-            &password_store_signing_key,
-            &home,
-            &xdg_config_home,
-        )
-    };
-    if let Err(err) = config_res {
-        error!("Failed to read config: {:?}", err);
-        return Err(err);
-    }
-    let (config, config_file_location) = config_res?;
-
-    let stores = PasswordStore::get_stores(&config, &home);
-    if let Err(err) = stores {
-        error!("{:?}", err);
-        return Err(err);
-    }
-
-    let stores: StoreListType = Arc::new(Mutex::new(
-        stores?
-            .into_iter()
-            .map(|s| Arc::new(Mutex::new(s)))
-            .collect(),
-    ));
-
-    if !config_file_location.exists() && stores.lock()?.len() == 1 {
-        let mut config_file_dir = config_file_location.clone();
-        config_file_dir.pop();
-        if let Err(err) = std::fs::create_dir_all(config_file_dir) {
-            error!("{:?}", err);
-            return Err(pass::Error::from(err));
-        }
-        if let Err(err) = pass::save_config(stores.clone(), &config_file_location) {
-            error!("{:?}", err);
-            return Err(err);
-        }
-    }
-    Ok(stores)
+#[allow(unused_variables)]
+pub fn handle_init_request(request: InitRequest) -> pass::Result<Vec<Box<dyn Key>>> {
+    let keys = crypto::get_keys(crypto::CryptoImpl::GpgMe)?;
+    Ok(keys)
 }
 pub fn handle_login_request(
     _request: LoginRequest,
@@ -437,6 +358,7 @@ pub fn handle_login_request(
     // verify that the git config is correct (note: name field is not used for gpg
     // signing/encryption per se, but it is to record the user who made the commit)
     if !store.lock()?.has_configured_username() {
+        error!("Git user.name and user.email must be configured");
         Err(Error::GenericDyn(
             "Git user.name and user.email must be configured".to_string(),
         ))?;
@@ -463,38 +385,213 @@ pub fn handle_logout_request(
     store: &Arc<Mutex<PasswordStore>>,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<()> {
-    let _acknowledgement = request.acknowledgement;
+    let _acknowledgement = request.acknowledgement.clone();
     let _status = Status::Success;
-    if let Some(passphrase_provider) = passphrase_provider {
-        if let Some(store_id) = request.store_id {
+    if let Some(mut passphrase_provider) = passphrase_provider.clone() {
+        if let Some(_store_id) = request.store_id {
             if let Some(login_recipient) = store.lock()?.get_login_recipient() {
-                let login_key = &login_recipient.key_id;
-                let user_id_hint = passphrase_provider
-                    .recipient_to_user_id_hint
-                    .lock()
-                    .unwrap()
-                    .get(login_key)
-                    .or(Some(login_key))
-                    .ok_or_else(|| {
-                        Error::GenericDyn(format!(
-                            "Failed to get user_id_hint for store: {:?}",
-                            store_id
-                        ))
-                    })
-                    .cloned();
-                let user_id_hint = user_id_hint?;
-                passphrase_provider
-                    .passphrases
-                    .write()
-                    .unwrap()
-                    .remove(&user_id_hint)
-                    .expect("failed to remove passphrase");
+                let login_key_id = &login_recipient.key_id;
+                passphrase_provider.remove_passphrase(login_key_id, true)?;
+            }
+            if let Ok(repo) = store.lock()?.repo() {
+                let from_signing_key = repo.config()?.get_string("user.signingkey").ok();
+                if let Some(key) = from_signing_key {
+                    passphrase_provider.remove_passphrase(&key, true)?;
+                }
+                let from_email = repo.config()?.get_string("user.email").ok();
+                if let Some(key) = from_email {
+                    passphrase_provider.remove_passphrase(&key, true)?;
+                }
+            }
+            // remove all passphrases for valid signing keys
+            // TODO: this is quite inefficient, we should only remove the passphrase for the
+            // key used to sign the gpg-id file
+            for key in store.lock().unwrap().get_valid_gpg_signing_keys() {
+                let key = hex::encode(key);
+                passphrase_provider.remove_passphrase(&key, true)?;
             }
         } else {
-            passphrase_provider.passphrases.write().unwrap().clear();
+            if let Some(user_id) = request.user_id {
+                {
+                    let mut ctx = passphrase_provider.create_context().unwrap();
+                    let key = ctx.get_secret_key(user_id).unwrap();
+                    let subkeys = key.subkeys();
+                    for subkey in subkeys {
+                        let key_id = subkey.id().unwrap();
+                        passphrase_provider
+                            .passphrases
+                            .write()
+                            .unwrap()
+                            .remove(key_id);
+                    }
+                }
+            } else {
+                passphrase_provider.clear_passphrases()?;
+            }
         }
     }
+    debug!(
+        "after logout: {:?}",
+        passphrase_provider.unwrap().passphrases.read().unwrap()
+    );
     Ok(())
+}
+
+pub fn handle_create_store_request(
+    request: CreateStoreRequest,
+    passphrase_provider: Option<Handler>,
+    store_list: &StoreListType,
+    home: &Option<PathBuf>,
+    config_file_location: &Path,
+) -> pass::Result<CreateStoreResponse> {
+    let crypto = crypto::CryptoImpl::GpgMe.get_crypto_type()?;
+    let store_name = request.get_store_name();
+    let encryption_key_ids = request.encryption_keys.clone();
+    let signer = request.repo_signing_key.as_ref();
+    let signer = signer.map(|key_id| {
+        Recipient::from(
+            &hex::encode(&crypto.get_key(key_id).unwrap().fingerprint().unwrap()),
+            &[],
+            None,
+            &*crypto,
+        )
+        .unwrap()
+    });
+    let store_path = {
+        if store_list.lock()?.len() == 0 {
+            pass::password_dir_raw(&None, home)
+        } else {
+            pass::password_dir_raw(&None, home).join(&store_name)
+        }
+    };
+    let mut recipients: Vec<Recipient> = vec![];
+    let valid_signing_keys = request.valid_signing_keys.clone();
+    let mut signing_recipients: Vec<Recipient> = vec![];
+    if let Some(valid_signing_keys) = valid_signing_keys {
+        for key_id in valid_signing_keys {
+            let key_found = crypto.get_key(&key_id)?;
+            let fpt = key_found.fingerprint()?;
+            let fpt_str = &hex::encode(fpt);
+            let recipient = Recipient::from(&fpt_str, &[], None, &*crypto).unwrap();
+            signing_recipients.push(recipient);
+        }
+    }
+    for key_id in encryption_key_ids {
+        let key_found = crypto.get_key(&key_id)?;
+        let fpt = key_found.fingerprint()?;
+        let fpt_str = &hex::encode(fpt);
+        let recipient = Recipient::from(&fpt_str, &[], None, &*crypto)?;
+        recipients.push(recipient);
+    }
+
+    let store = PasswordStore::create(
+        &request.get_store_name(),
+        &Some(store_path.clone()),
+        &recipients,
+        &signing_recipients,
+        &signer,
+        home,
+        passphrase_provider.clone(),
+    )?;
+    debug!("store created");
+    let current_repo_sig = store.repo()?.signature()?;
+    let store_url = store.get_store_path();
+    if let Some(parent_store_name) = request.parent_store.as_ref() {
+        let parent_store = get_store(parent_store_name, store_list);
+        if let Some(parent_store) = parent_store {
+            let parent_path = parent_store.lock().unwrap().get_store_path();
+            let parent_repo = git2::Repository::open(parent_path)?;
+            let submodule = parent_repo.submodule(
+                store_url.to_str().unwrap(),
+                Path::new(store.get_name()),
+                false,
+            );
+            let mut submodule = submodule.unwrap();
+            submodule.clone(None).unwrap();
+            submodule.add_finalize().unwrap();
+            let mut parents = vec![];
+            let parent_commit;
+            if let Ok(pc) = parent_repo.find_last_commit() {
+                parent_commit = pc;
+                parents.push(&parent_commit);
+            }
+            let mut index = parent_repo.index().unwrap();
+            let oid = index.write_tree().unwrap();
+            let tree = parent_repo.find_tree(oid)?;
+            <git2::Repository as RepoExt>::commit(
+                &parent_repo,
+                // // don't use parent's signature, use the current repo's signature
+                // // this makes it easy to identify which key has been used associated with the newly
+                // // created store
+                &current_repo_sig,
+                "added submodule",
+                &tree,
+                &parents,
+                crypto.as_ref(),
+                passphrase_provider.clone(),
+            )
+            .unwrap();
+        }
+    }
+    let store_ptr = Arc::new(Mutex::new(store));
+    {
+        store_list.lock()?.push(store_ptr.clone());
+    }
+    {
+        store_ptr.lock()?.reload_password_list()?;
+    }
+
+    let mut config_file_dir = config_file_location.to_path_buf();
+    if !config_file_location.exists() && store_list.lock()?.len() == 1 {
+        config_file_dir.pop();
+        if let Err(err) = std::fs::create_dir_all(config_file_dir) {
+            error!("{:?}", err);
+            return Err(pass::Error::from(err));
+        }
+        if let Err(err) = pass::save_config(store_list.clone(), &config_file_location) {
+            error!("{:?}", err);
+            return Err(err);
+        }
+    } else {
+        save_config(store_list.clone(), &config_file_location)?;
+    }
+
+    return Ok(CreateStoreResponse::new(
+        request.get_store_name(),
+        store_path,
+        Status::Success,
+        request.get_acknowledgement(),
+        None,
+        None,
+    ));
+}
+#[allow(unused_variables)]
+pub fn handle_delete_store_request(
+    request: DeleteStoreRequset,
+    passphrase_provider: Option<Handler>,
+    store_list: &StoreListType,
+    home: &Option<PathBuf>,
+    config_file_location: &Path,
+    store: &Arc<Mutex<PasswordStore>>,
+) -> pass::Result<DeleteStoreResponse> {
+    if request.force {
+        remove_dir(store.lock()?.get_store_path())?;
+    } else {
+        remove_dir_all(store.lock()?.get_store_path())?;
+    }
+    let store_name = store.lock()?.get_name().clone();
+    {
+        let mut store_list = store_list.lock()?;
+        store_list.retain(|s| s.lock().unwrap().get_name() != &store_name);
+    }
+    save_config(store_list.clone(), &config_file_location)?;
+    Ok(DeleteStoreResponse {
+        store_id: store_name,
+        acknowledgement: request.acknowledgement,
+        status: Status::Success,
+        data: HashMap::new(),
+        meta: None,
+    })
 }
 pub fn handle_create_request(
     request: CreateRequest,
@@ -596,7 +693,6 @@ pub fn handle_delete_request(
         }
     };
     let delete_response = DeleteResponse {
-        // store_id: store.lock().unwrap().lock().unwrap().get_name().clone(),
         deleted_resource_id: id,
         acknowledgement,
         data,

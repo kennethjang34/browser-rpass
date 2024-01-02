@@ -1,12 +1,15 @@
 use crate::event_handlers::native_message_handler::process_native_message;
 pub use crate::Resource;
 use crate::{api, StorageStatus};
-use browser_rpass::request::{DataFieldType, LoginRequest, RequestEnumTrait, SessionEventType};
+use browser_rpass::request::{
+    DataFieldType, DeleteStoreRequset, LoginRequest, RequestEnumTrait, SessionEventType,
+};
 use browser_rpass::response::{
-    CreateResponse, EditResponse, FetchResponse, InitResponse, LogoutResponse,
+    CreateResponse, CreateStoreResponse, DeleteStoreResponse, EditResponse, FetchResponse,
+    InitResponse, LogoutResponse, ResponseEnum,
 };
 use browser_rpass::store;
-use browser_rpass::types::Account;
+use browser_rpass::types::*;
 use gloo_utils::format::JsValueSerdeExt;
 use log::*;
 use parking_lot::ReentrantMutex;
@@ -18,6 +21,7 @@ use std::collections::HashSet;
 use std::{any::type_name, collections::HashMap, ops::Deref, rc::Rc, sync::Mutex};
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
+use yewdux::dispatch::Dispatch;
 use yewdux::mrc::Mrc;
 
 use yewdux::prelude::Reducer;
@@ -41,10 +45,15 @@ pub enum SessionAction {
     LoginError(LoginRequest),
     Logout(String, Option<String>),
     Init(InitResponse),
+    InitStarted(RequestEnum),
     LogoutError(LogoutResponse),
     DataFetched(FetchResponse),
     DataLoading(String, Option<String>),
     DataCreated(CreateResponse),
+    StoreCreated(CreateStoreResponse),
+    StoreCreationFailed(RequestEnum, ResponseEnum),
+    StoreDeleted(DeleteStoreResponse),
+    StoreDeletionFailed(RequestEnum, ResponseEnum),
     DataEdited(EditResponse),
     DataDeleted(Resource, String, HashMap<DataFieldType, Value>),
     DataDeletionFailed(Resource, String),
@@ -99,6 +108,11 @@ lazy_static! {
         let mut init_config = HashMap::new();
         let init_request = RequestEnum::create_init_request(init_config, None, None);
         port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
+        let dispatch = Dispatch::<SessionStore>::new();
+        dispatch.apply(SessionActionWrapper {
+            action: SessionAction::InitStarted(init_request),
+            meta: None,
+        });
         ReentrantMutex::new(RefCell::new(port))
     };
 }
@@ -128,7 +142,9 @@ pub struct StoreData {
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct SessionStore {
     pub stores: Mrc<HashMap<String, StoreData>>,
+    pub keys: Mrc<Vec<Key>>,
     pub default_store: Mrc<Option<String>>,
+    pub status: StateStoreStatus,
 }
 
 impl Store for SessionStore {
@@ -190,7 +206,7 @@ impl SessionStore {
                         .session()
                         .set_string_item(type_name::<T>().to_owned(), value, area)
                         .await;
-                    let current = chrome
+                    let _current = chrome
                         .storage()
                         .session()
                         .get_all(store::StorageArea::Session)
@@ -263,7 +279,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     .into(),
                     Some(SessionEvent {
                         event_type: SessionEventType::Login,
-                        store_id: Some(store_id),
+                        store_id_index: Some(store_id),
                         data: Some(data),
                         meta,
                         resource: Some(vec![Resource::Auth]),
@@ -285,7 +301,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }
                     .into(),
                     Some(SessionEvent {
-                        store_id: request.store_id,
+                        store_id_index: request.store_id,
                         event_type: SessionEventType::LoginError,
                         data: None,
                         meta,
@@ -309,7 +325,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         (
                             store,
                             Some(SessionEvent {
-                                store_id: Some(store_id),
+                                store_id_index: Some(store_id),
                                 event_type: SessionEventType::Logout,
                                 data: Some(data),
                                 meta,
@@ -322,7 +338,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         (
                             store,
                             Some(SessionEvent {
-                                store_id: Some(store_id),
+                                store_id_index: Some(store_id),
                                 event_type: SessionEventType::LogoutError,
                                 data: None,
                                 meta,
@@ -358,7 +374,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }
                         .into(),
                         Some(SessionEvent {
-                            store_id,
+                            store_id_index: store_id,
                             event_type: SessionEventType::Delete,
                             data: Some(data),
                             meta,
@@ -374,7 +390,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }
                     .into(),
                     Some(SessionEvent {
-                        store_id: None,
+                        store_id_index: None,
                         event_type: SessionEventType::Delete,
                         data: None,
                         meta,
@@ -408,7 +424,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             }
                             .into(),
                             Some(SessionEvent {
-                                store_id: Some(create_response.store_id),
+                                store_id_index: Some(create_response.store_id),
                                 event_type: SessionEventType::Create,
                                 data: Some(data),
                                 meta,
@@ -424,7 +440,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }
                         .into(),
                         Some(SessionEvent {
-                            store_id: None,
+                            store_id_index: None,
                             event_type: SessionEventType::Create,
                             data: None,
                             meta,
@@ -499,7 +515,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             }
                             .into(),
                             Some(SessionEvent {
-                                store_id: Some(edit_response.store_id),
+                                store_id_index: Some(edit_response.store_id),
                                 event_type: SessionEventType::Update,
                                 data: Some(data),
                                 meta: Some(meta),
@@ -515,7 +531,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }
                         .into(),
                         Some(SessionEvent {
-                            store_id: Some(edit_response.store_id),
+                            store_id_index: Some(edit_response.store_id),
                             event_type: SessionEventType::Create,
                             data: None,
                             meta,
@@ -555,7 +571,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         let session_event = {
                             match session_data.storage_status {
                                 _ => Some(SessionEvent {
-                                    store_id: Some(fetch_response.store_id),
+                                    store_id_index: Some(fetch_response.store_id),
                                     event_type: SessionEventType::Refreshed,
                                     data: Some(data),
                                     meta: Some(meta),
@@ -595,13 +611,24 @@ impl Reducer<SessionStore> for SessionActionWrapper {
             }
             SessionAction::Init(init_response) => {
                 let mut stores_ptr = store.stores.borrow_mut().clone();
-                for store_id in init_response
+                let store_ids = init_response
                     .data
-                    .get(&DataFieldType::Data)
-                    .unwrap()
+                    .get(&DataFieldType::StoreIDList)
+                    .cloned()
+                    .unwrap_or(json!([]))
                     .as_array()
-                    .unwrap()
-                {
+                    .cloned()
+                    .unwrap_or(vec![]);
+                let raw_keys = init_response
+                    .data
+                    .get(&DataFieldType::Keys)
+                    .cloned()
+                    .unwrap_or(json!([]))
+                    .as_array()
+                    .cloned()
+                    .unwrap_or(vec![]);
+                let keys: Vec<Key> = raw_keys.clone().into_iter().map(|key| key.into()).collect();
+                for store_id in store_ids.iter() {
                     let store_id = store_id.as_str().unwrap().to_owned();
                     if stores_ptr.get(&store_id).is_none() {
                         stores_ptr.insert(
@@ -614,12 +641,41 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 verified: false,
                             },
                         );
-                    } else {
                     }
                 }
+                let mut data = HashMap::new();
+                data.insert(
+                    DataFieldType::StoreIDList,
+                    serde_json::to_value(store_ids).unwrap(),
+                );
+                data.insert(
+                    DataFieldType::Keys,
+                    serde_json::to_value(keys.clone()).unwrap(),
+                );
                 (
                     SessionStore {
                         stores: Mrc::new(stores_ptr),
+                        status: StateStoreStatus::Loaded,
+                        keys: Mrc::new(keys),
+                        ..store.deref().clone()
+                    }
+                    .into(),
+                    Some(SessionEvent {
+                        store_id_index: None,
+                        event_type: SessionEventType::Init(data),
+                        data: None,
+                        meta,
+                        resource: Some(vec![Resource::Store]),
+                        is_global: true,
+                        acknowledgement,
+                    }),
+                )
+            }
+            SessionAction::InitStarted(request) => {
+                let request_acknowledgement = request.get_acknowledgement();
+                (
+                    SessionStore {
+                        status: StateStoreStatus::Loading(request_acknowledgement.clone()),
                         ..store.deref().clone()
                     }
                     .into(),
@@ -649,7 +705,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }
                         let session_event = match resource {
                             Resource::Account => Some(SessionEvent {
-                                store_id: request.get_store_id(),
+                                store_id_index: request.get_store_id(),
                                 event_type: SessionEventType::CreationFailed,
                                 data: Some(_data),
                                 meta,
@@ -672,6 +728,122 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     session_event,
                 )
             }
+            SessionAction::StoreCreated(response) => {
+                let store_id = response.store_id.clone();
+                let mut stores_ptr = store.stores.borrow_mut();
+                extension_port_name = PORT_ID_MAP
+                    .lock()
+                    .unwrap()
+                    .remove(&response.acknowledgement.clone().unwrap());
+                stores_ptr.insert(
+                    store_id.clone(),
+                    StoreData {
+                        storage_status: StorageStatus::Uninitialized,
+                        store_id: store_id.clone(),
+                        ..Default::default()
+                    },
+                );
+                let mut data = HashMap::new();
+                data.insert(DataFieldType::StoreID, json!(store_id.clone()));
+                (
+                    SessionStore {
+                        ..store.deref().clone()
+                    }
+                    .into(),
+                    Some(SessionEvent {
+                        //TODO: adding store id here causes error (only those subscribed to store id will receive the event, but the store just got created!)
+                        store_id_index: None,
+                        event_type: SessionEventType::StoreCreated(data, store_id),
+                        data: None,
+                        meta,
+                        resource: Some(vec![Resource::Store]),
+                        is_global: true,
+                        acknowledgement,
+                    }),
+                )
+            }
+            SessionAction::StoreDeleted(response) => {
+                let store_id = response.store_id.clone();
+                let mut stores_ptr = store.stores.borrow_mut();
+                extension_port_name = PORT_ID_MAP
+                    .lock()
+                    .unwrap()
+                    .remove(&response.acknowledgement.clone().unwrap());
+                stores_ptr.remove(&store_id);
+                let mut data = HashMap::new();
+                data.insert(DataFieldType::StoreID, json!(store_id.clone()));
+                (
+                    SessionStore {
+                        ..store.deref().clone()
+                    }
+                    .into(),
+                    Some(SessionEvent {
+                        store_id_index: None,
+                        event_type: SessionEventType::StoreDeleted(data, store_id),
+                        data: None,
+                        meta,
+                        resource: Some(vec![Resource::Store]),
+                        is_global: true,
+                        acknowledgement,
+                    }),
+                )
+            }
+            SessionAction::StoreDeletionFailed(request, response) => {
+                let request_acknowledgement = request.get_acknowledgement();
+                if let Some(request_acknowledgement) = request_acknowledgement {
+                    extension_port_name =
+                        PORT_ID_MAP.lock().unwrap().remove(&request_acknowledgement)
+                }
+                let mut data = HashMap::new();
+                let store_id = request.get_store_id().unwrap_or_default();
+                if let ResponseEnum::DeleteStoreResponse(response) = response {
+                    data.insert(DataFieldType::StoreID, json!(store_id));
+                    data.insert(DataFieldType::Error, json!(response.data));
+                }
+                (
+                    SessionStore {
+                        ..store.deref().clone()
+                    }
+                    .into(),
+                    Some(SessionEvent {
+                        store_id_index: Some(store_id.clone()),
+                        event_type: SessionEventType::StoreDeletionFailed(data, store_id),
+                        data: None,
+                        meta,
+                        resource: Some(vec![Resource::Store]),
+                        is_global: false,
+                        acknowledgement,
+                    }),
+                )
+            }
+            SessionAction::StoreCreationFailed(request, response) => {
+                let request_acknowledgement = request.get_acknowledgement();
+                if let Some(request_acknowledgement) = request_acknowledgement {
+                    extension_port_name =
+                        PORT_ID_MAP.lock().unwrap().remove(&request_acknowledgement)
+                }
+                let mut data = HashMap::new();
+                let store_id = request.get_store_id().unwrap_or_default();
+                if let ResponseEnum::CreateResponse(response) = response {
+                    data.insert(DataFieldType::StoreID, json!(store_id));
+                    data.insert(DataFieldType::Error, json!(response.data));
+                }
+                (
+                    SessionStore {
+                        ..store.deref().clone()
+                    }
+                    .into(),
+                    Some(SessionEvent {
+                        store_id_index: Some(store_id.clone()),
+                        event_type: SessionEventType::StoreCreationFailed(data, store_id),
+                        data: None,
+                        meta,
+                        resource: Some(vec![Resource::Store]),
+                        is_global: false,
+                        acknowledgement,
+                    }),
+                )
+            }
             _ => (
                 SessionStore {
                     ..store.deref().clone()
@@ -686,18 +858,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     session_event.clone(),
                     Some(ports_to_disconnect.clone()),
                 );
-                // for port_name in ports_to_disconnect {
-                //     let locked = EXTENSION_PORT.lock();
-                //     let mut extension_ports = locked.unwrap();
-                //     extension_ports.iter().for_each(|(_, port)| {
-                //         if port.name() == port_name {
-                //             port.disconnect();
-                //         }
-                //     });
-                //     extension_ports.clear();
-                //     // LISTENER_PORT.lock().unwrap().clear();
-                //     trace!("cleared all ports in service worker");
-                // }
             } else {
                 if let Some(extension_port_name) = extension_port_name {
                     if let Some(extension_port) =

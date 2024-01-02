@@ -1,7 +1,7 @@
 use browser_rpass::js_binding::extension_api::*;
 use browser_rpass::request::DataFieldType;
 use browser_rpass::request::SessionEventWrapper;
-use browser_rpass::types::StorageStatus;
+use browser_rpass::types::*;
 use gloo::storage::errors::StorageError;
 use gloo_utils::document;
 use gloo_utils::format::JsValueSerdeExt;
@@ -67,6 +67,12 @@ pub enum StoreDataStatus {
     Idle,
     Loading,
     CreationStarted,
+    StoreCreationStarted(Option<RequestEnum>, String),
+    StoreCreationFailed(HashMap<DataFieldType, Value>, String),
+    StoreCreated(HashMap<DataFieldType, Value>, String),
+    StoreDeletionStarted(Option<RequestEnum>, String),
+    StoreDeletionFailed(HashMap<DataFieldType, Value>, String),
+    StoreDeleted(HashMap<DataFieldType, Value>, String),
     CreationSuccess,
     CreationFailed,
     DeletionStarted,
@@ -120,6 +126,7 @@ pub struct PopupStore {
     pub login_status: LoginStatus,
     pub data: StoreData,
     pub store_ids: Vec<String>,
+    pub keys: Vec<Key>,
     pub path: Option<String>,
     pub window_id: Option<String>,
     pub default_store_id: Option<String>,
@@ -142,6 +149,12 @@ pub enum LoginAction {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum DataAction {
+    StoreCreated(HashMap<DataFieldType, Value>, String),
+    StoreCreationFailed(HashMap<DataFieldType, Value>, String),
+    StoreCreationStarted(Option<RequestEnum>, String),
+    StoreDeleted(HashMap<DataFieldType, Value>, String),
+    StoreDeletionFailed(HashMap<DataFieldType, Value>, String),
+    StoreDeletionStarted(Option<RequestEnum>, String),
     StoreIdSet(String),
     ResourceFetchStarted(Resource),
     Init(HashMap<DataFieldType, Value>),
@@ -338,12 +351,20 @@ impl Reducer<PopupStore> for DataAction {
                 }
             }
             DataAction::Init(data) => {
+                let keys = data.get(&DataFieldType::Keys).map_or(vec![], |v| {
+                    v.as_array()
+                        .unwrap_or(&vec![])
+                        .iter()
+                        .map(|v| serde_json::from_value::<Key>(v.clone()).unwrap())
+                        .collect::<Vec<Key>>()
+                });
                 PopupStore {
                     persistent_data: PersistentStoreData {
                         ..state.persistent_data.clone()
                     },
+                    page_loading: false,
                     store_ids: data
-                        .get(&DataFieldType::Data)
+                        .get(&DataFieldType::StoreIDList)
                         .map_or(vec![], |v| {
                             v.as_array()
                                 .unwrap_or(&vec![])
@@ -354,6 +375,7 @@ impl Reducer<PopupStore> for DataAction {
                         .into_iter()
                         .filter(|v| !v.is_empty())
                         .collect::<Vec<String>>(),
+                    keys,
                     ..state.deref().clone()
                 }
             }
@@ -383,6 +405,71 @@ impl Reducer<PopupStore> for DataAction {
             DataAction::Idle => PopupStore {
                 page_loading: false,
                 data_status: StoreDataStatus::Idle,
+                ..state.deref().clone()
+            }
+            .into(),
+            DataAction::StoreCreationStarted(request, acknowledgement) => PopupStore {
+                page_loading: true,
+                data_status: StoreDataStatus::StoreCreationStarted(request, acknowledgement),
+                ..state.deref().clone()
+            }
+            .into(),
+            DataAction::StoreCreated(data, store_id) => {
+                let mut store_ids = state.store_ids.clone();
+                store_ids.push(store_id.clone());
+                PopupStore {
+                    page_loading: false,
+                    store_ids,
+                    data_status: StoreDataStatus::StoreCreated(data, store_id),
+                    ..state.deref().clone()
+                }
+            }
+            .into(),
+            DataAction::StoreCreationFailed(data, acknowledgement) => PopupStore {
+                page_loading: false,
+                data_status: StoreDataStatus::StoreCreationFailed(data, acknowledgement),
+                ..state.deref().clone()
+            }
+            .into(),
+            DataAction::StoreDeletionStarted(request, acknowledgement) => PopupStore {
+                page_loading: true,
+                data_status: StoreDataStatus::StoreDeletionStarted(request, acknowledgement),
+                ..state.deref().clone()
+            }
+            .into(),
+            DataAction::StoreDeleted(data, store_id) => {
+                let mut store_ids = state.store_ids.clone();
+                store_ids.retain(|v| v != &store_id);
+                let current_store_id = state.persistent_data.store_id.clone();
+                let (persistent_data, store_data) =
+                    if current_store_id.is_some_and(|id| id == store_id) {
+                        (
+                            PersistentStoreData {
+                                store_id: None,
+                                store_activated: false,
+                                ..state.persistent_data.clone()
+                            },
+                            StoreData {
+                                accounts: Mrc::new(vec![]),
+                                ..state.deref().clone().data
+                            },
+                        )
+                    } else {
+                        (state.persistent_data.clone(), state.data.clone())
+                    };
+                PopupStore {
+                    page_loading: false,
+                    store_ids,
+                    persistent_data,
+                    data: store_data,
+                    data_status: StoreDataStatus::StoreDeleted(data, store_id.clone()),
+                    ..state.deref().clone()
+                }
+            }
+            .into(),
+            DataAction::StoreDeletionFailed(data, acknowledgement) => PopupStore {
+                page_loading: false,
+                data_status: StoreDataStatus::StoreDeletionFailed(data, acknowledgement),
                 ..state.deref().clone()
             }
             .into(),
@@ -436,23 +523,26 @@ impl Reducer<PopupStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LogoutSucceeded(_data) => PopupStore {
-                page_loading: false,
-                persistent_data: PersistentStoreData {
-                    store_id: if store.persistent_data.remember_me {
-                        store.persistent_data.store_id.clone()
-                    } else {
-                        None
+            LoginAction::LogoutSucceeded(_data) => {
+                debug!("Logout succeeded");
+                PopupStore {
+                    page_loading: false,
+                    persistent_data: PersistentStoreData {
+                        store_id: if store.persistent_data.remember_me {
+                            store.persistent_data.store_id.clone()
+                        } else {
+                            None
+                        },
+                        store_activated: false,
+                        ..store.persistent_data
                     },
-                    store_activated: false,
-                    ..store.persistent_data
-                },
-                login_status: LoginStatus::LogoutSuccess,
-                data: StoreData {
-                    accounts: Mrc::new(vec![]),
-                    ..store.deref().clone().data
-                },
-                ..store.deref().clone()
+                    login_status: LoginStatus::LogoutSuccess,
+                    data: StoreData {
+                        accounts: Mrc::new(vec![]),
+                        ..store.deref().clone().data
+                    },
+                    ..store.deref().clone()
+                }
             }
             .into(),
             LoginAction::LogoutFailed(_data) => PopupStore {
@@ -471,6 +561,7 @@ impl Reducer<PopupStore> for LoginAction {
             }
             .into(),
             LoginAction::Logout(store_id, _data) => {
+                debug!("Logout");
                 let current_store_id = store.persistent_data.store_id.as_ref();
                 if current_store_id.is_some_and(|v| *v != store_id) {
                     store

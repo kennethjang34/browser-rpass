@@ -2,8 +2,9 @@ use crate::{
     api::extension_api::logout,
     pages::account_page::AccountPage,
     pages::login_page::LoginPage,
-    store::PopupStore,
+    store::{DataAction, PopupStore},
     store::{PopupAction, StoreDataStatus},
+    BoolState, BoolStateAction,
 };
 use gloo_utils::window;
 use log::*;
@@ -24,13 +25,12 @@ pub fn home_page(_props: &Props) -> Html {
     let loading = use_selector(|state: &PopupStore| state.page_loading.clone());
     let path = use_selector(|state: &PopupStore| state.path.clone());
     let store_id = use_selector(|state: &PopupStore| state.persistent_data.store_id.clone());
+    let store_ids = use_selector(|state: &PopupStore| state.store_ids.clone());
     let on_logout_click = Callback::from({
         let store_id = store_id.clone();
         move |event: MouseEvent| {
             event.prevent_default();
-            if let Some(store_id) = (*store_id).clone() {
-                logout(store_id);
-            }
+            logout((*store_id).clone())
         }
     });
     let on_close = Callback::from(move |event: MouseEvent| {
@@ -41,13 +41,42 @@ pub fn home_page(_props: &Props) -> Html {
     let set_darkmode = Callback::from(move |_| {
         Dispatch::<PopupStore>::new().apply(PopupAction::DarkModeToggle);
     });
+    let show_create_store_popup = use_reducer(|| BoolState::new(false));
     let store_status = use_selector(|state: &PopupStore| state.data_status.clone());
+    let on_create_store = Callback::from({
+        let show_create_store_popup = show_create_store_popup.clone();
+        move |event: MouseEvent| {
+            event.prevent_default();
+            show_create_store_popup.dispatch(BoolStateAction::ToggleAction);
+        }
+    });
+    let close_create_store_popup = {
+        let show_create_store_popup = show_create_store_popup.clone();
+        Callback::from({
+            move |_: MouseEvent| {
+                show_create_store_popup.dispatch(BoolStateAction::SetAction(false));
+            }
+        })
+    };
+    let close_toast = {
+        let on_close = on_close.clone();
+        Callback::from(move |_| {
+            on_close.clone().emit(MouseEvent::new("click").unwrap());
+        })
+    };
+    let create_store_clicked = {
+        let show_create_store_popup = show_create_store_popup.clone();
+        Callback::from(move |_: MouseEvent| {
+            show_create_store_popup.dispatch(BoolStateAction::SetAction(true));
+        })
+    };
+
     html! {
             <div tabindex="-1" aria-hidden="true" style="width: 600px; height: 600px" class="top-0 left-0 overflow-hidden md:inset-0">
                <div class="w-full h-full">
                   <div class="relative w-full h-full max-w-full max-h-full">
                      <div class="relative bg-white shadow dark:bg-gray-700 w-full h-full overflow-hidden">
-                     <CloseButton onclick={on_close} class="absolute" style="z-index: 10;"/>
+                     <CloseButton onclick={on_close} class="absolute" style="z-index: 10; margin-top:0.5rem; margin-right:0.5rem;"/>
                         <div class="px-3 py-1.5 lg:px-8 w-full h-full overflow-hidden">
                         if *loading {
                             <div class="absolute flex items-center justify-center rounded-lg  overflow-hidden center-position" >
@@ -83,13 +112,47 @@ pub fn home_page(_props: &Props) -> Html {
                               else{
                                   <MoonIcon/>
                               }
+
                           </button>
                             if store_id.is_some() && *activated{
                                 <AccountPage store_id={(*store_id.clone()).clone().unwrap()} path={(*path).clone()}/>
-                                <button type="button" class="fixed my-3 bottom-0 right-0 mr-3 warning-btn" onclick={on_logout_click}>{"logout"}</button>
-                            }
-                            else{
+                                <button  class="fixed my-3 bottom-0 right-0 mr-3 warning-btn" onclick={on_logout_click}>{"logout"}</button>
+
+                            }else{
                                 <LoginPage />
+                            if store_ids.len() == 0 && !show_create_store_popup.value{
+                                {
+                                    html!{
+                                        <div class="ms-3 text-sm font-normal absolute" style="
+                                            display: flex;
+                                            width: 100%;
+                                            left: 0px;
+                                            transform: translate(0%,0%);
+                                            top: 0;
+                                            height: 100%;
+                                            background-color: white;
+                                            align-items: center;
+                                            z-index: 10000;
+                                            align-content: center;
+                                            justify-content: center;
+                                            flex-wrap: wrap;
+                                            flex-direction: column;
+                                            ">
+            <div class="mb-2 text-sm font-normal">{"No store exists. want to create one?"}</div>
+            <div class="grid grid-cols-2 gap-2">
+                <div >
+                    <button onclick={create_store_clicked.clone()} class="inline-flex justify-center w-full px-2 py-1.5 text-xs font-medium text-center text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">{"Create"}</button>
+                </div>
+                <div>
+                    <button onclick={close_toast.clone()} class="inline-flex justify-center w-full px-2 py-1.5 text-xs font-medium text-center text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-gray-200 dark:bg-gray-600 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:border-gray-700 dark:focus:ring-gray-700">{"Not now"}</button>
+                </div>
+            </div>
+        </div>
+                                    }
+                                }
+                            }}
+                          if (*show_create_store_popup).into() {
+                                <CreateStorePopup handle_close={close_create_store_popup} style="height: 100%; width: 100%; z-index: 100000; background: white;"/>
                             }
                         </div>
         </div>

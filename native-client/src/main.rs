@@ -1,78 +1,92 @@
-use browser_rpass::request::*;
-use browser_rpass::response::InitResponse;
-use browser_rpass::response::ResponseEnum;
-use browser_rpass::response::Status;
 use log::*;
 use native_client::request_handler::*;
 use native_client::util::*;
+use native_client::StoreListType;
 
 use rpass::crypto::Handler;
-use rpass::pass::{self, Error};
+use rpass::pass::PasswordStore;
+use rpass::pass::{self};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::RwLock;
-use std::{thread, time};
 fn main() -> pass::Result<()> {
     if let Err(log_init_error) = setup_logger() {
         eprintln!("Failed to initialize logger: {:?}", log_init_error);
     }
     trace!("Starting rpass");
-    let received_message_res = get_message();
-    if let Err(e) = received_message_res {
-        error!("{err_msg}", err_msg = e);
-        return Err(e);
-    }
-    let received_message = received_message_res.unwrap();
-    if let Ok(request) = serde_json::from_value::<RequestEnum>(received_message.clone()) {
-        match request {
-            RequestEnum::Init(request) => {
-                let stores;
-                let acknowledgement = request.acknowledgement.clone();
-                let response = handle_init_request(request);
-                if response.is_ok() {
-                    stores = response?;
-                    let mut data = HashMap::new();
-                    let mut store_ids = Vec::new();
-                    for store in stores.clone().lock().unwrap().iter() {
-                        let locked = store.lock().unwrap();
-                        store_ids.push(locked.get_name().clone());
-                    }
-                    data.insert(DataFieldType::Data, serde_json::to_value(store_ids)?);
-                    let response = ResponseEnum::InitResponse(InitResponse {
-                        status: Status::Success,
-                        acknowledgement,
-                        data,
-                    });
-                    send_as_json(&response)?;
-                    let passphrases = Arc::new(RwLock::new(HashMap::new()));
-                    thread::sleep(time::Duration::from_millis(200));
-                    let passphrase_provider = Some(Handler::new(passphrases));
-                    listen_to_native_messaging(stores, passphrase_provider)
-                } else {
-                    let mut data = HashMap::new();
-                    data.insert(
-                        DataFieldType::ErrorMessage,
-                        serde_json::to_value(response.unwrap_err()).unwrap(),
-                    );
-                    let response = ResponseEnum::InitResponse(InitResponse {
-                        status: Status::Failure,
-                        acknowledgement: None,
-                        data,
-                    });
-                    send_as_json(&response)?;
-                    Err(Error::GenericDyn(format!(
-                        "Failed to initialize: {:?}",
-                        response
-                    )))
+    let passphrases = Arc::new(RwLock::new(HashMap::new()));
+    let passphrase_provider = Some(Handler::new(passphrases));
+    let mut home = {
+        match std::env::var("HOME") {
+            Err(_) => None,
+            Ok(home_path) => Some(PathBuf::from(home_path)),
+        }
+    };
+    let password_store_dir = {
+        match std::env::var("PASSWORD_STORE_DIR") {
+            Err(_) => None,
+            Ok(password_store_dir) => Some(password_store_dir),
+        }
+    };
+    let password_store_signing_key = {
+        match std::env::var("PASSWORD_STORE_SIGNING_KEY") {
+            Err(_) => None,
+            Ok(password_store_signing_key) => Some(password_store_signing_key),
+        }
+    };
+    if home.is_none() {
+        home = Some(match std::env::var("XDG_DATA_HOME") {
+            Err(_) => match &home {
+                Some(home_path) => home_path.join(".local"),
+                None => {
+                    return Err(pass::Error::from("No home directory set"));
                 }
+            },
+            Ok(data_home_path) => PathBuf::from(data_home_path),
+        })
+    }
+
+    let config_res = {
+        let xdg_config_home = match std::env::var("XDG_CONFIG_HOME") {
+            Err(_) => None,
+            Ok(config_home_path) => Some(PathBuf::from(config_home_path)),
+        };
+        pass::read_config(
+            &password_store_dir,
+            &password_store_signing_key,
+            &home,
+            &xdg_config_home,
+        )
+    };
+    if let Err(err) = config_res {
+        error!("Failed to read config: {:?}", err);
+        return Err(err);
+    }
+    let (config, config_file_location) = config_res?;
+    if let Ok(stores) = PasswordStore::get_stores(&config, &home) {
+        let stores: StoreListType = Arc::new(Mutex::new(
+            stores
+                .into_iter()
+                .map(|s| Arc::new(Mutex::new(s)))
+                .collect(),
+        ));
+        if !config_file_location.exists() && stores.lock()?.len() == 1 {
+            let mut config_file_dir = config_file_location.clone();
+            config_file_dir.pop();
+            if let Err(err) = std::fs::create_dir_all(config_file_dir) {
+                error!("{:?}", err);
+                return Err(pass::Error::from(err));
             }
-            _ => {
-                let err_msg=format!("The first message json must have 'init' as key and initialization values as its value. Received message: {:?}",request);
-                Err(Error::GenericDyn(err_msg))
+            if let Err(err) = pass::save_config(stores.clone(), &config_file_location) {
+                error!("{:?}", err);
+                return Err(err);
             }
         }
+        listen_to_native_messaging(stores, passphrase_provider, home, config_file_location)
     } else {
-        let err_msg=format!("The first message json must have 'init' as key and initialization values as its value. Received message: {:?}",received_message);
-        Err(Error::GenericDyn(err_msg))
+        let stores: StoreListType = Arc::new(Mutex::new(Vec::new()));
+        listen_to_native_messaging(stores, passphrase_provider, home, config_file_location)
     }
 }

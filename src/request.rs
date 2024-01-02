@@ -24,14 +24,29 @@ pub enum SessionEventType {
     LogoutError,
     LoginError,
     Search,
-    Init,
+    Init(HashMap<DataFieldType, Value>),
     Error,
+    CreateStore,
+    StoreCreated(HashMap<DataFieldType, Value>, String),
+    StoreCreationFailed(HashMap<DataFieldType, Value>, String),
+    StoreDeleted(HashMap<DataFieldType, Value>, String),
+    StoreDeletionFailed(HashMap<DataFieldType, Value>, String),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum DataFieldType {
+    CanSign,
+    CanEncrypt,
+    Keys,
+    KeyHasSecret,
+    KeyID,
+    KeyFingerprint,
+    KeyUserID,
+    KeyUsable,
+    KeyUsername,
     HomeDir,
+    IsRepo,
     SubStore,
     IsDefault,
     DefaultStoreID,
@@ -41,12 +56,16 @@ pub enum DataFieldType {
     SigningKey,
     StoreDir,
     StoreID,
+    StorePath,
     ResourceID,
     UserID,
     Username,
     Passphrase,
     Password,
     Note,
+    Recipient,
+    ValidSignerList,
+    RepoSigningKey,
     CustomField,
     Domain,
     Path,
@@ -69,6 +88,9 @@ pub enum DataFieldType {
     Status,
     Acknowledgement,
     Data,
+    CreateStore,
+    StoreIDList,
+    ParentStoreId,
 }
 impl fmt::Display for DataFieldType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -84,7 +106,7 @@ pub struct SessionEvent {
     pub resource: Option<Vec<Resource>>,
     pub is_global: bool,
     pub acknowledgement: Option<String>,
-    pub store_id: Option<String>,
+    pub store_id_index: Option<String>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SessionEventWrapper {
@@ -164,6 +186,7 @@ pub struct LoginRequest {
 pub struct LogoutRequest {
     pub acknowledgement: Option<String>,
     pub store_id: Option<String>,
+    pub user_id: Option<String>,
     #[serde(flatten)]
     pub header: Option<HashMap<String, String>>,
 }
@@ -192,6 +215,28 @@ pub struct CreateRequest {
     #[serde(flatten)]
     pub header: Option<HashMap<String, String>>,
 }
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(tag = "type", rename = "create_store")]
+pub struct CreateStoreRequest {
+    pub parent_store: Option<String>,
+    pub store_name: String,
+    pub encryption_keys: Vec<String>,
+    pub valid_signing_keys: Option<Vec<String>>,
+    pub repo_signing_key: Option<String>,
+    pub is_repo: bool,
+    pub acknowledgement: Option<String>,
+    #[serde(flatten)]
+    pub header: Option<HashMap<String, String>>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(tag = "type", rename = "delete_store")]
+pub struct DeleteStoreRequset {
+    pub store_id: String,
+    pub acknowledgement: Option<String>,
+    pub force: bool,
+    #[serde(flatten)]
+    pub header: Option<HashMap<String, String>>,
+}
 macro_rules! request_enum_trait_impl {
     ($($t:ty)*) => ($(
         impl RequestEnumTrait for $t {
@@ -213,6 +258,53 @@ macro_rules! request_enum_trait_impl {
         }
 
     )*)
+}
+
+impl CreateStoreRequest {
+    pub fn get_store_path(&self) -> Option<String> {
+        self.parent_store.clone()
+    }
+    pub fn get_store_name(&self) -> String {
+        self.store_name.clone()
+    }
+    pub fn get_store_dir(&self) -> Option<String> {
+        self.parent_store.clone()
+    }
+}
+
+impl RequestEnumTrait for CreateStoreRequest {
+    fn get_acknowledgement(&self) -> Option<String> {
+        self.acknowledgement.clone()
+    }
+    fn set_acknowledgement(&mut self, acknowledgement: String) {
+        self.acknowledgement = Some(acknowledgement);
+    }
+    fn get_header(&self) -> Option<HashMap<String, String>> {
+        self.header.clone()
+    }
+    fn set_header(&mut self, header: HashMap<String, String>) {
+        self.header = Some(header);
+    }
+    fn get_store_id(&self) -> Option<String> {
+        Some(self.store_name.clone())
+    }
+}
+impl RequestEnumTrait for DeleteStoreRequset {
+    fn get_acknowledgement(&self) -> Option<String> {
+        self.acknowledgement.clone()
+    }
+    fn set_acknowledgement(&mut self, acknowledgement: String) {
+        self.acknowledgement = Some(acknowledgement);
+    }
+    fn get_header(&self) -> Option<HashMap<String, String>> {
+        self.header.clone()
+    }
+    fn set_header(&mut self, header: HashMap<String, String>) {
+        self.header = Some(header);
+    }
+    fn get_store_id(&self) -> Option<String> {
+        Some(self.store_id.clone())
+    }
 }
 
 // trait StoreID {
@@ -260,8 +352,10 @@ into_js_value_impl!(SearchRequest);
 into_js_value_impl!(FetchRequest);
 into_js_value_impl!(LoginRequest);
 into_js_value_impl!(LogoutRequest);
+into_js_value_impl!(DeleteStoreRequset);
 into_js_value_impl!(InitRequest);
 into_js_value_impl!(CreateRequest);
+into_js_value_impl!(CreateStoreRequest);
 into_js_value_impl!(DeleteRequest);
 into_js_value_impl!(EditRequest);
 into_js_value_impl!(SessionEvent);
@@ -290,6 +384,10 @@ pub enum RequestEnum {
     Init(InitRequest),
     #[serde(rename = "create")]
     Create(CreateRequest),
+    #[serde(rename = "create_store")]
+    CreateStore(CreateStoreRequest),
+    #[serde(rename = "delete_store")]
+    DeleteStore(DeleteStoreRequset),
     #[serde(rename = "session_event")]
     SessionEventRequest(SessionEventWrapper),
 }
@@ -429,6 +527,7 @@ impl RequestEnum {
         acknowledgement: Option<String>,
         header: Option<HashMap<String, String>>,
         store_id: Option<String>,
+        user_id: Option<String>,
     ) -> RequestEnum {
         RequestEnum::Logout(LogoutRequest {
             acknowledgement: {
@@ -439,6 +538,7 @@ impl RequestEnum {
                 }
             },
             store_id,
+            user_id,
             header,
         })
     }
@@ -502,6 +602,52 @@ impl RequestEnum {
             },
             header,
             store_id: None,
+        })
+    }
+    pub fn create_create_store_request(
+        parent_store: Option<String>,
+        store_name: String,
+        encryption_keys: Vec<String>,
+        signing_keys: Option<Vec<String>>,
+        is_repo: bool,
+        repo_signing_key: Option<String>,
+        acknowledgement: Option<String>,
+        header: Option<HashMap<String, String>>,
+    ) -> RequestEnum {
+        RequestEnum::CreateStore(CreateStoreRequest {
+            parent_store,
+            store_name,
+            encryption_keys,
+            valid_signing_keys: signing_keys,
+            is_repo,
+            repo_signing_key,
+            acknowledgement: {
+                if acknowledgement.is_some() {
+                    acknowledgement
+                } else {
+                    Some(create_request_acknowledgement())
+                }
+            },
+            header,
+        })
+    }
+    pub fn create_delete_store_request(
+        store_id: String,
+        force: bool,
+        acknowledgement: Option<String>,
+        header: Option<HashMap<String, String>>,
+    ) -> RequestEnum {
+        RequestEnum::DeleteStore(DeleteStoreRequset {
+            store_id,
+            force,
+            acknowledgement: {
+                if acknowledgement.is_some() {
+                    acknowledgement
+                } else {
+                    Some(create_request_acknowledgement())
+                }
+            },
+            header,
         })
     }
     pub fn get_type(&self) -> String {

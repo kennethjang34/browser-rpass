@@ -2,25 +2,34 @@ mod account_entry;
 mod account_entry_list;
 mod close_button;
 mod create_account_popup;
+mod create_store_popup;
+mod delete_store_popup;
+mod dropdown_search;
 mod edit_account_popup;
-mod error_toast;
 mod form_input;
 mod loading_indicator;
+mod multi_select;
 mod search_input;
 mod simple_popup;
 mod store_switcher;
+mod toast;
+use std::{cell::RefCell, rc::Rc};
+
 pub use account_entry::*;
 pub use account_entry_list::*;
 pub use close_button::*;
 pub use create_account_popup::*;
+pub use create_store_popup::*;
+pub use delete_store_popup::*;
+pub use dropdown_search::*;
 pub use edit_account_popup::*;
-pub use error_toast::*;
 pub use form_input::*;
 pub use loading_indicator::*;
-use log::debug;
+pub use multi_select::*;
 pub use search_input::*;
 pub use simple_popup::*;
 pub use store_switcher::*;
+pub use toast::*;
 use web_sys::MouseEvent;
 use yew::{
     classes, function_component, html, AttrValue, Callback, Classes, Html, NodeRef, Properties,
@@ -29,6 +38,25 @@ use yew::{
 #[function_component(PlusSign)]
 pub fn plus_sign() -> Html {
     html! {<svg class="me-1 -ms-1 w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg>}
+}
+#[function_component(WarningIcon)]
+pub fn warning_icon() -> Html {
+    html! {
+    <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-red-500 bg-red-100 rounded-lg dark:bg-red-800 dark:text-red-200">
+    <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+    <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 11.793a1 1 0 1 1-1.414 1.414L10 11.414l-2.293 2.293a1 1 0 0 1-1.414-1.414L8.586 10 6.293 7.707a1 1 0 0 1 1.414-1.414L10 8.586l2.293-2.293a1 1 0 0 1 1.414 1.414L11.414 10l2.293 2.293Z"/>
+    </svg>
+    <span class="sr-only">{"Error icon"}</span>
+    </div>}
+}
+#[function_component(CheckIcon)]
+pub fn check_icon() -> Html {
+    html! {
+                        <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 bg-transparent rounded-lg">
+                        <svg enable-background="new 0 0 256 256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><path d="m93.3 161.9 118.9-116.6c5.5-5.4 14.4-5.4 19.8 0l9.9 9.7c5.5 5.4 5.5 14.1 0 19.5l-127.3 124.9-1.3 1.6-9.9 9.7c-2.8 2.7-6.4 4.1-10 4-3.6 0-7.3-1.3-10-4l-9.9-9.7-1.3-1.6-57.9-56.8c-5.5-5.4-5.5-14.1 0-19.5l9.9-9.7c5.5-5.4 14.4-5.4 19.8 0z"/></svg>
+                        <span class="sr-only">{"Success icon"}</span>
+                        </div>
+    }
 }
 #[function_component(EditIcon)]
 pub fn edit_icon() -> Html {
@@ -127,6 +155,26 @@ pub fn sun_icon(props: &IconProps) -> Html {
 pub struct DropdownOption {
     pub name: String,
     pub value: String,
+    selected: bool,
+}
+
+impl DropdownOption {
+    pub fn new(name: String, value: String) -> Self {
+        Self {
+            name,
+            value,
+            selected: false,
+        }
+    }
+    pub fn selected(&self) -> bool {
+        self.selected
+    }
+    pub fn set_selected(&mut self, selected: bool) {
+        self.selected = selected;
+    }
+    pub fn toggle_selected(&mut self) {
+        self.selected = !self.selected;
+    }
 }
 #[derive(Properties, PartialEq, Clone, Debug)]
 pub struct DropdownProps {
@@ -139,11 +187,11 @@ pub struct DropdownProps {
     #[prop_or_default]
     pub node_ref: Option<NodeRef>,
     #[prop_or_default]
-    pub on_select: Option<Callback<DropdownOption>>,
+    pub on_select: Option<Callback<Rc<RefCell<DropdownOption>>>>,
     #[prop_or_default]
     pub on_menu_click: Option<Callback<MouseEvent>>,
     #[prop_or_default]
-    pub options: Vec<DropdownOption>,
+    pub options: Vec<Rc<RefCell<DropdownOption>>>,
 }
 
 #[function_component(Dropdown)]
@@ -158,11 +206,12 @@ pub fn dropdown(props: &DropdownProps) -> Html {
             >
                 <ul class={classes!("dropdown-item-list")}>
                 { props.options.iter().cloned().map(|option| {
-                    let name = option.name.clone();
+                    let  borrowed= option.borrow();
+                    let name = borrowed.name.clone();
                     html! {
                         <li
                             class="dropdown-item"
-                            id={option.value.clone()}
+                            id={option.borrow().value.clone()}
                             onmousedown=
                             {
                                 Callback::from(
@@ -185,6 +234,31 @@ pub fn dropdown(props: &DropdownProps) -> Html {
                 }).collect::<Html>()
                 }
                 </ul>
+        </div>
+
+    }
+}
+
+#[derive(Properties, PartialEq, Clone, Debug)]
+pub struct BubbleProps {
+    #[prop_or_default]
+    pub text: AttrValue,
+    #[prop_or_default]
+    pub cancel_handler: Callback<MouseEvent>,
+}
+#[function_component(Bubble)]
+pub fn bubble(props: &BubbleProps) -> Html {
+    html! {
+        <div class="flex justify-center items-center m-1 font-medium py-1 px-2 bg-white rounded-full text-gray-700  border border-black-300 ">
+            <div class="text-xs font-normal leading-none max-w-full flex-initial">{props.text.clone()}</div>
+            <div class="flex flex-auto flex-row-reverse">
+                <div>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-x cursor-pointer hover:text-gray-400 rounded-full w-4 h-4 ml-2" onclick={props.cancel_handler.clone()}>
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </div>
+            </div>
         </div>
     }
 }

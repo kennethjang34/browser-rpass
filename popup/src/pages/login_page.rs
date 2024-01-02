@@ -9,6 +9,7 @@ pub struct Props {}
 
 #[function_component(LoginPage)]
 pub fn login_page(_props: &Props) -> Html {
+    let input_ref = use_node_ref();
     html! {
         <>
 
