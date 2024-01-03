@@ -146,7 +146,7 @@ pub fn dropdown_search(props: &DropdownSearchProps) -> Html {
     html! {
         <>
     <div class="w-full md:w-1/2 flex flex-col items-center mx-auto" style="height:fit-content;">
-        <div class="w-full h-full">
+    <div class="w-full h-full">
             <div class="flex flex-col items-center relative" style="height:50%;">
                 <div class="w-full">
                     <div class="my-2 p-1 flex border border-gray-200 bg-white rounded" style="height:70%;">
@@ -203,12 +203,12 @@ pub fn dropdown_search(props: &DropdownSearchProps) -> Html {
                     </div>
                 </div>
                     if (*dropdown_open).into() && dropdown_options.len() > 0 {
-                    <div class="w-full" style="height:100%;">
+                    <div class="w-full">
                     <Dropdown
                         options={dropdown_options.clone()}
                         on_select={option_selected.clone()}
                         class="absolute"
-                            style="overflow-y:auto;"
+                            style="overflow-y:auto; max-height: 10rem;"
                         ></Dropdown>
                     </div>
                     }

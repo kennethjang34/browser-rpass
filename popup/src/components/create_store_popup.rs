@@ -218,10 +218,10 @@ pub fn create_store_popup(props: &CreateStorePopupProps) -> yew::Html {
     });
     html! {
         <div id={props.id.clone()} tabindex="-1" aria-hidden="true" class={
-            classes!(String::from("shadow-lg fixed top-0 right-0 left-0 justify-center items-center w-full md:inset-0"), props.class.clone())} style="height:fit-content; overflow-y: auto; z-index:1000;">
+            classes!(String::from("shadow-lg fixed top-0 right-0 left-0 justify-center items-center w-full md:inset-0"), props.class.clone())} style="height:100%; overflow-y: auto; z-index:1000;">
             <div class="relative w-full h-full">
                 <div class="relative bg-white rounded-lg shadow dark:bg-gray-900 h-full">
-                    <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
+                    <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600" style="height: 15%;">
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                         {"Create Store"}
                         </h3>
@@ -233,7 +233,7 @@ pub fn create_store_popup(props: &CreateStorePopupProps) -> yew::Html {
                             }
                         <CloseButton onclick={&props.handle_close}/>
                     </div>
-                    <form onsubmit={on_create_submit} class="p-4 md:p-5" style="height:100%; overflow-y:auto;">
+                    <form onsubmit={on_create_submit} class="p-4 md:p-5" style="height:85%; overflow-y:auto;">
                         <div class="grid gap-4 mb-4 grid-cols-2 flex">
                             <div class="col-span-2" >
                                 <label for="store-name" class="from-label">{"Store Name"}</label>
@@ -273,7 +273,7 @@ pub fn create_store_popup(props: &CreateStorePopupProps) -> yew::Html {
                             <label for="store-recipients" class="form-label">{"Store Recipients"}</label>
                             <DropdownSearch options={(*recipients).clone()} multiple=true/>
                         </div>
-                        <button type="submit" class="accent-btn">
+                        <button type="submit" class="accent-btn p-1.5 relative" style="top:5rem;">
                         <PlusSign/>
                             {"Create"}
                         </button>

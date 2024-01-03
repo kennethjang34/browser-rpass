@@ -200,8 +200,8 @@ pub fn dropdown(props: &DropdownProps) -> Html {
     let on_select = props.on_select.clone();
     html! {
         <div
-            style={style.clone()}
             class={classes!("dropdown-menu",class.clone())}
+            style={style.clone()}
             onclick={props.on_menu_click.clone()}
             >
                 <ul class={classes!("dropdown-item-list")}>
@@ -249,7 +249,7 @@ pub struct BubbleProps {
 #[function_component(Bubble)]
 pub fn bubble(props: &BubbleProps) -> Html {
     html! {
-        <div class="flex justify-center items-center m-1 font-medium py-1 px-2 bg-white rounded-full text-gray-700  border border-black-300 ">
+        <div class="flex justify-center items-center m-1 font-medium py-1 px-2 bg-white rounded-full text-gray-700  border border-black-300 overflow-x-hidden">
             <div class="text-xs font-normal leading-none max-w-full flex-initial">{props.text.clone()}</div>
             <div class="flex flex-auto flex-row-reverse">
                 <div>
