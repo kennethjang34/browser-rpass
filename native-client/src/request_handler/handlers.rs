@@ -430,10 +430,6 @@ pub fn handle_logout_request(
             }
         }
     }
-    debug!(
-        "after logout: {:?}",
-        passphrase_provider.unwrap().passphrases.read().unwrap()
-    );
     Ok(())
 }
 
@@ -493,7 +489,6 @@ pub fn handle_create_store_request(
         home,
         passphrase_provider.clone(),
     )?;
-    debug!("store created");
     let current_repo_sig = store.repo()?.signature()?;
     let store_url = store.get_store_path();
     if let Some(parent_store_name) = request.parent_store.as_ref() {
@@ -542,18 +537,24 @@ pub fn handle_create_store_request(
     }
 
     let mut config_file_dir = config_file_location.to_path_buf();
-    if !config_file_location.exists() && store_list.lock()?.len() == 1 {
-        config_file_dir.pop();
-        if let Err(err) = std::fs::create_dir_all(config_file_dir) {
-            error!("{:?}", err);
-            return Err(pass::Error::from(err));
+    let config_save_res = {
+        if !config_file_location.exists() && store_list.lock()?.len() == 1 {
+            config_file_dir.pop();
+            if let Err(err) = std::fs::create_dir_all(config_file_dir) {
+                Err(pass::Error::from(err))
+            } else {
+                if let Err(err) = pass::save_config(store_list.clone(), &config_file_location) {
+                    Err(err)
+                } else {
+                    Ok(())
+                }
+            }
+        } else {
+            save_config(store_list.clone(), &config_file_location)
         }
-        if let Err(err) = pass::save_config(store_list.clone(), &config_file_location) {
-            error!("{:?}", err);
-            return Err(err);
-        }
-    } else {
-        save_config(store_list.clone(), &config_file_location)?;
+    };
+    if config_save_res.is_err() {
+        remove_dir_all(store_path.clone())?;
     }
 
     return Ok(CreateStoreResponse::new(
