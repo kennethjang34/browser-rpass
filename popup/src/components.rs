@@ -25,6 +25,7 @@ pub use dropdown_search::*;
 pub use edit_account_popup::*;
 pub use form_input::*;
 pub use loading_indicator::*;
+use log::debug;
 pub use multi_select::*;
 pub use search_input::*;
 pub use simple_popup::*;
@@ -189,8 +190,6 @@ pub struct DropdownProps {
     #[prop_or_default]
     pub on_select: Option<Callback<Rc<RefCell<DropdownOption>>>>,
     #[prop_or_default]
-    pub on_menu_click: Option<Callback<MouseEvent>>,
-    #[prop_or_default]
     pub options: Vec<Rc<RefCell<DropdownOption>>>,
 }
 
@@ -202,7 +201,6 @@ pub fn dropdown(props: &DropdownProps) -> Html {
         <div
             class={classes!("dropdown-menu",class.clone())}
             style={style.clone()}
-            onclick={props.on_menu_click.clone()}
             >
                 <ul class={classes!("dropdown-item-list")}>
                 { props.options.iter().cloned().map(|option| {

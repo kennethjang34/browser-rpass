@@ -2,9 +2,11 @@ use std::{cell::RefCell, rc::Rc};
 
 use super::*;
 use crate::{dropdown_filter, store::PopupStore, BoolState, BoolStateAction};
+use gloo_utils::document;
 #[allow(unused_imports)]
 use log::*;
-use web_sys::HtmlInputElement;
+use wasm_bindgen::{closure::Closure, JsCast};
+use web_sys::{HtmlElement, HtmlInputElement};
 use yew::prelude::*;
 use yewdux::dispatch::Dispatch;
 
@@ -20,8 +22,6 @@ pub struct DropdownSearchProps {
     pub input_ref: NodeRef,
     #[prop_or_default]
     pub on_select: Option<Callback<Rc<RefCell<DropdownOption>>>>,
-    #[prop_or_default]
-    pub on_menu_click: Option<Callback<MouseEvent>>,
     #[prop_or_default]
     pub options: Rc<RefCell<Vec<Rc<RefCell<DropdownOption>>>>>,
     #[prop_or_default]
@@ -49,12 +49,6 @@ pub fn dropdown_search(props: &DropdownSearchProps) -> Html {
             dropdown_open.dispatch(BoolStateAction::SetAction(true));
         }
     });
-    let on_search_box_blur = Callback::from({
-        let dropdown_open = dropdown_open.clone();
-        move |_event: FocusEvent| {
-            dropdown_open.dispatch(BoolStateAction::SetAction(false));
-        }
-    });
     let on_search_box_change = Callback::from({
         let dropdown_open = dropdown_open.clone();
         let search_text = search_text.clone();
@@ -64,7 +58,6 @@ pub fn dropdown_search(props: &DropdownSearchProps) -> Html {
         let option_selected = props.on_select.clone();
         move |event: Event| {
             event.prevent_default();
-            dropdown_open.dispatch(BoolStateAction::SetAction(false));
             if force_option {
                 let value = event.target_unchecked_into::<HtmlInputElement>().value();
                 if multiple {
@@ -142,10 +135,47 @@ pub fn dropdown_search(props: &DropdownSearchProps) -> Html {
             dropdown_open.dispatch(BoolStateAction::SetAction(false));
         })
     };
+    let random_id1 = use_memo((), |_| {
+        format!("dropdown_search_{}", js_sys::Math::random())
+    });
+    let random_id2 = use_memo((), |_| {
+        format!("dropdown_search_{}", js_sys::Math::random())
+    });
+
     let selected_options = use_state(|| Vec::<Rc<RefCell<DropdownOption>>>::new());
+    use_effect_with((random_id1.clone(), random_id2.clone()), {
+        let dropdown_open = dropdown_open.clone();
+        move |(random_id1, random_id2)| {
+            let dropdown_open = dropdown_open.clone();
+            let on_click = {
+                let random_id1 = (**random_id1).clone();
+                let random_id2 = (**random_id2).clone();
+                let dropdown_open = dropdown_open.clone();
+                Closure::<dyn Fn(_)>::new(move |_event: web_sys::MouseEvent| {
+                    if let Some(event_target) = _event.target() {
+                        if let Ok(target_element) = event_target.clone().dyn_into::<HtmlElement>() {
+                            if target_element.id().contains(&random_id1)
+                                || target_element.id().contains(&random_id2)
+                            {
+                                return;
+                            }
+                        }
+                    }
+                    dropdown_open.dispatch(BoolStateAction::SetAction(false));
+                })
+            };
+            document()
+                .body()
+                .unwrap()
+                .add_event_listener_with_callback("click", on_click.as_ref().unchecked_ref())
+                .unwrap();
+            on_click.forget();
+        }
+    });
+
     html! {
         <>
-    <div class="w-full md:w-1/2 flex flex-col items-center mx-auto" style="height:fit-content;">
+    <div class="w-full md:w-1/2 flex flex-col items-center mx-auto" style="height:fit-content; min-height: 4rem;">
     <div class="w-full h-full">
             <div class="flex flex-col items-center relative" style="height:50%;">
                 <div class="w-full">
@@ -178,14 +208,13 @@ pub fn dropdown_search(props: &DropdownSearchProps) -> Html {
                                 ).collect::<Html>()}
                         }
                             <div class="flex-1">
-                                <input type="text"
+                                <input type="text" id={(*random_id1).clone()}
                                 class={classes!(
                                         "bg-transparent p-1 px-2 appearance-none outline-none h-full w-full text-gray-800".to_string())
                                 }
                                 aria-haspopup="true" aria-expanded="true" value={(*search_text).clone()} oninput={on_search_input.clone()}
                                 ref={search_box_ref.clone()}
                                 onfocus={search_box_focus.clone()}
-                                onblur={on_search_box_blur.clone()}
                                 onchange={on_search_box_change.clone()}
                                 autocomplete="off"
                                 />
@@ -203,7 +232,7 @@ pub fn dropdown_search(props: &DropdownSearchProps) -> Html {
                     </div>
                 </div>
                     if (*dropdown_open).into() && dropdown_options.len() > 0 {
-                    <div class="w-full">
+                    <div class="w-full" id={(*random_id2).clone()}>
                     <Dropdown
                         options={dropdown_options.clone()}
                         on_select={option_selected.clone()}

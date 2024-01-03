@@ -221,7 +221,7 @@ pub fn create_store_popup(props: &CreateStorePopupProps) -> yew::Html {
             classes!(String::from("shadow-lg fixed top-0 right-0 left-0 justify-center items-center w-full md:inset-0"), props.class.clone())} style="height:100%; overflow-y: auto; z-index:1000;">
             <div class="relative w-full h-full">
                 <div class="relative bg-white rounded-lg shadow dark:bg-gray-900 h-full">
-                    <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600" style="height: 15%;">
+                    <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600" style="height: 8%;">
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                         {"Create Store"}
                         </h3>
@@ -233,8 +233,8 @@ pub fn create_store_popup(props: &CreateStorePopupProps) -> yew::Html {
                             }
                         <CloseButton onclick={&props.handle_close}/>
                     </div>
-                    <form onsubmit={on_create_submit} class="p-4 md:p-5" style="height:85%; overflow-y:auto;">
-                        <div class="grid gap-4 mb-4 grid-cols-2 flex">
+                    <form onsubmit={on_create_submit} class="p-4 md:p-5" style="height:90%; overflow-y:auto;">
+                        <div class="grid grid-cols-2 flex">
                             <div class="col-span-2" >
                                 <label for="store-name" class="from-label">{"Store Name"}</label>
                                 <input type="text" name="store-name" id="store-name" class="form-input"
@@ -268,15 +268,21 @@ pub fn create_store_popup(props: &CreateStorePopupProps) -> yew::Html {
                                     <label for="commit-signer" class="form-label">{"Commit signer"}</label>
                                     <DropdownSearch options={(*owned_key_options).clone()} on_select={on_commit_signer_selected} multiple=false/>
                                 </div>
+                                <div class="col-span-2 sm:col-span-1">
+                                    <label for="store-recipients" class="form-label">{"Store Recipients"}</label>
+                                    <DropdownSearch options={(*recipients).clone()} multiple=true/>
+                                </div>
+                                <div class="col-span-1 sm:col-span-1">
+                                    <button type="submit" class="accent-btn p-1.5" style="">
+                                    <PlusSign/>
+                                        {"Create"}
+                                    </button>
+                                </div>
                         </div>
-                        <div id="recipient-list">
-                            <label for="store-recipients" class="form-label">{"Store Recipients"}</label>
-                            <DropdownSearch options={(*recipients).clone()} multiple=true/>
-                        </div>
-                        <button type="submit" class="accent-btn p-1.5 relative" style="top:5rem;">
-                        <PlusSign/>
-                            {"Create"}
-                        </button>
+                        // <div id="recipient-list">
+                        //     <label for="store-recipients" class="form-label">{"Store Recipients"}</label>
+                        //     <DropdownSearch options={(*recipients).clone()} multiple=true/>
+                        // </div>
                     </form>
                 </div>
             </div>
