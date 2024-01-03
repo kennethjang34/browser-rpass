@@ -1,10 +1,12 @@
 rm -rf ./pkg
 mkdir pkg
-trunk build ./popup/index.html --dist ./pkg
 cargo build -p native-client
-wasm-pack build ./service-worker --target web --out-dir ../pkg
-wasm-pack build ./content --target web --out-dir ../pkg
-# cp ./init_popup.js ./pkg
+(cd ./popup && trunk build ./index.html --dist ./pkg)
+wasm-pack build ./service-worker --target web --out-dir ./pkg
+wasm-pack build ./content --target web --out-dir ./pkg
+cp -r ./service-worker/pkg/* ./pkg
+cp -r ./content/pkg/* ./pkg
+cp -r ./popup/pkg/* ./pkg
 cp ./run_service_worker.js ./pkg
 cp ./run_content.js ./pkg
 cp ./manifest_v3.json ./pkg/manifest.json
