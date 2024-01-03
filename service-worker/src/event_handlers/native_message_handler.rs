@@ -32,7 +32,6 @@ pub fn process_native_message(
     } else {
         None
     };
-    debug!("response {:?}", response_wrapper);
     match response_wrapper {
         ResponseEnum::LoginResponse(login_response) => {
             if let RequestEnum::Login(login_request) = request.clone().unwrap() {
@@ -134,7 +133,6 @@ pub fn process_native_message(
             return Ok(response);
         }
         ResponseEnum::CreateStoreResponse(create_store_response) => {
-            debug!("create store response {:?}", create_store_response);
             let response = ResponseEnum::CreateStoreResponse(create_store_response.clone());
             let status = &create_store_response.status;
             match status {
