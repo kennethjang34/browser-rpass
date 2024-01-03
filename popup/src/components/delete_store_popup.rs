@@ -47,20 +47,13 @@ pub fn delete_store_popup(props: &DeleteStorePopupProps) -> Html {
                 store_ids
                     .iter()
                     .cloned()
-                    .filter_map({
+                    .map({
                         |store_id| {
-                            if store_id != "default"
-                                && (current_store.is_none()
-                                    || (*current_store).clone().unwrap() != store_id)
                             {
-                                Some({
-                                    Rc::new(RefCell::new(DropdownOption::new(
-                                        store_id.clone(),
-                                        store_id.clone(),
-                                    )))
-                                })
-                            } else {
-                                None
+                                Rc::new(RefCell::new(DropdownOption::new(
+                                    store_id.clone(),
+                                    store_id.clone(),
+                                )))
                             }
                         }
                     })
@@ -68,7 +61,6 @@ pub fn delete_store_popup(props: &DeleteStorePopupProps) -> Html {
             ))
         }
     });
-    // let selected = use_mut_ref(|| Option::<Rc<RefCell<DropdownOption>>>::None);
 
     let selected = use_state(|| Option::<Rc<RefCell<DropdownOption>>>::None);
     let page_loading = use_selector(|state: &PopupStore| state.page_loading);

@@ -140,6 +140,9 @@ pub fn account_page(props: &Props) -> Html {
             </th>
         }
     };
+
+    let current_store_id =
+        use_selector(|state: &PopupStore| state.persistent_data.store_id.clone());
     let on_switch_stores = {
         let store_switcher_visible = store_switcher_visible.clone();
         Callback::from({
@@ -187,89 +190,95 @@ pub fn account_page(props: &Props) -> Html {
             }
         })
     };
-    debug!("store status: {:?}", *store_status);
     html! {
-            <>
-                <div class="relative overflow-hidden shadow-md sm:rounded-lg w-full h-full">
-                <div class="w-full top-2.5" style="border-bottom:outset; height: 80%;">
-                <SearchInput onchange={on_search} value={(*search_string).clone()}/>
-            <div class={classes!("flex")}>
-                <button  class="primary-btn block  my-4 mx-2" type="button" onclick={&on_switch_stores}>
-                    {"Switch stores"}
-                </button>
-                <button type="button" class="my-4 mx-2 accent-btn" onclick={on_create_store}>{"create store"}</button>
-                <button type="button" class="my-4 mx-2 warning-btn" onclick={on_delete_store}>{"delete store"}</button>
-                    </div>
-                            if (*show_create_store_popup).into(){
-                                <div class="fullscreen-container">
-                                    <CreateStorePopup handle_close={close_create_store_popup}/>
-                                </div>
+        <>
+            <div class="relative overflow-hidden shadow-md sm:rounded-lg w-full h-full">
+            <div class="w-full top-2.5" style="border-bottom:outset; height: 80%;">
+            <SearchInput onchange={on_search} value={(*search_string).clone()}/>
+        <div class={classes!("flex")}>
+            <button  class="primary-btn block  my-4 mx-2" type="button" onclick={&on_switch_stores}>
+                {"Switch stores"}
+            </button>
+            <button type="button" class="my-4 mx-2 accent-btn" onclick={on_create_store}>{"create store"}</button>
+            <button type="button" class="my-4 mx-2 warning-btn" onclick={on_delete_store}>{"delete store"}</button>
+                </div>
+                        if (*show_create_store_popup).into(){
+                            <div class="fullscreen-container">
+                                <CreateStorePopup handle_close={close_create_store_popup}/>
+                            </div>
+                        }
+                        if (*show_delete_store_popup).into(){
+                            <div class="fullscreen-container">
+                                <DeleteStorePopup handle_close={close_delete_store_popup}/>
+                            </div>
+                        }
+                        if show_create_store_popup.value == false && show_delete_store_popup.value==false {
+                            if let StoreDataStatus::StoreCreationFailed(_,ref store_id)=*store_status{
+                                <Toast toast_type={ToastType::Error} on_close_button_clicked={close_toast.clone()} text={format!("Failed to create store: {store_id}")} class="absolute right-0 top-5 z-10"/>
                             }
-                            if (*show_delete_store_popup).into(){
-                                <div class="fullscreen-container">
-                                    <DeleteStorePopup handle_close={close_delete_store_popup}/>
-                                </div>
+                            if let StoreDataStatus::StoreCreated(_,ref store_id)=*store_status{
+                                <Toast toast_type={ToastType::Success} on_close_button_clicked={close_toast.clone()} text={format!("Successfully created store: {store_id}")} class="absolute right-0 top-5 z-10"/>
                             }
-                            if show_create_store_popup.value == false && show_delete_store_popup.value==false {
-                                if let StoreDataStatus::StoreCreationFailed(_,ref store_id)=*store_status{
-                                    <Toast toast_type={ToastType::Error} on_close_button_clicked={close_toast.clone()} text={format!("Failed to create store: {store_id}")} class="absolute right-0 top-5 z-10"/>
-                                }
-                                if let StoreDataStatus::StoreCreated(_,ref store_id)=*store_status{
-                                    <Toast toast_type={ToastType::Success} on_close_button_clicked={close_toast.clone()} text={format!("Successfully created store: {store_id}")} class="absolute right-0 top-5 z-10"/>
-                                }
-                                if let StoreDataStatus::StoreDeletionFailed(_,ref store_id)=*store_status{
-                                    <Toast toast_type={ToastType::Error} on_close_button_clicked={close_toast.clone()} text={format!("Failed to delete store: {store_id}")} class="absolute right-0 top-5 z-10"/>
-                                }
-                                if let StoreDataStatus::StoreDeleted(_,ref store_id)=*store_status{
-                                    <Toast toast_type={ToastType::Success} on_close_button_clicked={close_toast.clone()} text={format!("Successfully deleted store: {store_id}")} class="absolute right-0 top-5 z-10"/>
-                                }
+                            if let StoreDataStatus::StoreDeletionFailed(_,ref store_id)=*store_status{
+                                <Toast toast_type={ToastType::Error} on_close_button_clicked={close_toast.clone()} text={format!("Failed to delete store: {store_id}")} class="absolute right-0 top-5 z-10"/>
                             }
+                            if let StoreDataStatus::StoreDeleted(_,ref store_id)=*store_status{
+                                <Toast toast_type={ToastType::Success} on_close_button_clicked={close_toast.clone()} text={format!("Successfully deleted store: {store_id}")} class="absolute right-0 top-5 z-10"/>
+                            }
+                        }
 
 
-                        if *store_status==StoreDataStatus::DeletionFailed{
-                            <Toast toast_type={ToastType::Error} on_close_button_clicked={close_toast.clone()} text={"Deletion Failed"} class="absolute right-0 top-5 z-10"/>
-                        }
-                        if *store_status==StoreDataStatus::DeletionSuccess{
-                            <Toast toast_type={ToastType::Success} on_close_button_clicked={close_toast.clone()} text={"Deletion Success"} class="absolute right-0 top-5 z-10"/>
-                        }
-                <div class={classes!("h-72", "overflow-y-auto")}>
-                    <table class="dark:text-gray-400 relative rtl:text-right text-gray-500 text-left text-sm w-full top-3" border="1">
-                            <colgroup>
-                            <col  span="1" />
-                            <col  span="1" />
-                            <col  span="1"/>
-                            <col  span="1"/>
-                            <col  span="1"/>
-                            </colgroup>
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 w-full">
-                            <tr>
-                                {
-                                    table_headers.iter().map(|header| table_header_element(header)).collect::<Html>()
-                                }
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <AccountEntryList accounts={account_selector} store_id={props.store_id.clone()}/>
-                        </tbody>
-                    </table>
-                    </div>
-                    </div>
+                    if *store_status==StoreDataStatus::DeletionFailed{
+                        <Toast toast_type={ToastType::Error} on_close_button_clicked={close_toast.clone()} text={"Deletion Failed"} class="absolute right-0 top-5 z-10"/>
+                    }
+                    if *store_status==StoreDataStatus::DeletionSuccess{
+                        <Toast toast_type={ToastType::Success} on_close_button_clicked={close_toast.clone()} text={"Deletion Success"} class="absolute right-0 top-5 z-10"/>
+                    }
+            <div class={classes!("h-72", "overflow-y-auto")}>
+                <table class="dark:text-gray-400 relative rtl:text-right text-gray-500 text-left text-sm w-full top-3" border="1">
+                        <colgroup>
+                        <col  span="1" />
+                        <col  span="1" />
+                        <col  span="1"/>
+                        <col  span="1"/>
+                        <col  span="1"/>
+                        </colgroup>
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 w-full">
+                        <tr>
+                            {
+                                table_headers.iter().map(|header| table_header_element(header)).collect::<Html>()
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <AccountEntryList accounts={account_selector} store_id={props.store_id.clone()}/>
+                    </tbody>
+                </table>
+                </div>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
                     <button  class="primary-btn block  my-4 mx-2" type="button" onclick={on_create_account}>
                     {"Create Account"}
-    </button>
-                    if *show_create_account_popup{
-                        <div class="fullscreen-container">
-                            <CreateAccountPopup domain={props.path.clone()} handle_close={close_create_account_popup} store_id={props.store_id.clone()}/>
-                        </div>
+                    </button>
+                    if let Some(current_store_id)=(*current_store_id).clone(){
+                        <span class="p-1.5 dark:text-white">{"currently in "}
+                            <span class="text-blue-700 dark:text-blue-400">{current_store_id}</span>
+                        </span>
                     }
-                if (*store_switcher_visible).into() {
-                <div class="fullscreen-container">
-                    <SimplePopup handle_close={&close_store_switcher}>
-                        <StoreSwitcher/>
-                    </SimplePopup>
                 </div>
+                if *show_create_account_popup{
+                    <div class="fullscreen-container">
+                        <CreateAccountPopup domain={props.path.clone()} handle_close={close_create_account_popup} store_id={props.store_id.clone()}/>
+                    </div>
                 }
-                </div>
-            </>
-        }
+            if (*store_switcher_visible).into() {
+            <div class="fullscreen-container">
+                <SimplePopup handle_close={&close_store_switcher}>
+                    <StoreSwitcher/>
+                </SimplePopup>
+            </div>
+            }
+            </div>
+        </>
+    }
 }

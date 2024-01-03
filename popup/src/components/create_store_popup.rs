@@ -26,9 +26,15 @@ pub struct CreateStorePopupProps {
 }
 #[function_component(CreateStorePopup)]
 pub fn create_store_popup(props: &CreateStorePopupProps) -> yew::Html {
-    let store_name = use_state(|| String::new());
-    let keys = use_selector(|state: &PopupStore| state.keys.clone());
     let store_dispatch = Dispatch::<PopupStore>::new();
+    let store_name = use_state(|| {
+        if store_dispatch.get().store_ids.len() > 0 {
+            String::from("")
+        } else {
+            "default".to_string()
+        }
+    });
+    let keys = use_selector(|state: &PopupStore| state.keys.clone());
     let recipients = use_state(|| {
         Rc::new(RefCell::new(
             keys.iter()
@@ -279,10 +285,6 @@ pub fn create_store_popup(props: &CreateStorePopupProps) -> yew::Html {
                                     </button>
                                 </div>
                         </div>
-                        // <div id="recipient-list">
-                        //     <label for="store-recipients" class="form-label">{"Store Recipients"}</label>
-                        //     <DropdownSearch options={(*recipients).clone()} multiple=true/>
-                        // </div>
                     </form>
                 </div>
             </div>

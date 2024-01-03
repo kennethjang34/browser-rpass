@@ -524,7 +524,6 @@ impl Reducer<PopupStore> for LoginAction {
             }
             .into(),
             LoginAction::LogoutSucceeded(_data) => {
-                debug!("Logout succeeded");
                 PopupStore {
                     page_loading: false,
                     persistent_data: PersistentStoreData {
@@ -561,7 +560,6 @@ impl Reducer<PopupStore> for LoginAction {
             }
             .into(),
             LoginAction::Logout(store_id, _data) => {
-                debug!("Logout");
                 let current_store_id = store.persistent_data.store_id.as_ref();
                 if current_store_id.is_some_and(|v| *v != store_id) {
                     store
