@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use log::debug;
+use secrecy::Secret;
 use serde;
 
 use chrono::prelude::*;
@@ -13,13 +13,25 @@ pub struct Account {
     pub username: String,
     pub id: String,
     pub domain: Option<String>,
-    pub password: Option<String>,
+    password: Option<String>,
     pub path: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
     pub note: Option<String>,
     #[serde(flatten)]
     pub custom_fields: Option<HashMap<String, Value>>,
+}
+impl Account {
+    pub fn get_password(&self) -> Option<Secret<String>> {
+        if let Some(password) = &self.password {
+            Some(Secret::new(password.clone()))
+        } else {
+            None
+        }
+    }
+    pub fn set_password(&mut self, password: Option<String>) {
+        self.password = password;
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]

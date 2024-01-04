@@ -39,6 +39,7 @@ fern = {version="0.6.2", features=["colored"]}
 chrono = { version = "0.4.24", features = ["serde"] }
 uuid = {version="1.6.1", features = ["serde","v4","macro-diagnostics"]}
 serde = { version = "1.0.174", features = ["derive"] }
+secrecy = {version="0.8.0", features=["serde"]}
 
 
 [dependencies]
@@ -66,6 +67,7 @@ console_log = { version = "1", features = ["color"]}
 fern = {version="0.6.2", features=["colored"]}
 chrono = { version = "0.4.24", features = ["serde"] }
 serde = { version = "1.0.174", features = ["derive"] }
+secrecy = {version="0.8.0", features=["serde"]}
 
 [profile.release]
 debug = true

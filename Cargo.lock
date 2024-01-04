@@ -175,6 +175,7 @@ dependencies = [
  "log",
  "once_cell",
  "rand",
+ "secrecy",
  "serde",
  "serde-wasm-bindgen 0.5.0",
  "serde_json",
@@ -321,6 +322,7 @@ dependencies = [
  "log",
  "parking_lot",
  "rand",
+ "secrecy",
  "serde",
  "serde_json",
  "sublime_fuzzy",
@@ -1509,6 +1511,7 @@ dependencies = [
  "log",
  "rand",
  "rpass",
+ "secrecy",
  "serde",
  "serde_json",
  "strum",
@@ -1775,6 +1778,7 @@ dependencies = [
  "log",
  "parking_lot",
  "rand",
+ "secrecy",
  "serde",
  "serde-wasm-bindgen 0.5.0",
  "serde_json",
@@ -2065,6 +2069,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9bd1c54ea06cfd2f6b63219704de0b9b4f72dcc2b8fdef820be6cd799780e91e"
 dependencies = [
+ "serde",
  "zeroize",
 ]
 
@@ -2204,6 +2209,7 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "rand",
+ "secrecy",
  "serde",
  "serde-wasm-bindgen 0.5.0",
  "serde_json",

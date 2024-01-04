@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, rc::Rc};
 use browser_rpass::{get_domain_name, types::Account};
 use gloo_utils::{document, window};
 use log::*;
+use secrecy::ExposeSecret;
 use sublime_fuzzy::best_match;
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::HtmlElement;
@@ -235,7 +236,7 @@ pub fn App(_props: &Props) -> Html {
                                     username_input_element.as_ref().unwrap().set_value(&entry.username);
                                 }
                                 if password_input_element.is_some() {
-                                    password_input_element.as_ref().unwrap().set_value(entry.password.as_ref().unwrap_or(&String::new()));
+                                    password_input_element.as_ref().unwrap().set_value(&entry.get_password().map(|s|s.expose_secret().clone()).unwrap_or(String::new()));
                                 }
                                 current_focus.set(None);
                             })

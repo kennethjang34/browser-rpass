@@ -8,6 +8,7 @@ use crate::{
 use browser_rpass::types::Account;
 #[allow(unused_imports)]
 use log::*;
+use secrecy::ExposeSecret;
 use wasm_bindgen::JsCast;
 use yew;
 
@@ -26,7 +27,12 @@ pub struct Props {
 pub fn edit_account_popup(props: &Props) -> Html {
     let reveal_password = use_state(|| false);
     let account = props.account.clone();
-    let password_input = use_state(|| account.password.clone().unwrap_or_default());
+    let password_input = use_state(|| {
+        account
+            .get_password()
+            .map(|p| p.expose_secret().clone())
+            .unwrap_or_default()
+    });
     let username_input = use_state(|| account.username.clone());
     let note_input = use_state(|| account.note.clone().unwrap_or_default());
     let domain_input = use_state(|| account.domain.clone().unwrap());

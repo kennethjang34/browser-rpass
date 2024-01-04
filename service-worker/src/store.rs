@@ -482,10 +482,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                                 new_account.username =
                                                     new_value.as_str().unwrap().to_owned();
                                             }
-                                            "password" => {
-                                                new_account.password =
-                                                    Some(new_value.as_str().unwrap().to_owned());
-                                            }
+                                            "password" => new_account.set_password(Some(
+                                                new_value.as_str().unwrap().to_owned(),
+                                            )),
                                             "domain" => {
                                                 new_account.domain =
                                                     Some(new_value.as_str().unwrap().to_owned());

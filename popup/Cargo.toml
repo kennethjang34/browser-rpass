@@ -30,6 +30,8 @@ console_log = {workspace=true,optional = true}
 parking_lot = {workspace=true}
 fern={workspace=true}
 serde={workspace=true}
+secrecy={workspace=true}
+
 
 sublime_fuzzy="*"
 validator = { version = "0.16.0", features = ["derive"] }

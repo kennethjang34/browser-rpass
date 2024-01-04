@@ -31,6 +31,8 @@ wasm-bindgen-futures ={workspace=true}
 yew = {workspace=true}
 yewdux = {workspace=true}
 sublime_fuzzy="*"
+secrecy={workspace=true}
+
 [dependencies.web-sys]
 workspace = true
 [features]

@@ -38,6 +38,7 @@ console_log = {workspace=true,optional = true}
 cfg-if = {workspace=true}
 parking_lot = {workspace=true}
 serde = {workspace=true}
+secrecy={workspace=true}
 
 [features]
 default = ["console_log"]

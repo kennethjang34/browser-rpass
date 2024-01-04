@@ -1,6 +1,7 @@
 use crate::components::*;
 use crate::Account;
 use browser_rpass::js_binding::clipboard_copy;
+use secrecy::ExposeSecret;
 use std::rc::Rc;
 use wasm_bindgen_futures;
 use yew;
@@ -16,7 +17,7 @@ pub struct AccountEntryProps {
 #[function_component(AccountEntry)]
 pub fn account_entry_component(props: &AccountEntryProps) -> Html {
     let account = props.account.clone();
-    let password = &account.password;
+    let password = account.get_password();
     let reveal_password = use_state(|| false);
     let on_reveal = {
         let reveal_password = reveal_password.clone();
@@ -54,10 +55,11 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
     };
 
     let copy_pw = {
-        let password = password.clone();
         Callback::from({
+            let password = password.clone();
             move |_: MouseEvent| {
-                if let Some(password) = password.as_ref() {
+                let password = password.clone();
+                if let Some(password) = password.map(|p| p.expose_secret().clone()) {
                     let password = password.clone();
                     wasm_bindgen_futures::spawn_local(async move {
                         _ = clipboard_copy(&password).await;
@@ -70,7 +72,9 @@ pub fn account_entry_component(props: &AccountEntryProps) -> Html {
         let (eye_tooltip_text, password_text, eye_icon) = if revealed {
             (
                 "click to hide password",
-                password.clone().unwrap_or_default(),
+                password
+                    .map(|p| p.expose_secret().clone())
+                    .unwrap_or_default(),
                 html! {<ClosedEyeIcon/>},
             )
         } else {
