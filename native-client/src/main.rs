@@ -16,6 +16,8 @@ fn main() -> pass::Result<()> {
         eprintln!("Failed to initialize logger: {:?}", log_init_error);
     }
     trace!("Starting rpass");
+    let pinentry_path = std::env!("PINENTRY_PATH");
+    std::env::set_var("PINENTRY_PATH", pinentry_path);
     let passphrases = Arc::new(RwLock::new(HashMap::new()));
     let passphrase_provider = Some(Handler::new(passphrases));
     let mut home = {

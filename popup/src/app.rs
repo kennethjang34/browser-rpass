@@ -36,7 +36,7 @@ pub fn App() -> Html {
                     let host_name = url::Url::parse(&tab.url().unwrap())
                         .unwrap()
                         .host_str()
-                        .unwrap()
+                        .unwrap_or_default()
                         .to_owned();
                     dispatch.apply(PopupAction::PathSet(Some(host_name)));
                 });

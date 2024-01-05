@@ -3,33 +3,35 @@
   "version": "1.0",
   "description": "browser extension for rpass",
   "background": {
-    "scripts": ["background.js"],
+    "scripts": ["run_service_worker.js"],
     "type": "module"
   },
-  "permissions": ["tabs", "activeTab", "scripting", "nativeMessaging"],
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "scripting",
+    "nativeMessaging",
+    "storage"
+  ],
   "content_scripts": [
     {
-      "matches": [
-        "*://*.example.com/*",
-        "*://*.google.com/*",
-        "*://*.mozilla.org/*"
-      ],
-      "js": ["content.js"]
+      "matches": ["*://*/*"],
+      "js": ["run_content.js"],
+      "css": ["flowbite.min.css", "content_styles.css"]
     }
   ],
   "web_accessible_resources": [
     {
       "resources": [
-        "browser_rpass.js",
-        "browser_rpass_bg.wasm",
         "run_wasm_content.js",
-        "run_wasm_content.js"
+        "run_content.js",
+        "content.js",
+        "run_wasm_content_bg.wasm",
+        "content_bg.wasm",
+        "run_wasm_service_worker.js",
+        "run_wasm_service_worker_bg.wasm"
       ],
-      "matches": [
-        "*://*.example.com/*",
-        "*://*.google.com/*",
-        "*://*.mozilla.org/*"
-      ]
+      "matches": ["*://*/*"]
     }
   ],
   "content_security_policy": {
