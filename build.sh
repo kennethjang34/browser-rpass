@@ -11,10 +11,24 @@ mv ./popup/pkg/* ./pkg
 mv ./content/pkg/* ./pkg
 cp ./manifest_v3.json ./pkg/manifest.json
 
-echo "Which browser version do you want? (chrome/chromium)"
+echo "Which browser version do you want? (chrome)"
 read browser
 
-echo "Enter your extension ID:"
+if [ "$browser" = "chrome" ]; then
+cat << EOF
+The application is installed, but you need manifest file for native app. 
+1. If not opened automatically, open your browser and go to chrome://extensions
+2. Enable developer mode 
+3. Click on 'Load unpacked' and select the 'pkg' folder 
+4. you can find your extension ID on the same page, or open the extension. it will also display the extension id 
+5. enter the extension ID below
+EOF
+
+	if [ "$(uname)" = "Darwin" ]; then
+		open -a "Google Chrome" "chrome://extensions"
+	fi
+fi
+
 read extension_id
 
 manifest_path=""
@@ -30,18 +44,18 @@ manifest='
 
 if [ "$browser" = "chrome" ]; then
     if [ "$(uname)" = "Darwin" ]; then
-        manifest_path="$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.rpass.json"
+        manifest_path="$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts/rpass.json"
     elif [ "$(uname)" = "Linux" ]; then
-        manifest_path="$HOME/.config/google-chrome/NativeMessagingHosts/com.rpass.json"
+        manifest_path="$HOME/.config/google-chrome/NativeMessagingHosts/rpass.json"
     else
         echo "Unsupported platform"
         exit 1
     fi
 elif [ "$browser" = "chromium" ]; then
     if [ "$(uname)" = "Darwin" ]; then
-        manifest_path="$HOME/Library/Application Support/Chromium/NativeMessagingHosts/com.rpass.json"
+        manifest_path="$HOME/Library/Application Support/Chromium/NativeMessagingHosts/rpass.json"
     elif [ "$(uname)" = "Linux" ]; then
-        manifest_path="$HOME/.config/chromium/NativeMessagingHosts/com.rpass.json"
+        manifest_path="$HOME/.config/chromium/NativeMessagingHosts/rpass.json"
     else
         echo "Unsupported platform"
         exit 1
@@ -52,10 +66,6 @@ else
 fi
 
 echo "Manifest path: $manifest_path"
-
 touch "$manifest_path"
+
 echo "$manifest" > "$manifest_path"
-
-
-
-

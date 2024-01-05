@@ -51,7 +51,6 @@ pub fn handle_request_from_popup(
                 .unwrap()
                 .insert(acknowledgement, extension_port.name());
         }
-        debug!("received request: {:?}", request);
         async move {
             if let Some(native_port) = NATIVE_PORT.lock().borrow().as_ref() {
                 let native_request_acknowledgement: String = {

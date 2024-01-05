@@ -79,9 +79,13 @@ pub fn home_page(_props: &Props) -> Html {
                          <CloseButton onclick={on_close} class="absolute" style="z-index: 10; margin-top:0.5rem; margin-right:0.5rem;"/>
             if *store_status == StoreDataStatus::NativeAppConnectionError {
 
-                <div>{format!("Native app connection error!!! maybe manifest file doesn't have the right extension id yet? By the way, your extension id is : {}",
+                <pre class={classes!()}>{
+                    format!("Native app connection error!!!\nmaybe manifest file doesn't have the right extension id yet?\nBy the way, your extension id is : {}",
                               js_sys::Reflect::get(&chrome.runtime(),&<JsValue as JsValueSerdeExt>::from_serde("id").unwrap())
-                              .map(|v|v.as_string().unwrap_or("?".to_string())).map_err(|e|format!("(sorry could not find it myself.. last err returned: {})",e.as_string().unwrap())).unwrap())}</div>
+                              .map(|v|v.as_string().unwrap_or("?".to_string()))
+                              .map_err(|e|
+                            format!("(sorry could not find it myself.. last err returned: {})",e.as_string().unwrap())).unwrap())}
+                </pre>
             }else{                            <div class="px-3 py-1.5 lg:px-8 w-full h-full overflow-hidden">
                             if *loading {
                                 <div class="absolute flex items-center justify-center rounded-lg  overflow-hidden center-position" >

@@ -249,7 +249,6 @@ pub fn listen_to_native_messaging(
                             passphrase_provider.clone(),
                         );
                         let mut data = HashMap::new();
-                        debug!("Login request: {:?}", request);
                         if store_res.is_ok() {
                             let response = ResponseEnum::LoginResponse(LoginResponse {
                                 status: Status::Success,
@@ -274,8 +273,7 @@ pub fn listen_to_native_messaging(
                             Err(response)
                         }
                     }
-                    RequestEnum::Logout(request) /* if target_store.is_some() */ => {
-                        // let store = target_store.unwrap();
+                    RequestEnum::Logout(request) => {
                         let res = handle_logout_request(
                             request.clone(),
                             &target_store,

@@ -1,9 +1,7 @@
 use crate::event_handlers::native_message_handler::process_native_message;
 pub use crate::Resource;
 use crate::{api, StorageStatus};
-use browser_rpass::request::{
-    DataFieldType, DeleteStoreRequset, LoginRequest, RequestEnumTrait, SessionEventType,
-};
+use browser_rpass::request::{DataFieldType, LoginRequest, RequestEnumTrait, SessionEventType};
 use browser_rpass::response::{
     CreateResponse, CreateStoreResponse, DeleteStoreResponse, EditResponse, FetchResponse,
     InitResponse, LogoutResponse, ResponseEnum,
@@ -67,20 +65,39 @@ pub struct SessionActionWrapper {
 }
 
 fn native_port_disconnect_handler(_port: Port) {
-    let new_port = chrome.runtime().connect_native("rpass");
-    new_port
-        .on_disconnect()
-        .add_listener(Closure::<dyn Fn(Port)>::new(native_port_disconnect_handler).into_js_value());
-    new_port
-        .on_message()
-        .add_listener(Closure::<dyn Fn(String)>::new(native_port_message_handler).into_js_value());
-    #[allow(unused_mut)]
-    let mut init_config = HashMap::new();
-    let init_request = RequestEnum::create_init_request(init_config, None, None);
-    new_port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
-    if let Ok(mut borrowed) = NATIVE_PORT.lock().try_borrow_mut() {
-        *borrowed = new_port;
+    {
+        if let Ok(mut borrowed) = NATIVE_PORT.lock().try_borrow_mut() {
+            *borrowed = None;
+        }
     }
+    // need to add async task to receive repeated disconnect events.
+    // mostly to detect if native app is not configured properly
+    wasm_bindgen_futures::spawn_local(async move {
+        {
+            if let Ok(borrowed) = NATIVE_PORT.lock().try_borrow() {
+                if borrowed.is_none() {
+                    error!(
+                    "native port disconnected, but no port found. Likely native app not reachable."
+                );
+                    return;
+                }
+            }
+        }
+        let new_port = chrome.runtime().connect_native("rpass");
+        new_port.on_disconnect().add_listener(
+            Closure::<dyn Fn(Port)>::new(native_port_disconnect_handler).into_js_value(),
+        );
+        new_port.on_message().add_listener(
+            Closure::<dyn Fn(String)>::new(native_port_message_handler).into_js_value(),
+        );
+        #[allow(unused_mut)]
+        let mut init_config = HashMap::new();
+        let init_request = RequestEnum::create_init_request(init_config, None, None);
+        new_port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
+        if let Ok(mut borrowed) = NATIVE_PORT.lock().try_borrow_mut() {
+            *borrowed = Some(new_port);
+        }
+    });
 }
 fn native_port_message_handler(msg: String) {
     match serde_json::from_slice::<Value>(&msg.as_bytes()) {
@@ -97,28 +114,23 @@ fn native_port_message_handler(msg: String) {
 }
 lazy_static! {
     pub static ref NATIVE_PORT: ReentrantMutex<RefCell<Option<Port>>> = {
-        debug!("creating native port");
-        if let Ok(port) = chrome.runtime().connect_native("rpass") {
-            debug!("native port created {:?}", port);
-            port.on_disconnect().add_listener(
-                Closure::<dyn Fn(Port)>::new(native_port_disconnect_handler).into_js_value(),
-            );
-            port.on_message().add_listener(
-                Closure::<dyn Fn(String)>::new(native_port_message_handler).into_js_value(),
-            );
-            #[allow(unused_mut)]
-            let mut init_config = HashMap::new();
-            let init_request = RequestEnum::create_init_request(init_config, None, None);
-            port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
-            let dispatch = Dispatch::<SessionStore>::new();
-            dispatch.apply(SessionActionWrapper {
-                action: SessionAction::InitStarted(init_request),
-                meta: None,
-            });
-            ReentrantMutex::new(RefCell::new(Some(port)))
-        } else {
-            ReentrantMutex::new(RefCell::new(None))
-        }
+        let port = chrome.runtime().connect_native("rpass");
+        port.on_disconnect().add_listener(
+            Closure::<dyn Fn(Port)>::new(native_port_disconnect_handler).into_js_value(),
+        );
+        port.on_message().add_listener(
+            Closure::<dyn Fn(String)>::new(native_port_message_handler).into_js_value(),
+        );
+        #[allow(unused_mut)]
+        let mut init_config = HashMap::new();
+        let init_request = RequestEnum::create_init_request(init_config, None, None);
+        port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
+        let dispatch = Dispatch::<SessionStore>::new();
+        dispatch.apply(SessionActionWrapper {
+            action: SessionAction::InitStarted(init_request),
+            meta: None,
+        });
+        ReentrantMutex::new(RefCell::new(Some(port)))
     };
 }
 lazy_static! {

@@ -16,7 +16,7 @@ use yewdux::prelude::Dispatch;
 
 use crate::{
     api::extension_api::fetch_accounts,
-    store::{DataAction, LoginAction, LoginStatus, PopupStore, StoreDataStatus},
+    store::{DataAction, LoginAction, LoginStatus, PopupStore},
 };
 pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
     let port = port.clone();
@@ -39,7 +39,6 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                 }
                 MessageEnum::Message(request) => {
                     //
-                    debug!("request: {:?}", request);
                     match request.clone() {
                         RequestEnum::SessionEventRequest(request) => {
                             let dispatch = Dispatch::<PopupStore>::new();
