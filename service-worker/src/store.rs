@@ -97,7 +97,7 @@ fn native_port_message_handler(msg: String) {
 }
 lazy_static! {
     pub static ref NATIVE_PORT: ReentrantMutex<RefCell<Port>> = {
-        let port = chrome.runtime().connect_native("com.rpass");
+        let port = chrome.runtime().connect_native("rpass");
         port.on_disconnect().add_listener(
             Closure::<dyn Fn(Port)>::new(native_port_disconnect_handler).into_js_value(),
         );

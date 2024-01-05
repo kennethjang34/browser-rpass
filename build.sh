@@ -20,7 +20,7 @@ read extension_id
 manifest_path=""
 manifest='
 {
-    "name": "com.rpass",
+    "name": "rpass",
     "description": "rpass",
     "path": "'$HOME'/rpass/browser-rpass/target/release/native-client",
     "type": "stdio",
