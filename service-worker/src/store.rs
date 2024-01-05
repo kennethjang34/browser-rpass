@@ -67,7 +67,7 @@ pub struct SessionActionWrapper {
 }
 
 fn native_port_disconnect_handler(_port: Port) {
-    let new_port = chrome.runtime().connect_native("com.rpass");
+    let new_port = chrome.runtime().connect_native("rpass");
     new_port
         .on_disconnect()
         .add_listener(Closure::<dyn Fn(Port)>::new(native_port_disconnect_handler).into_js_value());
