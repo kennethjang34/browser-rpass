@@ -85,6 +85,8 @@ pub enum StoreDataStatus {
     FetchSuccess,
     FetchFailed,
     Error,
+    NativeAppConnectionError,
+    InitError(String),
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
@@ -160,6 +162,7 @@ pub enum DataAction {
     StoreIdSet(String),
     ResourceFetchStarted(Resource),
     Init(HashMap<DataFieldType, Value>),
+    NativeAppConnectionError,
     ResourceDeleted(Resource, HashMap<DataFieldType, Value>),
     ResourceCreated(Resource, HashMap<DataFieldType, Value>),
     ResourceEdited(Resource, HashMap<DataFieldType, Value>, String),
@@ -479,6 +482,12 @@ impl Reducer<PopupStore> for DataAction {
             DataAction::StoreDeletionFailed(data, acknowledgement) => PopupStore {
                 page_loading: false,
                 data_status: StoreDataStatus::StoreDeletionFailed(data, acknowledgement),
+                ..state.deref().clone()
+            }
+            .into(),
+            DataAction::NativeAppConnectionError => PopupStore {
+                page_loading: false,
+                data_status: StoreDataStatus::NativeAppConnectionError,
                 ..state.deref().clone()
             }
             .into(),

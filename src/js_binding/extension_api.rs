@@ -4,7 +4,6 @@ use js_sys::Promise;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
-use web_sys::console;
 
 use crate::store;
 #[wasm_bindgen]
@@ -82,8 +81,8 @@ extern "C" {
     pub fn on_message(this: &Runtime) -> EventTarget;
     #[wasm_bindgen(structural, method, js_name = "addListener")]
     pub fn add_listener(this: &EventTarget, callback: JsValue);
-    #[wasm_bindgen(js_name = "chrome.runtime.connectNative")]
-    pub fn connect_native(s: &str) -> Port;
+    #[wasm_bindgen(catch, js_name = "chrome.runtime.connectNative")]
+    pub fn connect_native(s: &str) -> Result<Port, JsValue>;
     #[wasm_bindgen(method,structural,js_name=connectNative)]
     pub fn connect_native(this: &Runtime, s: &str) -> Port;
     #[wasm_bindgen(method,structural,js_name=connect)]
@@ -180,9 +179,7 @@ impl StorageArea {
             storage.get(key.into()).await
         };
         let value = js_sys::Reflect::get(&entry, &JsValue::from_str(key));
-        console::log_1(&chrome.storage().local().get_all(storage).await.unwrap());
         if let Ok(value) = value {
-            console::log_1(&value);
             return Ok(value);
         } else {
             return Err(StorageError::KeyNotFound(key.to_owned()));
@@ -201,9 +198,7 @@ impl StorageArea {
                 store::StorageArea::Session => chrome.storage().session().get_sync(js_key.clone()),
             }
         };
-        console::log_1(&entry);
-        let fut = js_sys::Reflect::get(&entry, &JsValue::from_str(&"PromiseResult")).unwrap();
-        console::log_1(&fut);
+        let _fut = js_sys::Reflect::get(&entry, &JsValue::from_str(&"PromiseResult")).unwrap();
         Ok(None)
     }
     pub fn set_string_item_sync(&self, key: String, value: String, stroage: store::StorageArea) {
@@ -225,6 +220,5 @@ impl StorageArea {
             store::StorageArea::Sync => chrome.storage().sync().set(js_val).await,
             store::StorageArea::Session => chrome.storage().session().set(js_val).await,
         }
-        console::log_1(&chrome.storage().local().get_all(storage).await.unwrap());
     }
 }

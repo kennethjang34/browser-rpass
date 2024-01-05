@@ -17,7 +17,7 @@ use serde_json::Value;
 
 pub fn process_native_message(
     json_msg: Value,
-    _native_port: Port,
+    native_port: Option<&Port>,
     ctx: Option<Value>,
 ) -> Result<ResponseEnum, String> {
     let session_store_dispatch = Dispatch::<SessionStore>::new();

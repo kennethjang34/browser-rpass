@@ -85,7 +85,7 @@ fn native_port_disconnect_handler(_port: Port) {
 fn native_port_message_handler(msg: String) {
     match serde_json::from_slice::<Value>(&msg.as_bytes()) {
         Ok(parsed_json) => {
-            let _ = process_native_message(parsed_json, NATIVE_PORT.lock().borrow().clone(), None);
+            let _ = process_native_message(parsed_json, NATIVE_PORT.lock().borrow().as_ref(), None);
         }
         Err(e) => {
             error!(
@@ -96,24 +96,29 @@ fn native_port_message_handler(msg: String) {
     }
 }
 lazy_static! {
-    pub static ref NATIVE_PORT: ReentrantMutex<RefCell<Port>> = {
-        let port = chrome.runtime().connect_native("rpass");
-        port.on_disconnect().add_listener(
-            Closure::<dyn Fn(Port)>::new(native_port_disconnect_handler).into_js_value(),
-        );
-        port.on_message().add_listener(
-            Closure::<dyn Fn(String)>::new(native_port_message_handler).into_js_value(),
-        );
-        #[allow(unused_mut)]
-        let mut init_config = HashMap::new();
-        let init_request = RequestEnum::create_init_request(init_config, None, None);
-        port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
-        let dispatch = Dispatch::<SessionStore>::new();
-        dispatch.apply(SessionActionWrapper {
-            action: SessionAction::InitStarted(init_request),
-            meta: None,
-        });
-        ReentrantMutex::new(RefCell::new(port))
+    pub static ref NATIVE_PORT: ReentrantMutex<RefCell<Option<Port>>> = {
+        debug!("creating native port");
+        if let Ok(port) = chrome.runtime().connect_native("rpass") {
+            debug!("native port created {:?}", port);
+            port.on_disconnect().add_listener(
+                Closure::<dyn Fn(Port)>::new(native_port_disconnect_handler).into_js_value(),
+            );
+            port.on_message().add_listener(
+                Closure::<dyn Fn(String)>::new(native_port_message_handler).into_js_value(),
+            );
+            #[allow(unused_mut)]
+            let mut init_config = HashMap::new();
+            let init_request = RequestEnum::create_init_request(init_config, None, None);
+            port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&init_request).unwrap());
+            let dispatch = Dispatch::<SessionStore>::new();
+            dispatch.apply(SessionActionWrapper {
+                action: SessionAction::InitStarted(init_request),
+                meta: None,
+            });
+            ReentrantMutex::new(RefCell::new(Some(port)))
+        } else {
+            ReentrantMutex::new(RefCell::new(None))
+        }
     };
 }
 lazy_static! {

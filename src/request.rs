@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum SessionEventType {
     Create,
+    NativeAppConnectionError,
     Update,
     Refreshed,
     Delete,
@@ -36,6 +37,9 @@ pub enum SessionEventType {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum DataFieldType {
+    ErrorType,
+    InitError,
+    NativeAppConnectionError,
     CanSign,
     CanEncrypt,
     Keys,
