@@ -90,6 +90,7 @@ pub enum StoreDataStatus {
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub enum LoginStatus {
     LoginFailed,
+    LogoutIdle,
     LoggedIn,
     LoggedOut,
     #[default]
@@ -141,9 +142,10 @@ pub enum LoginAction {
     LogoutSucceeded(HashMap<DataFieldType, Value>),
     LogoutFailed(HashMap<DataFieldType, Value>),
     LogoutStarted(HashMap<DataFieldType, Value>),
-    Logout(String, HashMap<DataFieldType, Value>),
+    Logout(Option<String>, HashMap<DataFieldType, Value>),
     Login(String, HashMap<DataFieldType, Value>),
-    LoginIdle,
+    LoggedIn,
+    LogoutIdle,
     RememberMe(bool),
 }
 
@@ -268,6 +270,13 @@ impl Reducer<PopupStore> for DataAction {
                             ..state.persistent_data.clone()
                         },
                         data_status: StoreDataStatus::FetchSuccess,
+                        login_status: {
+                            if state.login_status == LoginStatus::Idle {
+                                LoginStatus::LoggedIn
+                            } else {
+                                state.login_status.clone()
+                            }
+                        },
                         ..state.deref().clone()
                     }
                     .into()
@@ -489,8 +498,13 @@ impl Reducer<PopupStore> for LoginAction {
                 ..store.deref().clone()
             }
             .into(),
-            LoginAction::LoginIdle => PopupStore {
-                login_status: LoginStatus::Idle,
+            LoginAction::LoggedIn => PopupStore {
+                login_status: LoginStatus::LoggedIn,
+                ..store.deref().clone()
+            }
+            .into(),
+            LoginAction::LogoutIdle => PopupStore {
+                login_status: LoginStatus::LogoutIdle,
                 ..store.deref().clone()
             }
             .into(),
@@ -560,9 +574,31 @@ impl Reducer<PopupStore> for LoginAction {
             }
             .into(),
             LoginAction::Logout(store_id, _data) => {
-                let current_store_id = store.persistent_data.store_id.as_ref();
-                if current_store_id.is_some_and(|v| *v != store_id) {
-                    store
+                if let Some(store_id) = store_id {
+                    let current_store_id = store.persistent_data.store_id.as_ref();
+                    if current_store_id.is_some_and(|v| *v != store_id) {
+                        store
+                    } else {
+                        PopupStore {
+                            page_loading: false,
+                            persistent_data: PersistentStoreData {
+                                store_id: if store.persistent_data.remember_me {
+                                    store.persistent_data.store_id.clone()
+                                } else {
+                                    None
+                                },
+                                store_activated: false,
+                                ..store.persistent_data
+                            },
+                            login_status: LoginStatus::LoggedOut,
+                            data: StoreData {
+                                accounts: Mrc::new(vec![]),
+                                ..store.deref().clone().data
+                            },
+                            ..store.deref().clone()
+                        }
+                        .into()
+                    }
                 } else {
                     PopupStore {
                         page_loading: false,
@@ -578,7 +614,7 @@ impl Reducer<PopupStore> for LoginAction {
                         login_status: LoginStatus::LoggedOut,
                         data: StoreData {
                             accounts: Mrc::new(vec![]),
-                            ..store.deref().clone().data
+                            storage_status: StorageStatus::Uninitialized,
                         },
                         ..store.deref().clone()
                     }

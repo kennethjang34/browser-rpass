@@ -1,8 +1,7 @@
 use crate::{
     api::extension_api::logout,
-    pages::account_page::AccountPage,
-    pages::login_page::LoginPage,
-    store::{DataAction, PopupStore},
+    pages::*,
+    store::{DataAction, LoginStatus, PopupStore},
     store::{PopupAction, StoreDataStatus},
     BoolState, BoolStateAction,
 };
@@ -22,15 +21,22 @@ pub struct Props {}
 pub fn home_page(_props: &Props) -> Html {
     trace!("render home page");
     let activated = use_selector(|state: &PopupStore| state.persistent_data.store_activated);
+    let login_status = use_selector(|state: &PopupStore| match state.login_status {
+        LoginStatus::LoggedIn | LoginStatus::LoginSuccess => true,
+        _ => false,
+    });
+
     let loading = use_selector(|state: &PopupStore| state.page_loading.clone());
     let path = use_selector(|state: &PopupStore| state.path.clone());
     let store_id = use_selector(|state: &PopupStore| state.persistent_data.store_id.clone());
     let store_ids = use_selector(|state: &PopupStore| state.store_ids.clone());
     let on_logout_click = Callback::from({
-        let store_id = store_id.clone();
+        // let store_id = store_id.clone();
         move |event: MouseEvent| {
             event.prevent_default();
-            logout((*store_id).clone())
+            // TODO logout for specific store only (currently logout is done for all stores)
+            // logout((*store_id).clone())
+            logout(None)
         }
     });
     let on_close = Callback::from(move |event: MouseEvent| {
@@ -43,13 +49,6 @@ pub fn home_page(_props: &Props) -> Html {
     });
     let show_create_store_popup = use_reducer(|| BoolState::new(false));
     let store_status = use_selector(|state: &PopupStore| state.data_status.clone());
-    let on_create_store = Callback::from({
-        let show_create_store_popup = show_create_store_popup.clone();
-        move |event: MouseEvent| {
-            event.prevent_default();
-            show_create_store_popup.dispatch(BoolStateAction::ToggleAction);
-        }
-    });
     let close_create_store_popup = {
         let show_create_store_popup = show_create_store_popup.clone();
         Callback::from({
@@ -114,13 +113,15 @@ pub fn home_page(_props: &Props) -> Html {
                               }
 
                           </button>
-                            if store_id.is_some() && *activated{
-                                <AccountPage store_id={(*store_id.clone()).clone().unwrap()} path={(*path).clone()}/>
+                              if *login_status{
                                 <button  class="fixed my-3 bottom-0 right-0 mr-3 warning-btn" onclick={on_logout_click}>{"logout"}</button>
-
-                            }else{
-                                <LoginPage />
-                            if store_ids.len() == 0 && !show_create_store_popup.value{
+                              }
+                                if store_id.is_some() && *activated{
+                                    <AccountPage store_id={(*store_id.clone()).clone().unwrap()} path={(*path).clone()}/>
+                                }
+                            else{
+                                <LoginPage/>
+                                if store_ids.len() == 0 && !show_create_store_popup.value{
                                 {
                                     html!{
                                         <div class="ms-3 text-sm font-normal absolute" style="
@@ -150,7 +151,8 @@ pub fn home_page(_props: &Props) -> Html {
         </div>
                                     }
                                 }
-                            }}
+                            }
+                            }
                           if (*show_create_store_popup).into() {
                                 <CreateStorePopup handle_close={close_create_store_popup} style="height: 100%; width: 100%; z-index: 100000; background: white;"/>
                             }

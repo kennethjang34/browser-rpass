@@ -116,7 +116,7 @@ pub struct InitResponse {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LogoutResponse {
-    pub store_id: String,
+    pub store_id: Option<String>,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
     pub data: HashMap<DataFieldType, Value>,

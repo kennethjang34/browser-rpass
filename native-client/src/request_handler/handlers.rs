@@ -382,13 +382,17 @@ pub fn handle_login_request(
 }
 pub fn handle_logout_request(
     request: LogoutRequest,
-    store: &Arc<Mutex<PasswordStore>>,
+    store: &Option<Arc<Mutex<PasswordStore>>>,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<()> {
     let _acknowledgement = request.acknowledgement.clone();
     let _status = Status::Success;
     if let Some(mut passphrase_provider) = passphrase_provider.clone() {
         if let Some(_store_id) = request.store_id {
+            if store.is_none() {
+                return Err(pass::Error::NoneError);
+            }
+            let store = store.as_ref().unwrap();
             if let Some(login_recipient) = store.lock()?.get_login_recipient() {
                 let login_key_id = &login_recipient.key_id;
                 passphrase_provider.remove_passphrase(login_key_id, true)?;
@@ -426,7 +430,7 @@ pub fn handle_logout_request(
                     }
                 }
             } else {
-                passphrase_provider.clear_passphrases()?;
+                let res = passphrase_provider.clear_passphrases();
             }
         }
     }

@@ -21,7 +21,6 @@ use std::panic;
 use std::rc::Rc;
 use yew::Reducible;
 use yewdux::dispatch::Dispatch;
-use yewdux::mrc::Mrc;
 
 mod api;
 mod app;

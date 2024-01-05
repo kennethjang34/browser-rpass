@@ -5,6 +5,7 @@ use crate::{
     api::extension_api::login,
     store::{LoginAction, LoginStatus, PopupStore},
 };
+use browser_rpass::types::StorageStatus;
 #[allow(unused_imports)]
 use log::*;
 use serde::{Deserialize, Serialize};
@@ -123,10 +124,6 @@ pub fn store_switcher(props: &StoreSwitcherProps) -> Html {
                     match form.validate() {
                         Ok(_) => {
                             let _form_data = form.clone();
-                            popup_store_dispatch.apply(LoginAction::LoginStarted(
-                                form.store_id.clone(),
-                                HashMap::new(),
-                            ));
                             login(store_id, *is_default);
                         }
                         Err(e) => {
@@ -152,8 +149,13 @@ pub fn store_switcher(props: &StoreSwitcherProps) -> Html {
     };
     let close_toast = {
         let dispatch = popup_store_dispatch.clone();
-        Callback::from(move |_| {
-            dispatch.apply(LoginAction::LoginIdle);
+        Callback::from(move |_| match dispatch.get().data.storage_status {
+            StorageStatus::Loaded => {
+                dispatch.apply(LoginAction::LoggedIn);
+            }
+            _ => {
+                dispatch.apply(LoginAction::LogoutIdle);
+            }
         })
     };
 

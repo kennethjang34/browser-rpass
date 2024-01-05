@@ -43,7 +43,7 @@ use yewdux::{
 pub enum SessionAction {
     Login,
     LoginError(LoginRequest),
-    Logout(String, Option<String>),
+    Logout(Option<String>, Option<String>),
     Init(InitResponse),
     InitStarted(RequestEnum),
     LogoutError(LogoutResponse),
@@ -311,45 +311,67 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }),
                 )
             }
-            SessionAction::Logout(store_id, acknowledgement_opt) => {
-                if let Some(store) = LISTENER_PORT.lock().unwrap().get_mut(&store_id) {
-                    ports_to_disconnect.extend(store.clone());
-                }
+            SessionAction::Logout(store_id, _acknowledgement_opt) => {
+                if let Some(store_id) = store_id {
+                    if let Some(store) = LISTENER_PORT.lock().unwrap().get_mut(&store_id) {
+                        ports_to_disconnect.extend(store.clone());
+                    }
 
-                if let Some(target_store) = store.stores.clone().borrow_mut().get_mut(&store_id) {
-                    if (*target_store).verified {
-                        let mut data = HashMap::new();
-                        data.insert(DataFieldType::StoreID, json!(store_id));
-                        target_store.storage_status = StorageStatus::Uninitialized;
-                        target_store.verified = false;
-                        (
-                            store,
-                            Some(SessionEvent {
-                                store_id_index: Some(store_id),
-                                event_type: SessionEventType::Logout,
-                                data: Some(data),
-                                meta,
-                                resource: Some(vec![Resource::Auth]),
-                                is_global: true,
-                                acknowledgement,
-                            }),
-                        )
+                    if let Some(target_store) = store.stores.clone().borrow_mut().get_mut(&store_id)
+                    {
+                        if (*target_store).verified {
+                            let mut data = HashMap::new();
+                            data.insert(DataFieldType::StoreID, json!(store_id));
+                            target_store.storage_status = StorageStatus::Uninitialized;
+                            target_store.verified = false;
+                            (
+                                store,
+                                Some(SessionEvent {
+                                    store_id_index: Some(store_id),
+                                    event_type: SessionEventType::Logout,
+                                    data: Some(data),
+                                    meta,
+                                    resource: Some(vec![Resource::Auth]),
+                                    is_global: true,
+                                    acknowledgement,
+                                }),
+                            )
+                        } else {
+                            (
+                                store,
+                                Some(SessionEvent {
+                                    store_id_index: Some(store_id),
+                                    event_type: SessionEventType::LogoutError,
+                                    data: None,
+                                    meta,
+                                    resource: Some(vec![Resource::Auth]),
+                                    is_global: false,
+                                    acknowledgement,
+                                }),
+                            )
+                        }
                     } else {
-                        (
-                            store,
-                            Some(SessionEvent {
-                                store_id_index: Some(store_id),
-                                event_type: SessionEventType::LogoutError,
-                                data: None,
-                                meta,
-                                resource: Some(vec![Resource::Auth]),
-                                is_global: false,
-                                acknowledgement,
-                            }),
-                        )
+                        (store, None)
                     }
                 } else {
-                    (store, None)
+                    store.stores.borrow_mut().values_mut().for_each(|store| {
+                        (*store) = StoreData {
+                            store_id: store.store_id.clone(),
+                            ..Default::default()
+                        }
+                    });
+                    (
+                        store,
+                        Some(SessionEvent {
+                            store_id_index: None,
+                            event_type: SessionEventType::Logout,
+                            data: None,
+                            meta,
+                            resource: Some(vec![Resource::Auth]),
+                            is_global: true,
+                            acknowledgement,
+                        }),
+                    )
                 }
             }
             SessionAction::DataDeleted(resource, resource_id, data) => match resource.clone() {

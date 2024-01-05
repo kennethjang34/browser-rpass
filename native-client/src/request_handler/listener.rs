@@ -249,6 +249,7 @@ pub fn listen_to_native_messaging(
                             passphrase_provider.clone(),
                         );
                         let mut data = HashMap::new();
+                        debug!("Login request: {:?}", request);
                         if store_res.is_ok() {
                             let response = ResponseEnum::LoginResponse(LoginResponse {
                                 status: Status::Success,
@@ -273,11 +274,11 @@ pub fn listen_to_native_messaging(
                             Err(response)
                         }
                     }
-                    RequestEnum::Logout(request) if target_store.is_some() => {
-                        let store = target_store.unwrap();
+                    RequestEnum::Logout(request) /* if target_store.is_some() */ => {
+                        // let store = target_store.unwrap();
                         let res = handle_logout_request(
                             request.clone(),
-                            &store,
+                            &target_store,
                             passphrase_provider.clone(),
                         );
                         let mut data = HashMap::new();
@@ -285,7 +286,7 @@ pub fn listen_to_native_messaging(
                             let response = ResponseEnum::LogoutResponse(LogoutResponse {
                                 status: Status::Success,
                                 acknowledgement: request.acknowledgement.clone(),
-                                store_id: request.store_id.clone().unwrap(),
+                                store_id: request.store_id,
                                 data,
                             });
                             send_as_json(&response)?;
@@ -296,7 +297,7 @@ pub fn listen_to_native_messaging(
                                 serde_json::to_value(res.unwrap_err()).unwrap(),
                             );
                             let response = LogoutResponse {
-                                store_id: request.store_id.clone().unwrap(),
+                                store_id: request.store_id,
                                 status: Status::Failure,
                                 acknowledgement: request.acknowledgement.clone(),
                                 data,
@@ -396,7 +397,7 @@ pub fn listen_to_native_messaging(
                         let mut data = HashMap::new();
                         data.insert(DataFieldType::ErrorMessage, json!("Unknown request"));
                         data.insert(DataFieldType::Request, json!(request));
-                        error!("Only login request could be accepted when no store has been set. Request was: {:?}", request);
+                        error!("Unknown Request: {:?}", request);
                         Err(ResponseEnum::GenericError(GenericError {
                             status: Status::Failure,
                             acknowledgement: request.get_acknowledgement(),

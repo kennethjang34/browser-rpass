@@ -146,16 +146,14 @@ pub fn account_page(props: &Props) -> Html {
     let on_switch_stores = {
         let store_switcher_visible = store_switcher_visible.clone();
         Callback::from({
-            let store_dispatch = store_dispatch.clone();
             move |_| {
-                store_dispatch.apply(LoginAction::LoginIdle);
                 store_switcher_visible.dispatch(BoolStateAction::ToggleAction);
             }
         })
     };
     let table_headers = ["username", "password", "note", "", ""];
     if *login_status == LoginStatus::LoginSuccess {
-        store_dispatch.apply(LoginAction::LoginIdle);
+        store_dispatch.apply(LoginAction::LoggedIn);
         store_switcher_visible.dispatch(BoolStateAction::SetAction(false));
     }
     let show_create_store_popup = use_reducer(|| BoolState::new(false));
