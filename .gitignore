@@ -5,3 +5,7 @@
 logs
 node_modules
 .vim
+**/pkg
+**/debug
+**/release
+.rustc_info.json
