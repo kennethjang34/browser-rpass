@@ -1,19 +1,17 @@
-use std::collections::HashSet;
-
 use browser_rpass::{
     js_binding::extension_api::*,
     request::{SessionEvent, SessionEventType},
     response::{MessageEnum, RequestEnum},
 };
 use gloo_utils::format::JsValueSerdeExt;
-use log::debug;
+use std::collections::{HashMap, HashSet};
 use wasm_bindgen::JsValue;
 
 use crate::store::{EXTENSION_PORT, LISTENER_PORT};
 
 pub fn broadcast_session_event(
     session_event: SessionEvent,
-    ports_to_disconnect: Option<HashSet<String>>,
+    ports_to_disconnect: Option<HashMap<String, HashSet<String>>>,
 ) {
     let event_type = session_event.event_type.clone();
     match event_type {
@@ -49,8 +47,15 @@ pub fn broadcast_session_event(
                     port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&request).unwrap());
                 }
             }
-            if let Some(ports_to_disconnect) = ports_to_disconnect.clone() {
-                listeners.retain(|port_name| !ports_to_disconnect.contains(port_name));
+        }
+    }
+    if let Some(ports_to_disconnect) = ports_to_disconnect {
+        for (store_id_index, ports) in ports_to_disconnect {
+            let listeners = locked.get_mut(&store_id_index);
+            if let Some(listeners) = listeners {
+                for port_name in ports {
+                    listeners.remove(&port_name);
+                }
             }
         }
     }

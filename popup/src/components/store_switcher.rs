@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use super::*;
 use crate::{
@@ -111,6 +111,7 @@ pub fn store_switcher(props: &StoreSwitcherProps) -> Html {
         let is_default = is_default.clone();
         let input_ref = input_ref.clone();
         let selected = selected.clone();
+        let current_store_id = current_store_id.clone();
         Callback::from({
             move |event: MouseEvent| {
                 event.prevent_default();
@@ -124,7 +125,15 @@ pub fn store_switcher(props: &StoreSwitcherProps) -> Html {
                     match form.validate() {
                         Ok(_) => {
                             let _form_data = form.clone();
-                            login(store_id, *is_default);
+                            if let Some(current_store_id) = &(*current_store_id) {
+                                if current_store_id != &store_id {
+                                    login(store_id, *is_default, Some(current_store_id.clone()));
+                                } else {
+                                    login(store_id, *is_default, None);
+                                }
+                            } else {
+                                login(store_id, *is_default, None);
+                            }
                         }
                         Err(e) => {
                             validation_errors.set(Rc::new(RefCell::new(e)));
@@ -132,7 +141,16 @@ pub fn store_switcher(props: &StoreSwitcherProps) -> Html {
                     };
                 } else {
                     let input = input_ref.cast::<HtmlInputElement>().unwrap();
-                    login(input.value(), *is_default);
+                    let store_id = input.value();
+                    if let Some(current_store_id) = &(*current_store_id) {
+                        if current_store_id != &store_id {
+                            login(store_id, *is_default, Some(current_store_id.clone()));
+                        } else {
+                            login(store_id, *is_default, None);
+                        }
+                    } else {
+                        login(store_id, *is_default, None);
+                    }
                 }
             }
         })

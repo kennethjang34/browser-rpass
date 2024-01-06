@@ -17,7 +17,7 @@ use serde_json::Value;
 
 pub fn process_native_message(
     json_msg: Value,
-    native_port: Option<&Port>,
+    _native_port: Option<&Port>,
     ctx: Option<Value>,
 ) -> Result<ResponseEnum, String> {
     let session_store_dispatch = Dispatch::<SessionStore>::new();
@@ -38,6 +38,7 @@ pub fn process_native_message(
                 let login_response2 = login_response.clone();
                 let mut ctx = ctx.unwrap_or(json!({}));
                 ctx["store_id"] = json!(login_request.store_id);
+                ctx["prev_store_id"] = json!(login_request.prev_store_id);
                 ctx["is_default"] = json!(login_request.is_default);
                 ctx["acknowledgement"] = json!(login_request.acknowledgement);
                 wasm_bindgen_futures::spawn_local(async move {

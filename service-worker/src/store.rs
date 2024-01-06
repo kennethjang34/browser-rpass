@@ -247,7 +247,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
             .map(|ack| ack.to_owned());
         let session_action = self.action;
         #[allow(unused_mut)]
-        let mut ports_to_disconnect = HashSet::new();
+        let mut ports_to_disconnect = HashMap::<String, HashSet<String>>::new();
         let (session_store, session_event) = match session_action {
             SessionAction::Login => {
                 let store_id = {
@@ -288,6 +288,21 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 }
                 if is_default {
                     store.default_store.borrow_mut().replace(store_id.clone());
+                }
+                if let Some(prev_store_id) = meta.as_ref().unwrap().get("prev_store_id") {
+                    if let Some(prev_store_id) = prev_store_id.as_str().to_owned() {
+                        if prev_store_id != store_id {
+                            let mut locked = LISTENER_PORT.lock().unwrap();
+                            if let Some(store) = locked.get_mut(prev_store_id) {
+                                ports_to_disconnect
+                                    .entry(prev_store_id.to_string())
+                                    .and_modify(|v| {
+                                        v.extend(store.clone());
+                                    })
+                                    .or_insert_with(|| store.clone());
+                            }
+                        }
+                    }
                 }
                 (
                     SessionStore {
@@ -331,7 +346,12 @@ impl Reducer<SessionStore> for SessionActionWrapper {
             SessionAction::Logout(store_id, _acknowledgement_opt) => {
                 if let Some(store_id) = store_id {
                     if let Some(store) = LISTENER_PORT.lock().unwrap().get_mut(&store_id) {
-                        ports_to_disconnect.extend(store.clone());
+                        ports_to_disconnect
+                            .entry(store_id.clone())
+                            .and_modify(|v| {
+                                v.extend(store.clone());
+                            })
+                            .or_insert_with(|| store.clone());
                     }
 
                     if let Some(target_store) = store.stores.clone().borrow_mut().get_mut(&store_id)

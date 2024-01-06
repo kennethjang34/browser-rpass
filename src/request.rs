@@ -179,6 +179,7 @@ pub struct FetchRequest {
 #[serde(tag = "type", rename = "login")]
 pub struct LoginRequest {
     pub store_id: Option<String>,
+    pub prev_store_id: Option<String>,
     pub is_default: bool,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
@@ -512,11 +513,13 @@ impl RequestEnum {
     pub fn create_login_request(
         acknowledgement: Option<String>,
         store_id: Option<String>,
+        prev_store_id: Option<String>,
         is_default: bool,
     ) -> RequestEnum {
         RequestEnum::Login(LoginRequest {
             is_default,
             store_id,
+            prev_store_id,
             acknowledgement: {
                 if acknowledgement.is_some() {
                     acknowledgement
