@@ -270,8 +270,8 @@ pub fn handle_fetch_request(
                                 json_value_res
                             {
                                 if let Some(passphrase_provider)=passphrase_provider.clone(){
-                                    if passphrase_provider.passphrases.read().unwrap().get(locked_store.get_name()).is_none(){
-                                        locked_store.try_passphrase(Some(passphrase_provider.clone())).unwrap();
+                                    if locked_store.get_login_recipient().is_none(){
+                                        let _res=locked_store.try_passphrase(Some(passphrase_provider.clone())).unwrap();
                                     }
                                 }
                                 if let Ok(decrypted) = encrypted_password_entry
@@ -393,11 +393,13 @@ pub fn handle_logout_request(
                 return Err(pass::Error::NoneError);
             }
             let store = store.as_ref().unwrap();
-            if let Some(login_recipient) = store.lock()?.get_login_recipient() {
+            let mut locked_store = store.lock()?;
+            if let Some(login_recipient) = locked_store.get_login_recipient() {
                 let login_key_id = &login_recipient.key_id;
                 passphrase_provider.remove_passphrase(login_key_id, true)?;
+                locked_store.set_login_recipient(None);
             }
-            if let Ok(repo) = store.lock()?.repo() {
+            if let Ok(repo) = locked_store.repo() {
                 let from_signing_key = repo.config()?.get_string("user.signingkey").ok();
                 if let Some(key) = from_signing_key {
                     passphrase_provider.remove_passphrase(&key, true)?;
@@ -410,7 +412,7 @@ pub fn handle_logout_request(
             // remove all passphrases for valid signing keys
             // TODO: this is quite inefficient, we should only remove the passphrase for the
             // key used to sign the gpg-id file
-            for key in store.lock().unwrap().get_valid_gpg_signing_keys() {
+            for key in locked_store.get_valid_gpg_signing_keys() {
                 let key = hex::encode(key);
                 passphrase_provider.remove_passphrase(&key, true)?;
             }
@@ -430,7 +432,7 @@ pub fn handle_logout_request(
                     }
                 }
             } else {
-                let res = passphrase_provider.clear_passphrases();
+                let _res = passphrase_provider.clear_passphrases();
             }
         }
     }
