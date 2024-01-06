@@ -1,13 +1,12 @@
 #!/bin/bash
 rm -rf ./pkg
 mkdir pkg
-trunk build ./popup/index.html
+trunk build ./popup/index.html --dist ./pkg
 (cd ./service-worker && wasm-pack build ./  --target web --out-dir ./pkg --dev)
 (cd ./content && wasm-pack build ./  --target web --out-dir ./pkg --dev)
 cargo build -p native-client
 cp -r ./service-worker/pkg/* ./pkg
 cp -r ./content/pkg/* ./pkg
-cp -r ./popup/pkg/* ./pkg
 cp ./run_service_worker.js ./pkg
 cp ./run_content.js ./pkg
 cp ./manifest_v3_chrome.json ./pkg/manifest_v3_chrome.json
