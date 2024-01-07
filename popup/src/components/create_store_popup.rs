@@ -239,7 +239,7 @@ pub fn create_store_popup(props: &CreateStorePopupProps) -> yew::Html {
                             }
                         <CloseButton onclick={&props.handle_close}/>
                     </div>
-                    <form onsubmit={on_create_submit} class="p-4 md:p-5" style="height:90%; overflow-y:auto;">
+                    <form onsubmit={on_create_submit} class="p-4 md:p-5" style="height:90%; overflow-y:auto;" autocomplete="off">
                         <div class="grid grid-cols-2 flex">
                             <div class="col-span-2" >
                                 <label for="store-name" class="from-label">{"Store Name"}</label>

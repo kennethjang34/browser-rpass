@@ -190,6 +190,7 @@ pub fn store_switcher(props: &StoreSwitcherProps) -> Html {
                            <form
                               onsubmit={on_submit}
                                         class="space-y-1.5 p-2.5 relative max-h-full h-80"
+                                            autocomplete="off"
 
                               >
                                     <label for="store-menu" class=

@@ -133,6 +133,7 @@ pub fn delete_store_popup(props: &DeleteStorePopupProps) -> Html {
                         <form
                                   onsubmit={on_submit}
                                         class="space-y-1.5 p-2.5 relative max-h-full h-80"
+                                            autocomplete="off"
                             style="">
                                         <label for="store-menu" class=
             "block mb-auto text-sm font-medium text-gray-900 dark:text-white">
