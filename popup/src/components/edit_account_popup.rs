@@ -190,7 +190,7 @@ pub fn edit_account_popup(props: &Props) -> Html {
                         }
                         <CloseButton onclick={&props.handle_close}/>
                     </div>
-                    <form onsubmit={on_edit_submit} class="p-4 md:p-5">
+                    <form onsubmit={on_edit_submit} class="p-4 md:p-5" autocomplete="off">
                         <div class="grid gap-4 mb-4 grid-cols-2">
                             <div class="col-span-2">
                                 <label for="username" class="from-label">{"Username"}</label>
