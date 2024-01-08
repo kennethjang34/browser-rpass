@@ -25,3 +25,10 @@ Currently, only works on OSX and Linux, firefox and chrome (chromium users shoul
 ### Build script
 
 Given you have the required dependencies available, you should be able to install through the provided build script. You can run `build.sh` included.
+
+
+## Demo videos
+
+
+https://github.com/kennethjang34/browser-rpass/assets/89117160/bdcc1e46-9464-4d11-acb7-048c4c6a0341
+
