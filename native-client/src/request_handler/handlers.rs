@@ -162,7 +162,6 @@ pub fn handle_search_request(
         Resource::Account => {
             let encrypted_password_entries = &filter_entries(&store, &query)?;
             let locked_store = store.lock()?;
-            // let locked_store = &*locked_store.lock()?;
             let decrypted_password_entries = encrypted_password_entries
                 .iter()
                 .filter_map(|encrypted_password_entry| {
@@ -507,31 +506,32 @@ pub fn handle_create_store_request(
                 Path::new(store.get_name()),
                 false,
             );
-            let mut submodule = submodule.unwrap();
-            submodule.clone(None).unwrap();
-            submodule.add_finalize().unwrap();
-            let mut parents = vec![];
-            let parent_commit;
-            if let Ok(pc) = parent_repo.find_last_commit() {
-                parent_commit = pc;
-                parents.push(&parent_commit);
+            if let Ok(mut submodule) = submodule {
+                submodule.init(true).unwrap();
+                submodule.add_finalize().unwrap();
+                let mut parents = vec![];
+                let parent_commit;
+                if let Ok(pc) = parent_repo.find_last_commit() {
+                    parent_commit = pc;
+                    parents.push(&parent_commit);
+                }
+                let mut index = parent_repo.index().unwrap();
+                let oid = index.write_tree().unwrap();
+                let tree = parent_repo.find_tree(oid)?;
+                <git2::Repository as RepoExt>::commit(
+                    &parent_repo,
+                    // // don't use parent's signature, use the current repo's signature
+                    // // this makes it easy to identify which key has been used associated with the newly
+                    // // created store
+                    &current_repo_sig,
+                    "added submodule",
+                    &tree,
+                    &parents,
+                    crypto.as_ref(),
+                    passphrase_provider.clone(),
+                )
+                .unwrap();
             }
-            let mut index = parent_repo.index().unwrap();
-            let oid = index.write_tree().unwrap();
-            let tree = parent_repo.find_tree(oid)?;
-            <git2::Repository as RepoExt>::commit(
-                &parent_repo,
-                // // don't use parent's signature, use the current repo's signature
-                // // this makes it easy to identify which key has been used associated with the newly
-                // // created store
-                &current_repo_sig,
-                "added submodule",
-                &tree,
-                &parents,
-                crypto.as_ref(),
-                passphrase_provider.clone(),
-            )
-            .unwrap();
         }
     }
     let store_ptr = Arc::new(Mutex::new(store));
