@@ -28,7 +28,7 @@ Given you have the required dependencies available, you should be able to instal
 Default browser is set to Chrome. If you'd like to use firefox, add "-b firefox".
 
 
-## Demo videos
+## Demo video(s)
 
 
 https://github.com/kennethjang34/browser-rpass/assets/89117160/bdcc1e46-9464-4d11-acb7-048c4c6a0341
