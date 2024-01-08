@@ -25,6 +25,7 @@ Currently, only works on OSX and Linux, firefox and chrome (chromium users shoul
 ### Build script
 
 Given you have the required dependencies available, you should be able to install through the provided build script. You can run `build.sh` included.
+Default browser is set to Chrome. If you'd like to use firefox, add "-b firefox".
 
 
 ## Demo videos
