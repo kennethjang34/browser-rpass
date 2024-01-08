@@ -9,6 +9,8 @@ pub use gloo_utils::format::JsValueSerdeExt;
 use std::panic;
 use store::SessionStore;
 pub use store::NATIVE_PORT;
+use store::PORT_ID_MAP;
+use store::REQUEST_MAP;
 use wasm_bindgen::prelude::wasm_bindgen;
 use yewdux::dispatch::Dispatch;
 mod store;
@@ -53,4 +55,12 @@ pub async fn main() {
         .runtime()
         .on_connect()
         .add_listener(create_request_listener().into_js_value());
+}
+
+pub fn remove_request_metadata(
+    acknowledgement: &str,
+) -> Result<(Option<String>, Option<RequestEnum>), String> {
+    let port = PORT_ID_MAP.lock().unwrap().remove(acknowledgement);
+    let request = REQUEST_MAP.lock().unwrap().remove(acknowledgement);
+    Ok((port, request))
 }

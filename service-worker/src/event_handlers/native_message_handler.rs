@@ -1,7 +1,7 @@
+use crate::remove_request_metadata;
 use crate::store::SessionAction;
 use crate::store::SessionActionWrapper;
 use crate::store::SessionStore;
-use crate::store::REQUEST_MAP;
 use crate::Resource;
 use browser_rpass::js_binding::extension_api::Port;
 use log::*;
@@ -23,15 +23,11 @@ pub fn process_native_message(
     let session_store_dispatch = Dispatch::<SessionStore>::new();
     let response_wrapper = serde_json::from_value::<ResponseEnum>(json_msg.clone()).unwrap();
     let acknowledgement = response_wrapper.get_acknowledgement();
-    let request = if let Some(ref acknowledgement) = acknowledgement {
-        REQUEST_MAP
-            .lock()
-            .unwrap()
-            .get(acknowledgement)
-            .map(|req| req.clone())
-    } else {
-        None
-    };
+    let (port_id, request) = acknowledgement
+        .as_ref()
+        .map_or((None, None), |acknowledgement: &String| {
+            remove_request_metadata(acknowledgement).unwrap()
+        });
     match response_wrapper {
         ResponseEnum::LoginResponse(login_response) => {
             if let RequestEnum::Login(login_request) = request.clone().unwrap() {
@@ -242,6 +238,9 @@ pub fn process_native_message(
                 acknowledgement,
                 code: Some(ErrorCode::NotSupported),
             };
+            if let Some(acknowledgement) = error_response.acknowledgement.clone() {
+                let _ = remove_request_metadata(&acknowledgement)?;
+            }
             return Ok(ResponseEnum::ErrorResponse(error_response));
         }
     };

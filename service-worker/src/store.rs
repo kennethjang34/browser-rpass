@@ -1,6 +1,6 @@
 use crate::event_handlers::native_message_handler::process_native_message;
 pub use crate::Resource;
-use crate::{api, StorageStatus};
+use crate::{api, remove_request_metadata, StorageStatus};
 use browser_rpass::request::{DataFieldType, LoginRequest, RequestEnumTrait, SessionEventType};
 use browser_rpass::response::{
     CreateResponse, CreateStoreResponse, DeleteStoreResponse, EditResponse, FetchResponse,
