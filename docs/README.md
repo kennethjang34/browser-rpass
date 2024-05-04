@@ -12,7 +12,7 @@ Password manager with browser extension that helps users manage their secrets by
 
 ## Installation
 
-Currently, only works on OSX and Linux, firefox and chrome (chromium users should be able to use them but would have to do extra configuration for native host. [Google has docs for it.](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging)
+Currently, only works on OSX and Linux, firefox and chrome. Should also work with other chromium-based browsers but would have to [do extra configuration for native host](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging)
 
 ### Required dependencies
 
