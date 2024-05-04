@@ -32,27 +32,6 @@ done
 
 rm -rf ./pkg
 mkdir pkg
-if [ "$profile" = "release" ]; then
-	trunk build ./popup/index.html --dist ./pkg --release
-	(cd ./service-worker && wasm-pack build ./  --target web --out-dir ./pkg --release)
-	(cd ./content && wasm-pack build ./  --target web --out-dir ./pkg --release)
-	cargo build -p native-client --release
-else
-	trunk build ./popup/index.html --dist ./pkg
-	(cd ./service-worker && wasm-pack build ./  --target web --out-dir ./pkg --dev)
-	(cd ./content && wasm-pack build ./  --target web --out-dir ./pkg --dev)
-	cargo build -p native-client
-fi
-
-cp -r ./service-worker/pkg/* ./pkg
-cp -r ./content/pkg/* ./pkg
-cp ./run_service_worker.js ./pkg
-cp ./run_content.js ./pkg
-cp ./manifest_v3_chrome.json ./pkg/manifest_v3_chrome.json
-cp ./manifest_v3_firefox.json ./pkg/manifest_v3_firefox.json
-
-
-
 
 
 # Check if the files exist
@@ -104,8 +83,27 @@ if [ $styles_css_mod -gt $content_styles_css_mod ]; then
 else
   echo "No changes detected."
 fi
-cp ./assets/* ./pkg
 
+if [ "$profile" = "release" ]; then
+	trunk build ./popup/index.html --dist ./pkg --release
+	(cd ./service-worker && wasm-pack build ./  --target web --out-dir ./pkg --release)
+	(cd ./content && wasm-pack build ./  --target web --out-dir ./pkg --release)
+	cargo build -p native-client --release
+else
+	trunk build ./popup/index.html --dist ./pkg
+	(cd ./service-worker && wasm-pack build ./  --target web --out-dir ./pkg --dev)
+	(cd ./content && wasm-pack build ./  --target web --out-dir ./pkg --dev)
+	cargo build -p native-client
+fi
+
+cp -r ./service-worker/pkg/* ./pkg
+cp -r ./content/pkg/* ./pkg
+cp ./run_service_worker.js ./pkg
+cp ./run_content.js ./pkg
+cp ./manifest_v3_chrome.json ./pkg/manifest_v3_chrome.json
+cp ./manifest_v3_firefox.json ./pkg/manifest_v3_firefox.json
+
+cp -n ./assets/* ./pkg
 
 create_manifest() {
 	browser=$1
