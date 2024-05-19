@@ -263,6 +263,22 @@ macro_rules! request_enum_trait_impl {
     )*)
 }
 
+impl RequestEnumTrait for SessionEventWrapper {
+    fn get_acknowledgement(&self) -> Option<String> {
+        self.session_event.acknowledgement.clone()
+    }
+    fn set_acknowledgement(&mut self, acknowledgement: String) {
+        self.session_event.acknowledgement = Some(acknowledgement);
+    }
+    fn get_header(&self) -> Option<HashMap<String, String>> {
+        None
+    }
+    fn set_header(&mut self, _header: HashMap<String, String>) {}
+    fn get_store_id(&self) -> Option<String> {
+        self.session_event.store_id_index.clone()
+    }
+}
+
 impl CreateStoreRequest {
     pub fn get_store_path(&self) -> Option<String> {
         self.parent_store.clone()
@@ -338,7 +354,6 @@ request_enum_trait_impl!(InitRequest);
 request_enum_trait_impl!(CreateRequest);
 request_enum_trait_impl!(DeleteRequest);
 request_enum_trait_impl!(EditRequest);
-request_enum_trait_impl!(SessionEventWrapper);
 macro_rules! into_js_value_impl {
     ($($t:ty)*) => ($(
         impl Into<JsValue> for $t {
