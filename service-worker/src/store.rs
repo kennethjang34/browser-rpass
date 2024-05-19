@@ -26,10 +26,7 @@ use yewdux::prelude::Reducer;
 
 pub use browser_rpass::{
     js_binding::extension_api::*,
-    request::{RequestEnum, SessionEvent, SessionEventWrapper},
-    store::AsyncCallback,
-    store::MESSAGE_ACKNOWLEDGEMENTS_NATIVE,
-    store::MESSAGE_ACKNOWLEDGEMENTS_POP_UP,
+    request::{RequestEnum, SessionEvent},
 };
 use gloo::storage::errors::StorageError;
 use lazy_static::lazy_static;

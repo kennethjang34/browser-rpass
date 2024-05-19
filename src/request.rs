@@ -112,12 +112,10 @@ pub struct SessionEvent {
     pub acknowledgement: Option<String>,
     pub store_id_index: Option<String>,
 }
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SessionEventWrapper {
-    pub acknowledgement: Option<String>,
     pub session_event: SessionEvent,
-    pub header: Option<HashMap<String, String>>,
-    pub store_id: Option<String>,
 }
 
 use crate::{types::Resource, util::create_request_acknowledgement};
@@ -580,18 +578,7 @@ impl RequestEnum {
         store_id: Option<String>,
         header: Option<HashMap<String, String>>,
     ) -> RequestEnum {
-        RequestEnum::SessionEventRequest(SessionEventWrapper {
-            store_id,
-            acknowledgement: {
-                if acknowledgement.is_some() {
-                    acknowledgement
-                } else {
-                    Some(create_request_acknowledgement())
-                }
-            },
-            session_event,
-            header,
-        })
+        RequestEnum::SessionEventRequest(SessionEventWrapper { session_event })
     }
     pub fn create_init_request(
         config: HashMap<DataFieldType, String>,
