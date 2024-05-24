@@ -316,7 +316,6 @@ pub enum ResponseEnum {
 #[serde(untagged)]
 pub enum MessageEnum {
     Message(RequestEnum),
-    Response(ResponseEnum),
 }
 
 #[enum_dispatch]

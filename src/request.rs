@@ -228,7 +228,7 @@ pub struct CreateStoreRequest {
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", rename = "delete_store")]
-pub struct DeleteStoreRequset {
+pub struct DeleteStoreRequest {
     pub store_id: String,
     pub acknowledgement: Option<String>,
     pub force: bool,
@@ -287,7 +287,7 @@ impl RequestEnumTrait for CreateStoreRequest {
         Some(self.store_name.clone())
     }
 }
-impl RequestEnumTrait for DeleteStoreRequset {
+impl RequestEnumTrait for DeleteStoreRequest {
     fn get_acknowledgement(&self) -> Option<String> {
         self.acknowledgement.clone()
     }
@@ -304,25 +304,6 @@ impl RequestEnumTrait for DeleteStoreRequset {
         Some(self.store_id.clone())
     }
 }
-
-// trait StoreID {
-//     fn get_store_id(&self) -> String;
-// }
-// macro_rules! store_id_impl {
-//     ($($t:ty)*) => ($(
-//         impl StoreID for $t {
-//             fn get_store_id(&self) -> String {
-//                 self.store_id.clone()
-//             }
-//         }
-//
-//     )*)
-// }
-
-// store_id_impl!(FetchRequest);
-// store_id_impl!(LoginRequest);
-// store_id_impl!(LogoutRequest);
-// store_id_impl!(CreateRequest);
 
 request_enum_trait_impl!(GetRequest);
 request_enum_trait_impl!(SearchRequest);
@@ -349,7 +330,7 @@ into_js_value_impl!(SearchRequest);
 into_js_value_impl!(FetchRequest);
 into_js_value_impl!(LoginRequest);
 into_js_value_impl!(LogoutRequest);
-into_js_value_impl!(DeleteStoreRequset);
+into_js_value_impl!(DeleteStoreRequest);
 into_js_value_impl!(InitRequest);
 into_js_value_impl!(CreateRequest);
 into_js_value_impl!(CreateStoreRequest);
@@ -383,9 +364,9 @@ pub enum RequestEnum {
     #[serde(rename = "create_store")]
     CreateStore(CreateStoreRequest),
     #[serde(rename = "delete_store")]
-    DeleteStore(DeleteStoreRequset),
+    DeleteStore(DeleteStoreRequest),
     #[serde(rename = "session_event")]
-    SessionEventRequest(SessionEvent),
+    SessionEvent(SessionEvent),
 }
 impl RequestEnum {
     pub fn create_get_request(
@@ -571,7 +552,7 @@ impl RequestEnum {
         store_id: Option<String>,
         header: Option<HashMap<String, String>>,
     ) -> RequestEnum {
-        RequestEnum::SessionEventRequest(session_event)
+        RequestEnum::SessionEvent(session_event)
     }
     pub fn create_init_request(
         config: HashMap<DataFieldType, String>,
@@ -624,7 +605,7 @@ impl RequestEnum {
         acknowledgement: Option<String>,
         header: Option<HashMap<String, String>>,
     ) -> RequestEnum {
-        RequestEnum::DeleteStore(DeleteStoreRequset {
+        RequestEnum::DeleteStore(DeleteStoreRequest {
             store_id,
             force,
             acknowledgement: {

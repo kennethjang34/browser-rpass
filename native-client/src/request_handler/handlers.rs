@@ -582,7 +582,7 @@ pub fn handle_create_store_request(
 }
 #[allow(unused_variables)]
 pub fn handle_delete_store_request(
-    request: DeleteStoreRequset,
+    request: DeleteStoreRequest,
     passphrase_provider: Option<Handler>,
     store_list: &StoreListType,
     home: &Option<PathBuf>,

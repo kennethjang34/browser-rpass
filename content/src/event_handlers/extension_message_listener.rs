@@ -1,14 +1,12 @@
 use browser_rpass::{
     js_binding::extension_api::Port,
     request::SessionEventType,
-    response::{MessageEnum, RequestEnum, ResponseEnumTrait},
-    store::MESSAGE_ACKNOWLEDGEMENTS_POP_UP,
+    response::{MessageEnum, RequestEnum},
     types::Resource,
 };
 use gloo_utils::format::JsValueSerdeExt;
 use log::*;
 use wasm_bindgen::{prelude::Closure, JsValue};
-use wasm_bindgen_futures::spawn_local;
 use yewdux::prelude::Dispatch;
 
 use crate::store::{ContentScriptStore, DataAction, LoginAction};
@@ -17,21 +15,8 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
     Closure::<dyn Fn(JsValue)>::new(move |msg: JsValue| {
         match <JsValue as JsValueSerdeExt>::into_serde::<MessageEnum>(&msg) {
             Ok(parsed_message) => match parsed_message {
-                MessageEnum::Response(response) => {
-                    let acknowledgement = response.get_acknowledgement().unwrap();
-                    if let Some(request_cb) = MESSAGE_ACKNOWLEDGEMENTS_POP_UP
-                        .lock()
-                        .unwrap()
-                        .remove(&acknowledgement)
-                    {
-                        let port2 = port.clone();
-                        spawn_local(async move {
-                            request_cb(response, port2.clone()).await;
-                        });
-                    }
-                }
                 MessageEnum::Message(request) => match request.clone() {
-                    RequestEnum::SessionEventRequest(session_event) => {
+                    RequestEnum::SessionEvent(session_event) => {
                         let dispatch = Dispatch::<ContentScriptStore>::new();
                         let event_request = session_event.clone();
                         let event_type = &event_request.event_type;
