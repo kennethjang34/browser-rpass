@@ -31,9 +31,9 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                     }
                 }
                 MessageEnum::Message(request) => match request.clone() {
-                    RequestEnum::SessionEventRequest(request) => {
+                    RequestEnum::SessionEventRequest(session_event) => {
                         let dispatch = Dispatch::<ContentScriptStore>::new();
-                        let event_request = request.session_event.clone();
+                        let event_request = session_event.clone();
                         let event_type = &event_request.event_type;
                         let data = event_request.data.clone().unwrap_or_default();
 
@@ -76,7 +76,8 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                 match resource {
                                     Resource::Account => {
                                         dispatch.apply(DataAction::ResourceCreationFailed(
-                                            resource, request,
+                                            resource,
+                                            session_event,
                                         ));
                                     }
                                     _ => {}

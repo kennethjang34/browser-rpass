@@ -106,6 +106,7 @@ pub fn handle_get_request(
                     > = (&encrypted_password_entry).try_into();
                     if let Ok(mut json_value) = json_value_res {
                         json_value.insert(
+                            //TODO don't use magic string for field names
                             "password".to_owned(),
                             serde_json::Value::String(
                                 encrypted_password_entry
@@ -126,6 +127,7 @@ pub fn handle_get_request(
                     data.insert(DataFieldType::Data, data_value);
                     GetResponse {
                         data,
+                        //TODO don't use magic string for field names
                         meta: Some(json!({"id":id})),
                         resource,
                         acknowledgement,
@@ -134,6 +136,7 @@ pub fn handle_get_request(
                 } else {
                     GetResponse {
                         data,
+                        //TODO don't use magic string for field names
                         meta: Some(json!({"id":id})),
                         resource,
                         acknowledgement,
@@ -170,6 +173,7 @@ pub fn handle_search_request(
                     > = encrypted_password_entry.try_into();
                     if let Ok(mut mut_obj) = json_value_res {
                         mut_obj.insert(
+                            //TODO don't use magic string for field names
                             "password".to_owned(),
                             serde_json::Value::String(
                                 encrypted_password_entry
@@ -194,6 +198,7 @@ pub fn handle_search_request(
                             acknowledgement: acknowledgement.clone(),
                             status: Status::Success,
                             resource,
+                            //TODO don't use magic string for field names
                             meta: Some(json!({"query":query.clone()})),
                         }
                     } else {
@@ -203,6 +208,7 @@ pub fn handle_search_request(
                             acknowledgement: acknowledgement.clone(),
                             status: Status::Failure,
                             resource,
+                            //TODO don't use magic string for field names
                             meta: Some(
                                 json!({"query":query.clone(), "error":format!("failed to parse data as array. Data: {:?}", data_value)}),
                             ),
@@ -216,6 +222,7 @@ pub fn handle_search_request(
                         status: Status::Failure,
                         resource,
                         meta: Some(
+                            //TODO don't use magic string for field names
                             json!({"query":query, "error":format!("failed to convert data to serde_json::Value. Data: {:?}", decrypted_password_entries)}),
                         ),
                     }
@@ -303,6 +310,7 @@ pub fn handle_fetch_request(
                         FetchResponse {
                             store_id: locked_store.get_name().clone(),
                             data,
+                            //TODO don't use magic string for field names
                             meta: Some(json!({"custom_field_prefix":CUSTOM_FIELD_PREFIX})),
                             resource,
                             acknowledgement,

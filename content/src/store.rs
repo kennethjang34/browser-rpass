@@ -1,7 +1,7 @@
 use browser_rpass::dbg;
 use browser_rpass::js_binding::extension_api::*;
 use browser_rpass::request::DataFieldType;
-use browser_rpass::request::SessionEventWrapper;
+use browser_rpass::request::SessionEvent;
 use browser_rpass::types::Account;
 use browser_rpass::types::Resource;
 use browser_rpass::types::StorageStatus;
@@ -102,7 +102,7 @@ pub enum DataAction {
     ResourceDeleted(Resource, HashMap<DataFieldType, Value>),
     ResourceCreated(Resource, HashMap<DataFieldType, Value>),
     ResourceDeletionFailed(Resource, HashMap<DataFieldType, Value>),
-    ResourceCreationFailed(Resource, SessionEventWrapper),
+    ResourceCreationFailed(Resource, SessionEvent),
     ResourceDeletionStarted(Resource, HashMap<DataFieldType, Value>),
     ResourceCreationStarted(Resource, HashMap<DataFieldType, Value>),
     ResourceFetched(Resource, HashMap<DataFieldType, Value>, Option<Value>),
@@ -230,7 +230,7 @@ impl Reducer<ContentScriptStore> for DataAction {
                 }
             }
             .into(),
-            DataAction::ResourceCreationFailed(_resource, _session_event_wrapper) => {
+            DataAction::ResourceCreationFailed(_resource, _session_event) => {
                 ContentScriptStore {
                     page_loading: false,
                     ..state.deref().clone()

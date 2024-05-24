@@ -1,6 +1,6 @@
 use browser_rpass::js_binding::extension_api::*;
 use browser_rpass::request::DataFieldType;
-use browser_rpass::request::SessionEventWrapper;
+use browser_rpass::request::SessionEvent;
 use browser_rpass::types::*;
 use gloo::storage::errors::StorageError;
 use gloo_utils::document;
@@ -167,8 +167,8 @@ pub enum DataAction {
     ResourceCreated(Resource, HashMap<DataFieldType, Value>),
     ResourceEdited(Resource, HashMap<DataFieldType, Value>, String),
     ResourceDeletionFailed(Resource, HashMap<DataFieldType, Value>),
-    ResourceEditionFailed(Resource, SessionEventWrapper),
-    ResourceCreationFailed(Resource, SessionEventWrapper),
+    ResourceEditionFailed(Resource, SessionEvent),
+    ResourceCreationFailed(Resource, SessionEvent),
     ResourceDeletionStarted(Resource, HashMap<DataFieldType, Value>),
     ResourceEditionStarted(Resource, HashMap<DataFieldType, Value>),
     ResourceCreationStarted(Resource, HashMap<DataFieldType, Value>),
@@ -392,7 +392,7 @@ impl Reducer<PopupStore> for DataAction {
                 }
             }
             .into(),
-            DataAction::ResourceCreationFailed(_resource, _session_event_wrapper) => {
+            DataAction::ResourceCreationFailed(_resource, _session_event) => {
                 PopupStore {
                     page_loading: false,
                     data_status: StoreDataStatus::CreationFailed,
@@ -400,7 +400,7 @@ impl Reducer<PopupStore> for DataAction {
                 }
             }
             .into(),
-            DataAction::ResourceEditionFailed(_resource, _session_event_wrapper) => {
+            DataAction::ResourceEditionFailed(_resource, _session_event) => {
                 PopupStore {
                     page_loading: false,
                     data_status: StoreDataStatus::EditionFailed,
@@ -408,7 +408,7 @@ impl Reducer<PopupStore> for DataAction {
                 }
             }
             .into(),
-            DataAction::ResourceDeletionFailed(_resource, _session_event_wrapper) => PopupStore {
+            DataAction::ResourceDeletionFailed(_resource, _session_event) => PopupStore {
                 page_loading: false,
                 data_status: StoreDataStatus::DeletionFailed,
                 ..state.deref().clone()
