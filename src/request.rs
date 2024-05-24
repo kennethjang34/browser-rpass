@@ -106,16 +106,11 @@ impl fmt::Display for DataFieldType {
 pub struct SessionEvent {
     pub data: Option<HashMap<DataFieldType, Value>>,
     pub event_type: SessionEventType,
-    pub meta: Option<Value>,
+    pub header: Option<Value>,
     pub resource: Option<Vec<Resource>>,
     pub is_global: bool,
     pub acknowledgement: Option<String>,
     pub store_id_index: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct SessionEventWrapper {
-    pub session_event: SessionEvent,
 }
 
 use crate::{types::Resource, util::create_request_acknowledgement};
@@ -263,22 +258,6 @@ macro_rules! request_enum_trait_impl {
     )*)
 }
 
-impl RequestEnumTrait for SessionEventWrapper {
-    fn get_acknowledgement(&self) -> Option<String> {
-        self.session_event.acknowledgement.clone()
-    }
-    fn set_acknowledgement(&mut self, acknowledgement: String) {
-        self.session_event.acknowledgement = Some(acknowledgement);
-    }
-    fn get_header(&self) -> Option<HashMap<String, String>> {
-        None
-    }
-    fn set_header(&mut self, _header: HashMap<String, String>) {}
-    fn get_store_id(&self) -> Option<String> {
-        self.session_event.store_id_index.clone()
-    }
-}
-
 impl CreateStoreRequest {
     pub fn get_store_path(&self) -> Option<String> {
         self.parent_store.clone()
@@ -377,7 +356,6 @@ into_js_value_impl!(CreateStoreRequest);
 into_js_value_impl!(DeleteRequest);
 into_js_value_impl!(EditRequest);
 into_js_value_impl!(SessionEvent);
-into_js_value_impl!(SessionEventWrapper);
 
 #[derive(Serialize, Deserialize, Debug, Clone, Display, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -407,7 +385,7 @@ pub enum RequestEnum {
     #[serde(rename = "delete_store")]
     DeleteStore(DeleteStoreRequset),
     #[serde(rename = "session_event")]
-    SessionEventRequest(SessionEventWrapper),
+    SessionEventRequest(SessionEvent),
 }
 impl RequestEnum {
     pub fn create_get_request(
@@ -593,7 +571,7 @@ impl RequestEnum {
         store_id: Option<String>,
         header: Option<HashMap<String, String>>,
     ) -> RequestEnum {
-        RequestEnum::SessionEventRequest(SessionEventWrapper { session_event })
+        RequestEnum::SessionEventRequest(session_event)
     }
     pub fn create_init_request(
         config: HashMap<DataFieldType, String>,
@@ -671,6 +649,20 @@ pub trait RequestEnumTrait {
     fn set_header(&mut self, header: HashMap<String, String>);
     fn set_acknowledgement(&mut self, acknowledgement: String);
     fn get_store_id(&self) -> Option<String>;
+}
+
+impl RequestEnumTrait for SessionEvent {
+    fn get_header(&self) -> Option<HashMap<String, String>> {
+        None
+    }
+    fn set_header(&mut self, _header: HashMap<String, String>) {}
+    fn get_acknowledgement(&self) -> Option<String> {
+        None
+    }
+    fn set_acknowledgement(&mut self, _acknowledgement: String) {}
+    fn get_store_id(&self) -> Option<String> {
+        None
+    }
 }
 impl fmt::Display for Resource {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

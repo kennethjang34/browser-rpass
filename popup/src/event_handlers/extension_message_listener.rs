@@ -40,15 +40,14 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                 MessageEnum::Message(request) => {
                     //
                     match request.clone() {
-                        RequestEnum::SessionEventRequest(request) => {
+                        RequestEnum::SessionEventRequest(event_request) => {
                             let dispatch = Dispatch::<PopupStore>::new();
-                            let event_request = request.session_event.clone();
                             let event_type = &event_request.event_type;
                             let data = event_request.data.clone().unwrap_or(HashMap::new());
-                            let meta = request.session_event.clone().meta.unwrap_or(json!({}));
+                            let meta = event_request.clone().header.unwrap_or(json!({}));
                             let contexts = MESSAGE_CONTEXT_POPUP.lock().unwrap();
 
-                            let resource = event_request.resource.unwrap_or(vec![]);
+                            let resource = event_request.resource.clone().unwrap_or(vec![]);
                             match event_type {
                                 &SessionEventType::Login => {
                                     let store_id = data
@@ -143,7 +142,8 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                     match resource {
                                         Resource::Account => {
                                             dispatch.apply(DataAction::ResourceCreationFailed(
-                                                resource, request,
+                                                resource,
+                                                event_request,
                                             ));
                                         }
                                         _ => {}
