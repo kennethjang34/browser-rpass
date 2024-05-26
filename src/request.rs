@@ -25,13 +25,13 @@ pub enum SessionEventType {
     LogoutError,
     LoginError,
     Search,
-    Init(HashMap<DataFieldType, Value>),
+    Init,
     Error,
     CreateStore,
-    StoreCreated(HashMap<DataFieldType, Value>, String),
-    StoreCreationFailed(HashMap<DataFieldType, Value>, String),
-    StoreDeleted(HashMap<DataFieldType, Value>, String),
-    StoreDeletionFailed(HashMap<DataFieldType, Value>, String),
+    StoreCreated,
+    StoreCreationFailed,
+    StoreDeleted,
+    StoreDeletionFailed,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
@@ -104,13 +104,13 @@ impl fmt::Display for DataFieldType {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SessionEvent {
-    pub data: Option<HashMap<DataFieldType, Value>>,
+    pub detail: Option<HashMap<DataFieldType, Value>>,
     pub event_type: SessionEventType,
     pub header: Option<Value>,
     pub resource: Option<Vec<Resource>>,
     pub is_global: bool,
     pub acknowledgement: Option<String>,
-    pub store_id_index: Option<String>,
+    pub store_id: Option<String>,
 }
 
 use crate::{types::Resource, util::create_request_acknowledgement};

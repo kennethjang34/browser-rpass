@@ -113,9 +113,12 @@ pub fn handle_request_from_popup(
                             serde_json::to_value(data.clone()).unwrap(),
                         );
                         let session_event = SessionEvent {
-                            store_id_index: init_request.get_store_id(),
-                            event_type: SessionEventType::Init(payload),
-                            data: Some(data),
+                            store_id: init_request.get_store_id().or(data
+                                .get(&DataFieldType::DefaultStoreID)
+                                .map(|v| v.as_str().unwrap().to_owned())),
+                            event_type: SessionEventType::Init,
+                            // data: Some(data),
+                            detail: Some(payload),
                             header: None,
                             resource: None,
                             is_global: false,
@@ -164,9 +167,9 @@ pub fn handle_request_from_popup(
                                     serde_json::to_value(keys).unwrap(),
                                 );
                                 let session_event = SessionEvent {
-                                    store_id_index: init_request.get_store_id(),
-                                    event_type: SessionEventType::Init(payload),
-                                    data: None,
+                                    store_id: init_request.get_store_id(),
+                                    event_type: SessionEventType::Init,
+                                    detail: Some(payload),
                                     header: None,
                                     resource: None,
                                     is_global: false,
@@ -353,9 +356,9 @@ pub fn handle_request_from_popup(
                                     );
                                     let mock_session_event = {
                                         SessionEvent {
-                                            store_id_index: fetch_request.store_id.clone(),
+                                            store_id: fetch_request.store_id.clone(),
                                             event_type: SessionEventType::Refreshed,
-                                            data: Some(data),
+                                            detail: Some(data),
                                             header: meta,
                                             resource: Some(vec![resource]),
                                             is_global: true,
@@ -429,9 +432,9 @@ pub fn handle_request_from_popup(
             } else {
                 error!("native port not found");
                 let session_event = SessionEvent {
-                    store_id_index: None,
+                    store_id: None,
                     event_type: SessionEventType::NativeAppConnectionError,
-                    data: None,
+                    detail: None,
                     header: None,
                     resource: None,
                     is_global: false,

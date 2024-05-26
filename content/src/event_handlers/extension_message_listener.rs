@@ -10,8 +10,7 @@ use wasm_bindgen::{prelude::Closure, JsValue};
 use yewdux::prelude::Dispatch;
 
 use crate::store::{ContentScriptStore, DataAction, LoginAction};
-pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
-    let port = port.clone();
+pub fn create_message_listener(_port: &Port) -> Closure<dyn Fn(JsValue)> {
     Closure::<dyn Fn(JsValue)>::new(move |msg: JsValue| {
         match <JsValue as JsValueSerdeExt>::into_serde::<MessageEnum>(&msg) {
             Ok(parsed_message) => match parsed_message {
@@ -20,17 +19,14 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                         let dispatch = Dispatch::<ContentScriptStore>::new();
                         let event_request = session_event.clone();
                         let event_type = &event_request.event_type;
-                        let data = event_request.data.clone().unwrap_or_default();
-
+                        let event_detail = event_request.detail.clone().unwrap_or_default();
                         let resource = event_request.resource.unwrap_or(vec![]);
                         match event_type {
-                            &SessionEventType::Init(
-                                ref _not_implemented_for_content_script_yet,
-                            ) => {
-                                dispatch.apply(DataAction::Init(data));
+                            &SessionEventType::Init => {
+                                dispatch.apply(DataAction::Init(event_detail));
                             }
                             &SessionEventType::Login => {
-                                dispatch.apply(LoginAction::Login(data.clone().into()));
+                                dispatch.apply(LoginAction::Login(event_detail.clone().into()));
                             }
                             &SessionEventType::Logout => {
                                 dispatch.apply(LoginAction::Logout);
@@ -39,7 +35,10 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                 let resource = resource[0].clone();
                                 match resource {
                                     Resource::Account => {
-                                        dispatch.apply(DataAction::ResourceDeleted(resource, data));
+                                        dispatch.apply(DataAction::ResourceDeleted(
+                                            resource,
+                                            event_detail,
+                                        ));
                                     }
                                     _ => {}
                                 }
@@ -50,7 +49,7 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                     Resource::Account => {
                                         dispatch.apply(DataAction::ResourceCreated(
                                             resource,
-                                            data.clone().into(),
+                                            event_detail.clone().into(),
                                         ));
                                     }
                                     _ => {}
@@ -71,10 +70,10 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                             &SessionEventType::Refreshed => match resource[0] {
                                 Resource::Account => match &dispatch.get().data.storage_status {
                                     _ => {
-                                        dbg!(&data);
+                                        dbg!(&event_detail);
                                         dispatch.apply(DataAction::ResourceFetched(
                                             Resource::Account,
-                                            data.clone().into(),
+                                            event_detail.clone().into(),
                                             None,
                                         ));
                                     }

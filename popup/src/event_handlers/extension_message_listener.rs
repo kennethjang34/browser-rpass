@@ -4,22 +4,20 @@ use browser_rpass::{
     js_binding::extension_api::Port,
     request::{DataFieldType, SessionEventType},
     response::{MessageEnum, RequestEnum},
-    store::{MESSAGE_ACKNOWLEDGEMENTS_POP_UP, MESSAGE_CONTEXT_POPUP},
+    store::MESSAGE_CONTEXT_POPUP,
     types::Resource,
 };
 use gloo_utils::format::JsValueSerdeExt;
 use log::*;
 use serde_json::json;
 use wasm_bindgen::{prelude::Closure, JsValue};
-use wasm_bindgen_futures::spawn_local;
 use yewdux::prelude::Dispatch;
 
 use crate::{
     api::extension_api::fetch_accounts,
     store::{DataAction, LoginAction, LoginStatus, PopupStore},
 };
-pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
-    let port = port.clone();
+pub fn create_message_listener(_port: &Port) -> Closure<dyn Fn(JsValue)> {
     Closure::<dyn Fn(JsValue)>::new(move |msg: JsValue| {
         match <JsValue as JsValueSerdeExt>::into_serde::<MessageEnum>(&msg) {
             Ok(parsed_message) => match parsed_message {
@@ -27,7 +25,7 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                     RequestEnum::SessionEvent(event_request) => {
                         let dispatch = Dispatch::<PopupStore>::new();
                         let event_type = &event_request.event_type;
-                        let data = event_request.data.clone().unwrap_or(HashMap::new());
+                        let data = event_request.detail.clone().unwrap_or(HashMap::new());
                         let meta = event_request.clone().header.unwrap_or(json!({}));
                         let contexts = MESSAGE_CONTEXT_POPUP.lock().unwrap();
 
@@ -79,16 +77,16 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                     _ => {}
                                 }
                             }
-                            &SessionEventType::StoreDeleted(ref data, ref store_id) => {
+                            &SessionEventType::StoreDeleted => {
                                 dispatch.apply(DataAction::StoreDeleted(
                                     data.clone(),
-                                    store_id.clone(),
+                                    event_request.store_id.clone().unwrap(),
                                 ));
                             }
-                            &SessionEventType::StoreDeletionFailed(ref data, ref store_id) => {
+                            &SessionEventType::StoreDeletionFailed => {
                                 dispatch.apply(DataAction::StoreDeletionFailed(
                                     data.clone(),
-                                    store_id.clone(),
+                                    event_request.store_id.clone().unwrap(),
                                 ));
                             }
                             &SessionEventType::Create => {
@@ -128,16 +126,16 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                     _ => {}
                                 }
                             }
-                            &SessionEventType::StoreCreated(ref data, ref store_id) => {
+                            &SessionEventType::StoreCreated => {
                                 dispatch.apply(DataAction::StoreCreated(
                                     data.clone(),
-                                    store_id.clone(),
+                                    event_request.store_id.clone().unwrap(),
                                 ));
                             }
-                            &SessionEventType::StoreCreationFailed(ref data, ref store_id) => {
+                            &SessionEventType::StoreCreationFailed => {
                                 dispatch.apply(DataAction::StoreCreationFailed(
                                     data.clone(),
-                                    store_id.clone(),
+                                    event_request.store_id.clone().unwrap(),
                                 ));
                             }
                             &SessionEventType::Refreshed => match resource[0] {
@@ -152,7 +150,7 @@ pub fn create_message_listener(port: &Port) -> Closure<dyn Fn(JsValue)> {
                                 },
                                 _ => {}
                             },
-                            &SessionEventType::Init(ref data) => {
+                            &SessionEventType::Init => {
                                 let store = dispatch.get();
                                 dispatch.apply(DataAction::Init(data.clone()));
                                 if let Some(store_id) = store.persistent_data.store_id.as_ref() {

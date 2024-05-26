@@ -8,6 +8,7 @@ use gloo_utils::format::JsValueSerdeExt;
 use lazy_static::lazy_static;
 #[allow(unused_imports)]
 use log::debug;
+use log::info;
 use parking_lot::ReentrantMutex;
 use serde_json;
 use serde_json::json;
@@ -363,6 +364,7 @@ impl Reducer<PopupStore> for DataAction {
                 }
             }
             DataAction::Init(data) => {
+                info!("Init data: {:?}", data);
                 let keys = data.get(&DataFieldType::Keys).map_or(vec![], |v| {
                     v.as_array()
                         .unwrap_or(&vec![])

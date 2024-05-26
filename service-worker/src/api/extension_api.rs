@@ -22,7 +22,9 @@ pub fn broadcast_session_event(
         _ => {}
     }
     let mut locked = LISTENER_PORT.lock().unwrap();
-    if session_event.store_id_index.is_none() {
+    if session_event.store_id.is_none()
+        || session_event.event_type == SessionEventType::StoreCreated
+    {
         for port in EXTENSION_PORT.lock().unwrap().values() {
             let request = MessageEnum::Message(RequestEnum::create_session_event_request(
                 None,
@@ -34,7 +36,7 @@ pub fn broadcast_session_event(
         }
         return;
     } else {
-        let listeners = locked.get_mut(session_event.store_id_index.as_ref().unwrap());
+        let listeners = locked.get_mut(session_event.store_id.as_ref().unwrap());
         if let Some(listeners) = listeners {
             for port in EXTENSION_PORT.lock().unwrap().values() {
                 if listeners.contains(&port.name()) {

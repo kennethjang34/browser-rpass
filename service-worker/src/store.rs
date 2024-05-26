@@ -308,8 +308,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     .into(),
                     Some(SessionEvent {
                         event_type: SessionEventType::Login,
-                        store_id_index: Some(store_id),
-                        data: Some(data),
+                        store_id: Some(store_id),
+                        detail: Some(data),
                         header: meta,
                         resource: Some(vec![Resource::Auth]),
                         is_global: true,
@@ -330,9 +330,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }
                     .into(),
                     Some(SessionEvent {
-                        store_id_index: request.store_id,
+                        store_id: request.store_id,
                         event_type: SessionEventType::LoginError,
-                        data: None,
+                        detail: None,
                         header: meta,
                         resource: Some(vec![Resource::Auth]),
                         is_global: false,
@@ -361,9 +361,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             (
                                 store,
                                 Some(SessionEvent {
-                                    store_id_index: Some(store_id),
+                                    store_id: Some(store_id),
                                     event_type: SessionEventType::Logout,
-                                    data: Some(data),
+                                    detail: Some(data),
                                     header: meta,
                                     resource: Some(vec![Resource::Auth]),
                                     is_global: true,
@@ -374,9 +374,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             (
                                 store,
                                 Some(SessionEvent {
-                                    store_id_index: Some(store_id),
+                                    store_id: Some(store_id),
                                     event_type: SessionEventType::LogoutError,
-                                    data: None,
+                                    detail: None,
                                     header: meta,
                                     resource: Some(vec![Resource::Auth]),
                                     is_global: false,
@@ -397,9 +397,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     (
                         store,
                         Some(SessionEvent {
-                            store_id_index: None,
+                            store_id: None,
                             event_type: SessionEventType::Logout,
-                            data: None,
+                            detail: None,
                             header: meta,
                             resource: Some(vec![Resource::Auth]),
                             is_global: true,
@@ -430,9 +430,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }
                         .into(),
                         Some(SessionEvent {
-                            store_id_index: store_id,
+                            store_id,
                             event_type: SessionEventType::Delete,
-                            data: Some(data),
+                            detail: Some(data),
                             header: meta,
                             resource: Some(vec![resource]),
                             is_global: true,
@@ -446,9 +446,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }
                     .into(),
                     Some(SessionEvent {
-                        store_id_index: None,
+                        store_id: None,
                         event_type: SessionEventType::Delete,
-                        data: None,
+                        detail: None,
                         header: meta,
                         resource: Some(vec![resource]),
                         is_global: true,
@@ -480,9 +480,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             }
                             .into(),
                             Some(SessionEvent {
-                                store_id_index: Some(create_response.store_id),
+                                store_id: Some(create_response.store_id),
                                 event_type: SessionEventType::Create,
-                                data: Some(data),
+                                detail: Some(data),
                                 header: meta,
                                 resource: Some(vec![resource]),
                                 is_global: true,
@@ -496,9 +496,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }
                         .into(),
                         Some(SessionEvent {
-                            store_id_index: None,
+                            store_id: None,
                             event_type: SessionEventType::Create,
-                            data: None,
+                            detail: None,
                             header: meta,
                             resource: Some(vec![resource]),
                             is_global: true,
@@ -570,9 +570,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             }
                             .into(),
                             Some(SessionEvent {
-                                store_id_index: Some(edit_response.store_id),
+                                store_id: Some(edit_response.store_id),
                                 event_type: SessionEventType::Update,
-                                data: Some(data),
+                                detail: Some(data),
                                 header: Some(meta),
                                 resource: Some(vec![resource]),
                                 is_global: true,
@@ -586,9 +586,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }
                         .into(),
                         Some(SessionEvent {
-                            store_id_index: Some(edit_response.store_id),
+                            store_id: Some(edit_response.store_id),
                             event_type: SessionEventType::Create,
-                            data: None,
+                            detail: None,
                             header: meta,
                             resource: Some(vec![resource]),
                             is_global: true,
@@ -626,9 +626,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         let session_event = {
                             match session_data.storage_status {
                                 _ => Some(SessionEvent {
-                                    store_id_index: Some(fetch_response.store_id),
+                                    store_id: Some(fetch_response.store_id),
                                     event_type: SessionEventType::Refreshed,
-                                    data: Some(data),
+                                    detail: Some(data),
                                     header: Some(meta),
                                     resource: Some(vec![resource]),
                                     is_global: true,
@@ -716,9 +716,10 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }
                     .into(),
                     Some(SessionEvent {
-                        store_id_index: None,
-                        event_type: SessionEventType::Init(data),
-                        data: None,
+                        store_id: None,
+                        detail: Some(data.clone()),
+                        event_type: SessionEventType::Init,
+                        // (data),
                         header: meta,
                         resource: Some(vec![Resource::Store]),
                         is_global: true,
@@ -760,9 +761,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }
                         let session_event = match resource {
                             Resource::Account => Some(SessionEvent {
-                                store_id_index: request.get_store_id(),
+                                store_id: request.get_store_id(),
                                 event_type: SessionEventType::CreationFailed,
-                                data: Some(_data),
+                                detail: Some(_data),
                                 header: meta,
                                 resource: Some(vec![resource]),
                                 is_global: false,
@@ -807,9 +808,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     .into(),
                     Some(SessionEvent {
                         //TODO: adding store id here causes error (only those subscribed to store id will receive the event, but the store just got created!)
-                        store_id_index: None,
-                        event_type: SessionEventType::StoreCreated(data, store_id),
-                        data: None,
+                        store_id: Some(store_id),
+                        event_type: SessionEventType::StoreCreated,
+                        detail: Some(data),
                         header: meta,
                         resource: Some(vec![Resource::Store]),
                         is_global: true,
@@ -833,9 +834,10 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }
                     .into(),
                     Some(SessionEvent {
-                        store_id_index: None,
-                        event_type: SessionEventType::StoreDeleted(data, store_id),
-                        data: None,
+                        store_id: None,
+                        // event_type: SessionEventType::StoreDeleted(data, store_id),
+                        event_type: SessionEventType::StoreDeleted,
+                        detail: None,
                         header: meta,
                         resource: Some(vec![Resource::Store]),
                         is_global: true,
@@ -861,9 +863,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }
                     .into(),
                     Some(SessionEvent {
-                        store_id_index: Some(store_id.clone()),
-                        event_type: SessionEventType::StoreDeletionFailed(data, store_id),
-                        data: None,
+                        store_id: Some(store_id.clone()),
+                        event_type: SessionEventType::StoreDeletionFailed,
+                        detail: None,
                         header: meta,
                         resource: Some(vec![Resource::Store]),
                         is_global: false,
@@ -889,9 +891,10 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }
                     .into(),
                     Some(SessionEvent {
-                        store_id_index: Some(store_id.clone()),
-                        event_type: SessionEventType::StoreCreationFailed(data, store_id),
-                        data: None,
+                        store_id: Some(store_id.clone()),
+                        // event_type: SessionEventType::StoreCreationFailed(data, store_id),
+                        event_type: SessionEventType::StoreCreationFailed,
+                        detail: None,
                         header: meta,
                         resource: Some(vec![Resource::Store]),
                         is_global: false,
