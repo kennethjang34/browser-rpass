@@ -106,13 +106,33 @@ impl fmt::Display for DataFieldType {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum NotificationTarget {
+    Store {
+        store_id: String,
+    },
+    Port {
+        port_id: String,
+    },
+    Ports {
+        port_ids: Vec<String>,
+    },
+    StoreAndPorts {
+        store_id: String,
+        port_ids: Vec<String>,
+    },
+    All,
+    None,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SessionEvent {
     pub detail: Option<HashMap<DataFieldType, Value>>,
     pub event_type: SessionEventType,
     pub resource: Option<Vec<Resource>>,
-    pub is_global: bool,
+    pub is_port_agnostic: bool,
     pub acknowledgement: Option<String>,
     pub store_id: Option<String>,
+    pub notification_target: NotificationTarget,
 }
 
 use crate::{types::Resource, util::create_request_acknowledgement};

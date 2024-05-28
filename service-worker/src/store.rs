@@ -1,7 +1,9 @@
 use crate::event_handlers::native_message_handler::process_native_message;
 pub use crate::Resource;
 use crate::{api, StorageStatus};
-use browser_rpass::request::{DataFieldType, LoginRequest, RequestEnumTrait, SessionEventType};
+use browser_rpass::request::{
+    DataFieldType, LoginRequest, NotificationTarget, RequestEnumTrait, SessionEventType,
+};
 use browser_rpass::response::{
     CreateResponse, CreateStoreResponse, DeleteStoreResponse, EditResponse, FetchResponse,
     InitResponse, LogoutResponse, ResponseEnum,
@@ -310,10 +312,11 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     .into(),
                     Some(SessionEvent {
                         event_type: SessionEventType::Login,
-                        store_id: Some(store_id),
+                        store_id: Some(store_id.clone()),
                         detail: Some(data),
                         resource: Some(vec![Resource::Auth]),
-                        is_global: true,
+                        is_port_agnostic: true,
+                        notification_target: NotificationTarget::Store { store_id },
                         acknowledgement,
                     }),
                 )
@@ -335,13 +338,20 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         event_type: SessionEventType::LoginError,
                         detail: None,
                         resource: Some(vec![Resource::Auth]),
-                        is_global: false,
+                        is_port_agnostic: false,
+                        notification_target: {
+                            if let Some(port_id) = extension_port_name.clone() {
+                                NotificationTarget::Port { port_id }
+                            } else {
+                                NotificationTarget::None
+                            }
+                        },
                         acknowledgement: request_acknowledgement,
                     }),
                 )
             }
             SessionAction::Logout(store_id, _acknowledgement_opt) => {
-                if let Some(store_id) = store_id {
+                if let Some(store_id) = store_id.clone() {
                     if let Some(store) = LISTENER_PORT.lock().unwrap().get_mut(&store_id) {
                         ports_to_disconnect
                             .entry(store_id.clone())
@@ -361,11 +371,12 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             (
                                 store,
                                 Some(SessionEvent {
-                                    store_id: Some(store_id),
+                                    store_id: Some(store_id.clone()),
                                     event_type: SessionEventType::Logout,
                                     detail: Some(data),
                                     resource: Some(vec![Resource::Auth]),
-                                    is_global: true,
+                                    is_port_agnostic: true,
+                                    notification_target: NotificationTarget::Store { store_id },
                                     acknowledgement,
                                 }),
                             )
@@ -377,7 +388,14 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                     event_type: SessionEventType::LogoutError,
                                     detail: None,
                                     resource: Some(vec![Resource::Auth]),
-                                    is_global: false,
+                                    is_port_agnostic: false,
+                                    notification_target: if let Some(port_id) =
+                                        extension_port_name.clone()
+                                    {
+                                        NotificationTarget::Port { port_id }
+                                    } else {
+                                        NotificationTarget::None
+                                    },
                                     acknowledgement,
                                 }),
                             )
@@ -399,7 +417,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             event_type: SessionEventType::Logout,
                             detail: None,
                             resource: Some(vec![Resource::Auth]),
-                            is_global: true,
+                            is_port_agnostic: true,
+                            notification_target: NotificationTarget::All,
                             acknowledgement,
                         }),
                     )
@@ -427,11 +446,17 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }
                         .into(),
                         Some(SessionEvent {
-                            store_id,
+                            store_id: store_id.clone(),
                             event_type: SessionEventType::Delete,
                             detail: Some(data),
                             resource: Some(vec![resource]),
-                            is_global: true,
+                            is_port_agnostic: true,
+                            notification_target: if let Some(store_id) = store_id.clone() {
+                                NotificationTarget::Store { store_id }
+                            } else {
+                                // This should not happen.
+                                NotificationTarget::All
+                            },
                             acknowledgement,
                         }),
                     )
@@ -446,7 +471,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         event_type: SessionEventType::Delete,
                         detail: None,
                         resource: Some(vec![resource]),
-                        is_global: true,
+                        is_port_agnostic: true,
+                        notification_target: NotificationTarget::All,
                         acknowledgement,
                     }),
                 ),
@@ -475,11 +501,14 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             }
                             .into(),
                             Some(SessionEvent {
-                                store_id: Some(create_response.store_id),
+                                store_id: Some(create_response.store_id.clone()),
                                 event_type: SessionEventType::Create,
                                 detail: Some(data),
                                 resource: Some(vec![resource]),
-                                is_global: true,
+                                is_port_agnostic: true,
+                                notification_target: NotificationTarget::Store {
+                                    store_id: create_response.store_id,
+                                },
                                 acknowledgement,
                             }),
                         )
@@ -494,7 +523,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             event_type: SessionEventType::Create,
                             detail: None,
                             resource: Some(vec![resource]),
-                            is_global: true,
+                            is_port_agnostic: true,
+                            notification_target: NotificationTarget::All,
                             acknowledgement,
                         }),
                     ),
@@ -562,11 +592,14 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             }
                             .into(),
                             Some(SessionEvent {
-                                store_id: Some(edit_response.store_id),
+                                store_id: Some(edit_response.store_id.clone()),
                                 event_type: SessionEventType::Update,
                                 detail: Some(detail),
                                 resource: Some(vec![resource]),
-                                is_global: true,
+                                is_port_agnostic: true,
+                                notification_target: NotificationTarget::Store {
+                                    store_id: edit_response.store_id,
+                                },
                                 acknowledgement,
                             }),
                         )
@@ -577,11 +610,14 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         }
                         .into(),
                         Some(SessionEvent {
-                            store_id: Some(edit_response.store_id),
+                            store_id: Some(edit_response.store_id.clone()),
                             event_type: SessionEventType::Create,
                             detail: None,
                             resource: Some(vec![resource]),
-                            is_global: true,
+                            is_port_agnostic: true,
+                            notification_target: NotificationTarget::Store {
+                                store_id: edit_response.store_id,
+                            },
                             acknowledgement,
                         }),
                     ),
@@ -608,11 +644,14 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         let session_event = {
                             match session_data.storage_status {
                                 _ => Some(SessionEvent {
-                                    store_id: Some(fetch_response.store_id),
+                                    store_id: Some(fetch_response.store_id.clone()),
                                     event_type: SessionEventType::Refreshed,
                                     detail: Some(detail),
                                     resource: Some(vec![resource]),
-                                    is_global: true,
+                                    is_port_agnostic: true,
+                                    notification_target: NotificationTarget::Store {
+                                        store_id: fetch_response.store_id,
+                                    },
                                     acknowledgement,
                                 }),
                             }
@@ -701,7 +740,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         detail: Some(data.clone()),
                         event_type: SessionEventType::Init,
                         resource: Some(vec![Resource::Store]),
-                        is_global: true,
+                        is_port_agnostic: true,
+                        notification_target: NotificationTarget::All,
                         acknowledgement,
                     }),
                 )
@@ -744,7 +784,14 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 event_type: SessionEventType::CreationFailed,
                                 detail: Some(_data),
                                 resource: Some(vec![resource]),
-                                is_global: false,
+                                is_port_agnostic: false,
+                                notification_target: if let Some(port_id) =
+                                    extension_port_name.clone()
+                                {
+                                    NotificationTarget::Port { port_id }
+                                } else {
+                                    NotificationTarget::None
+                                },
                                 acknowledgement,
                             }),
                             _ => None,
@@ -786,11 +833,12 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     .into(),
                     Some(SessionEvent {
                         //TODO: adding store id here causes error (only those subscribed to store id will receive the event, but the store just got created!)
-                        store_id: Some(store_id),
+                        store_id: Some(store_id.clone()),
                         event_type: SessionEventType::StoreCreated,
                         detail: Some(data),
                         resource: Some(vec![Resource::Store]),
-                        is_global: true,
+                        is_port_agnostic: true,
+                        notification_target: NotificationTarget::All,
                         acknowledgement,
                     }),
                 )
@@ -815,7 +863,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         event_type: SessionEventType::StoreDeleted,
                         detail: Some(detail),
                         resource: Some(vec![Resource::Store]),
-                        is_global: true,
+                        is_port_agnostic: true,
+                        notification_target: NotificationTarget::All,
                         acknowledgement,
                     }),
                 )
@@ -842,7 +891,12 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         event_type: SessionEventType::StoreDeletionFailed,
                         detail: None,
                         resource: Some(vec![Resource::Store]),
-                        is_global: false,
+                        is_port_agnostic: false,
+                        notification_target: if let Some(port_id) = extension_port_name.clone() {
+                            NotificationTarget::Port { port_id }
+                        } else {
+                            NotificationTarget::None
+                        },
                         acknowledgement,
                     }),
                 )
@@ -869,7 +923,12 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         event_type: SessionEventType::StoreCreationFailed,
                         detail: None,
                         resource: Some(vec![Resource::Store]),
-                        is_global: false,
+                        is_port_agnostic: false,
+                        notification_target: if let Some(port_id) = extension_port_name.clone() {
+                            NotificationTarget::Port { port_id }
+                        } else {
+                            NotificationTarget::None
+                        },
                         acknowledgement,
                     }),
                 )
@@ -883,15 +942,15 @@ impl Reducer<SessionStore> for SessionActionWrapper {
             ),
         };
         if let Some(session_event) = session_event {
-            if session_event.is_global {
+            if session_event.is_port_agnostic {
                 api::extension_api::broadcast_session_event(
                     session_event.clone(),
                     Some(ports_to_disconnect.clone()),
                 );
             } else {
-                if let Some(extension_port_name) = extension_port_name {
+                if let Some(extension_port_name) = extension_port_name.as_ref() {
                     if let Some(extension_port) =
-                        EXTENSION_PORT.lock().unwrap().get(&extension_port_name)
+                        EXTENSION_PORT.lock().unwrap().get(extension_port_name)
                     {
                         api::extension_api::whisper_session_event(session_event, extension_port);
                     }

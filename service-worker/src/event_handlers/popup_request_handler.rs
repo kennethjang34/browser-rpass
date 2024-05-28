@@ -118,9 +118,11 @@ pub fn handle_request_from_popup(
                                 .map(|v| v.as_str().unwrap().to_owned())),
                             event_type: SessionEventType::Init,
                             detail: Some(payload),
-                            // header: None,
                             resource: None,
-                            is_global: false,
+                            is_port_agnostic: false,
+                            notification_target: NotificationTarget::Port {
+                                port_id: extension_port.name(),
+                            },
                             acknowledgement: init_request.get_acknowledgement(),
                         };
                         whisper_session_event(session_event, &extension_port);
@@ -170,7 +172,10 @@ pub fn handle_request_from_popup(
                                     event_type: SessionEventType::Init,
                                     detail: Some(payload),
                                     resource: None,
-                                    is_global: false,
+                                    is_port_agnostic: false,
+                                    notification_target: NotificationTarget::Port {
+                                        port_id: extension_port.name(),
+                                    },
                                     acknowledgement: init_request.get_acknowledgement(),
                                 };
                                 whisper_session_event(session_event, &extension_port);
@@ -362,7 +367,14 @@ pub fn handle_request_from_popup(
                                             event_type: SessionEventType::Refreshed,
                                             detail: Some(data),
                                             resource: Some(vec![resource]),
-                                            is_global: true,
+                                            is_port_agnostic: true,
+                                            notification_target: if let Some(store_id) =
+                                                fetch_request.store_id.clone()
+                                            {
+                                                NotificationTarget::Store { store_id }
+                                            } else {
+                                                NotificationTarget::All
+                                            },
                                             acknowledgement: Some(
                                                 session_event_acknowledgement.clone(),
                                             ),
@@ -436,9 +448,11 @@ pub fn handle_request_from_popup(
                     store_id: None,
                     event_type: SessionEventType::NativeAppConnectionError,
                     detail: None,
-                    // header: None,
                     resource: None,
-                    is_global: false,
+                    is_port_agnostic: false,
+                    notification_target: NotificationTarget::Port {
+                        port_id: extension_port.name(),
+                    },
                     acknowledgement: request.get_acknowledgement(),
                 };
                 whisper_session_event(session_event, &extension_port);

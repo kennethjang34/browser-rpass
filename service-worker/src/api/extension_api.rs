@@ -1,9 +1,11 @@
 use browser_rpass::{
     js_binding::extension_api::*,
-    request::{SessionEvent, SessionEventType},
+    request::{NotificationTarget, SessionEvent, SessionEventType},
     response::{MessageEnum, RequestEnum},
 };
 use gloo_utils::format::JsValueSerdeExt;
+#[allow(unused_imports)]
+use log::debug;
 use std::collections::{HashMap, HashSet};
 use wasm_bindgen::JsValue;
 
@@ -21,37 +23,70 @@ pub fn broadcast_session_event(
         | SessionEventType::Refreshed => {}
         _ => {}
     }
-    let mut locked = LISTENER_PORT.lock().unwrap();
-    if session_event.is_global || session_event.event_type == SessionEventType::StoreCreated {
-        for port in EXTENSION_PORT.lock().unwrap().values() {
-            let request = MessageEnum::Message(RequestEnum::create_session_event_request(
-                None,
-                session_event.clone(),
-                None,
-                None,
-            ));
-            port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&request).unwrap());
+    let mut store_listeners = LISTENER_PORT.lock().unwrap();
+    let mut target_ports: Vec<&Port> = Vec::new();
+    let ports_map = EXTENSION_PORT.lock().unwrap();
+    match session_event.notification_target {
+        NotificationTarget::All => {
+            for port in ports_map.values() {
+                target_ports.push(port);
+            }
         }
-        return;
-    } else {
-        let listeners = locked.get_mut(session_event.store_id.as_ref().unwrap());
-        if let Some(listeners) = listeners {
-            for port in EXTENSION_PORT.lock().unwrap().values() {
-                if listeners.contains(&port.name()) {
-                    let request = MessageEnum::Message(RequestEnum::create_session_event_request(
-                        None,
-                        session_event.clone(),
-                        None,
-                        None,
-                    ));
-                    port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&request).unwrap());
+        NotificationTarget::Store { ref store_id } => {
+            let listeners = store_listeners.get_mut(store_id);
+            if let Some(listeners) = listeners {
+                for port in ports_map.values() {
+                    if listeners.contains(&port.name()) {
+                        target_ports.push(port);
+                    }
                 }
             }
         }
+        NotificationTarget::Port { ref port_id } => {
+            if let Some(port) = ports_map.get(port_id) {
+                target_ports.push(port);
+            }
+        }
+        NotificationTarget::Ports { ref port_ids } => {
+            for port_name in port_ids {
+                if let Some(port) = ports_map.get(port_name) {
+                    target_ports.push(port);
+                }
+            }
+        }
+        NotificationTarget::StoreAndPorts {
+            ref store_id,
+            ref port_ids,
+        } => {
+            for port_name in port_ids {
+                if let Some(port) = ports_map.get(port_name) {
+                    target_ports.push(port);
+                }
+            }
+            let listeners = store_listeners.get_mut(store_id);
+            if let Some(listeners) = listeners {
+                for port in ports_map.values() {
+                    if listeners.contains(&port.name()) {
+                        target_ports.push(port);
+                    }
+                }
+            }
+        }
+        NotificationTarget::None => {}
+    }
+    debug!("target_ports: {:?}", target_ports);
+    for port in target_ports {
+        let request = MessageEnum::Message(RequestEnum::create_session_event_request(
+            None,
+            session_event.clone(),
+            None,
+            None,
+        ));
+        port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&request).unwrap());
     }
     if let Some(ports_to_disconnect) = ports_to_disconnect {
         for (store_id_index, ports) in ports_to_disconnect {
-            let listeners = locked.get_mut(&store_id_index);
+            let listeners = store_listeners.get_mut(&store_id_index);
             if let Some(listeners) = listeners {
                 for port_name in ports {
                     listeners.remove(&port_name);
