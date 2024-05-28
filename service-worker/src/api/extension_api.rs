@@ -22,9 +22,7 @@ pub fn broadcast_session_event(
         _ => {}
     }
     let mut locked = LISTENER_PORT.lock().unwrap();
-    if session_event.store_id.is_none()
-        || session_event.event_type == SessionEventType::StoreCreated
-    {
+    if session_event.is_global || session_event.event_type == SessionEventType::StoreCreated {
         for port in EXTENSION_PORT.lock().unwrap().values() {
             let request = MessageEnum::Message(RequestEnum::create_session_event_request(
                 None,

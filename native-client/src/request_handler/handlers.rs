@@ -58,18 +58,17 @@ pub fn handle_edit_request(
                 passphrase_provider,
             );
 
-            let mut data = HashMap::new();
+            let mut detail = HashMap::new();
             match updated_data {
                 Ok(updated_data) => {
-                    data.insert(DataFieldType::UpdatedFields, updated_data.clone());
+                    detail.insert(DataFieldType::UpdatedFields, updated_data.clone());
                     let edit_response = EditResponse {
                         store_id: store.lock()?.get_name().clone(),
                         acknowledgement: request.acknowledgement,
-                        data,
+                        detail,
                         status: Status::Success,
                         resource: Resource::Account,
                         id: request.id,
-                        meta: None,
                     };
                     Ok(edit_response)
                 }
@@ -106,8 +105,7 @@ pub fn handle_get_request(
                     > = (&encrypted_password_entry).try_into();
                     if let Ok(mut json_value) = json_value_res {
                         json_value.insert(
-                            //TODO don't use magic string for field names
-                            "password".to_owned(),
+                            DataFieldType::Password.to_string(),
                             serde_json::Value::String(
                                 encrypted_password_entry
                                     .secret(&locked_store, passphrase_provider)
@@ -121,27 +119,24 @@ pub fn handle_get_request(
                         ))
                     }
                 });
-            let mut data = HashMap::new();
+            let mut detail = HashMap::new();
+            detail.insert(
+                DataFieldType::ResourceID,
+                serde_json::to_value(id.clone()).unwrap_or_default(),
+            );
             let get_response = {
+                let status;
                 if let Ok(data_value) = password_entry.map(|data| data.into()) {
-                    data.insert(DataFieldType::Data, data_value);
-                    GetResponse {
-                        data,
-                        //TODO don't use magic string for field names
-                        meta: Some(json!({"id":id})),
-                        resource,
-                        acknowledgement,
-                        status: Status::Success,
-                    }
+                    detail.insert(DataFieldType::Data, data_value);
+                    status = Status::Success;
                 } else {
-                    GetResponse {
-                        data,
-                        //TODO don't use magic string for field names
-                        meta: Some(json!({"id":id})),
-                        resource,
-                        acknowledgement,
-                        status: Status::Failure,
-                    }
+                    status = Status::Failure;
+                }
+                GetResponse {
+                    detail,
+                    resource,
+                    acknowledgement,
+                    status,
                 }
             };
             return Ok(get_response);
@@ -188,43 +183,41 @@ pub fn handle_search_request(
                 })
                 .collect::<Vec<serde_json::Value>>();
             let search_response = {
-                let mut data = HashMap::new();
+                let mut detail = HashMap::new();
+                detail.insert(
+                    DataFieldType::Query,
+                    serde_json::to_value(query.clone()).unwrap_or_default(),
+                );
                 if let Ok(data_value) = serde_json::to_value(decrypted_password_entries.clone()) {
                     if let Some(data_arr) = data_value.as_array().cloned() {
-                        data.insert(DataFieldType::Data, data_arr.into());
+                        detail.insert(DataFieldType::Data, data_arr.into());
                         SearchResponse {
                             store_id: locked_store.get_name().clone(),
-                            data,
+                            detail,
                             acknowledgement: acknowledgement.clone(),
                             status: Status::Success,
                             resource,
-                            //TODO don't use magic string for field names
-                            meta: Some(json!({"query":query.clone()})),
                         }
                     } else {
                         SearchResponse {
                             store_id: locked_store.get_name().clone(),
-                            data,
+                            detail,
                             acknowledgement: acknowledgement.clone(),
                             status: Status::Failure,
                             resource,
-                            //TODO don't use magic string for field names
-                            meta: Some(
-                                json!({"query":query.clone(), "error":format!("failed to parse data as array. Data: {:?}", data_value)}),
-                            ),
                         }
                     }
                 } else {
+                    detail.insert(
+                        DataFieldType::Query,
+                        serde_json::to_value(query.clone()).unwrap_or_default(),
+                    );
                     SearchResponse {
                         store_id: locked_store.get_name().clone(),
-                        data,
+                        detail,
                         acknowledgement,
                         status: Status::Failure,
                         resource,
-                        meta: Some(
-                            //TODO don't use magic string for field names
-                            json!({"query":query, "error":format!("failed to convert data to serde_json::Value. Data: {:?}", decrypted_password_entries)}),
-                        ),
                     }
                 }
             };
@@ -302,39 +295,27 @@ pub fn handle_fetch_request(
                         })
                         .collect::<Vec<serde_json::Value>>();
             let fetch_response = {
-                let mut data = HashMap::new();
+                let mut detail = HashMap::new();
+                let store_id = locked_store.get_name().clone();
+                let status;
                 if let Ok(entries) = serde_json::to_value(decrypted_password_entries) {
                     if let Some(entry_arr) = entries.as_array().cloned() {
-                        data.insert(DataFieldType::Data, json!(entry_arr));
-                        data.insert(DataFieldType::SubStore, json!(substores));
-                        FetchResponse {
-                            store_id: locked_store.get_name().clone(),
-                            data,
-                            //TODO don't use magic string for field names
-                            meta: Some(json!({"custom_field_prefix":CUSTOM_FIELD_PREFIX})),
-                            resource,
-                            acknowledgement,
-                            status: Status::Success,
-                        }
+                        detail.insert(DataFieldType::Data, json!(entry_arr));
+                        detail.insert(DataFieldType::SubStore, json!(substores));
+                        detail.insert(DataFieldType::CustomFieldPrefix, json!(CUSTOM_FIELD_PREFIX));
+                        status = Status::Success;
                     } else {
-                        FetchResponse {
-                            store_id: locked_store.get_name().clone(),
-                            data,
-                            meta: None,
-                            resource,
-                            acknowledgement,
-                            status: Status::Failure,
-                        }
+                        status = Status::Failure;
                     }
                 } else {
-                    FetchResponse {
-                        store_id: locked_store.get_name().clone(),
-                        data,
-                        meta: None,
-                        resource,
-                        acknowledgement,
-                        status: Status::Failure,
-                    }
+                    status = Status::Failure;
+                }
+                FetchResponse {
+                    store_id,
+                    detail,
+                    resource,
+                    acknowledgement,
+                    status,
                 }
             };
             return Ok(fetch_response);
@@ -577,7 +558,6 @@ pub fn handle_create_store_request(
         Status::Success,
         request.get_acknowledgement(),
         None,
-        None,
     ));
 }
 #[allow(unused_variables)]
@@ -604,8 +584,7 @@ pub fn handle_delete_store_request(
         store_id: store_name,
         acknowledgement: request.acknowledgement,
         status: Status::Success,
-        data: HashMap::new(),
-        meta: None,
+        detail: HashMap::new(),
     })
 }
 pub fn handle_create_request(
@@ -624,7 +603,7 @@ pub fn handle_create_request(
     match resource {
         Resource::Account => {
             let mut locked_store = store.lock()?;
-            let mut data = HashMap::new();
+            let mut detail = HashMap::new();
             let status = match locked_store.create_entry(
                 username.as_deref(),
                 password.as_deref(),
@@ -644,7 +623,7 @@ pub fn handle_create_request(
                         if let Ok(entry_meta) = entry_meta_res.as_ref() {
                             merge_json(&mut entry_data, entry_meta);
                             status = Status::Success;
-                            data.insert(DataFieldType::Data, entry_data);
+                            detail.insert(DataFieldType::Data, entry_data);
                             status
                         } else {
                             error!(
@@ -668,8 +647,7 @@ pub fn handle_create_request(
             let create_response: CreateResponse = CreateResponse {
                 store_id: locked_store.get_name().clone(),
                 acknowledgement,
-                data,
-                meta: None,
+                detail,
                 resource: Resource::Account,
                 status,
             };
@@ -689,16 +667,16 @@ pub fn handle_delete_request(
 ) -> pass::Result<DeleteResponse> {
     let id = request.id;
     let acknowledgement = request.acknowledgement;
-    let mut data = HashMap::new();
+    let mut detail = HashMap::new();
     let status = {
         let res = store.lock()?.delete_entry(&(id), passphrase_provider);
         match res {
             Ok(entry_data) => {
-                data.insert(
+                detail.insert(
                     DataFieldType::ResourceID,
                     serde_json::to_value(entry_data.id.clone()).unwrap_or_default(),
                 );
-                data.insert(DataFieldType::Data, serde_json::to_value(entry_data)?);
+                detail.insert(DataFieldType::Data, serde_json::to_value(entry_data)?);
                 Status::Success
             }
             Err(e) => {
@@ -710,7 +688,7 @@ pub fn handle_delete_request(
     let delete_response = DeleteResponse {
         deleted_resource_id: id,
         acknowledgement,
-        data,
+        detail,
         status,
     };
     Ok(delete_response)

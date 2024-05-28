@@ -9,7 +9,6 @@ use browser_rpass::{
 };
 use gloo_utils::format::JsValueSerdeExt;
 use log::*;
-use serde_json::json;
 use wasm_bindgen::{prelude::Closure, JsValue};
 use yewdux::prelude::Dispatch;
 
@@ -23,10 +22,10 @@ pub fn create_message_listener(_port: &Port) -> Closure<dyn Fn(JsValue)> {
             Ok(parsed_message) => match parsed_message {
                 MessageEnum::Message(request) => match request.clone() {
                     RequestEnum::SessionEvent(event_request) => {
+                        debug!("event request: {:?}", event_request);
                         let dispatch = Dispatch::<PopupStore>::new();
                         let event_type = &event_request.event_type;
                         let data = event_request.detail.clone().unwrap_or(HashMap::new());
-                        let meta = event_request.clone().header.unwrap_or(json!({}));
                         let contexts = MESSAGE_CONTEXT_POPUP.lock().unwrap();
 
                         let resource = event_request.resource.clone().unwrap_or(vec![]);
@@ -108,7 +107,11 @@ pub fn create_message_listener(_port: &Port) -> Closure<dyn Fn(JsValue)> {
                                         dispatch.apply(DataAction::ResourceEdited(
                                             resource,
                                             data.clone().into(),
-                                            meta.get("id").unwrap().as_str().unwrap().to_string(),
+                                            data.get(&DataFieldType::ResourceID)
+                                                .unwrap()
+                                                .as_str()
+                                                .unwrap()
+                                                .to_string(),
                                         ));
                                     }
                                     _ => {}

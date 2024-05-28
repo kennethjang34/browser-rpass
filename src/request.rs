@@ -37,6 +37,8 @@ pub enum SessionEventType {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum DataFieldType {
+    PortID,
+    Meta,
     ErrorType,
     InitError,
     NativeAppConnectionError,
@@ -71,6 +73,7 @@ pub enum DataFieldType {
     ValidSignerList,
     RepoSigningKey,
     CustomField,
+    CustomFieldPrefix,
     Domain,
     Path,
     Resource,
@@ -106,7 +109,6 @@ impl fmt::Display for DataFieldType {
 pub struct SessionEvent {
     pub detail: Option<HashMap<DataFieldType, Value>>,
     pub event_type: SessionEventType,
-    pub header: Option<Value>,
     pub resource: Option<Vec<Resource>>,
     pub is_global: bool,
     pub acknowledgement: Option<String>,

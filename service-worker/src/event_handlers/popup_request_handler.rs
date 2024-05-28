@@ -117,9 +117,8 @@ pub fn handle_request_from_popup(
                                 .get(&DataFieldType::DefaultStoreID)
                                 .map(|v| v.as_str().unwrap().to_owned())),
                             event_type: SessionEventType::Init,
-                            // data: Some(data),
                             detail: Some(payload),
-                            header: None,
+                            // header: None,
                             resource: None,
                             is_global: false,
                             acknowledgement: init_request.get_acknowledgement(),
@@ -170,7 +169,6 @@ pub fn handle_request_from_popup(
                                     store_id: init_request.get_store_id(),
                                     event_type: SessionEventType::Init,
                                     detail: Some(payload),
-                                    header: None,
                                     resource: None,
                                     is_global: false,
                                     acknowledgement: init_request.get_acknowledgement(),
@@ -282,9 +280,9 @@ pub fn handle_request_from_popup(
                             );
                         }
                         RequestEnum::Fetch(fetch_request) => {
-                            let meta = Some(json!({"requester_port_id":extension_port.name()}));
-                            let data = dispatch.get().stores.clone();
-                            let current_status = data
+                            let detail = Some(json!({"requester_port_id":extension_port.name()}));
+                            let store_state = dispatch.get().stores.clone();
+                            let current_status = store_state
                                 .borrow_mut()
                                 .entry(fetch_request.store_id.clone().unwrap())
                                 .or_insert({
@@ -313,7 +311,7 @@ pub fn handle_request_from_popup(
                             match current_status {
                                 StorageStatus::Uninitialized => {
                                     dispatch.apply(SessionActionWrapper {
-                                        meta,
+                                        detail,
                                         action: SessionAction::DataLoading(
                                             fetch_request.store_id.clone().unwrap(),
                                             request.get_acknowledgement(),
@@ -354,12 +352,15 @@ pub fn handle_request_from_popup(
                                         )
                                         .unwrap(),
                                     );
+                                    data.insert(
+                                        DataFieldType::PortID,
+                                        extension_port.name().into(),
+                                    );
                                     let mock_session_event = {
                                         SessionEvent {
                                             store_id: fetch_request.store_id.clone(),
                                             event_type: SessionEventType::Refreshed,
                                             detail: Some(data),
-                                            header: meta,
                                             resource: Some(vec![resource]),
                                             is_global: true,
                                             acknowledgement: Some(
@@ -435,7 +436,7 @@ pub fn handle_request_from_popup(
                     store_id: None,
                     event_type: SessionEventType::NativeAppConnectionError,
                     detail: None,
-                    header: None,
+                    // header: None,
                     resource: None,
                     is_global: false,
                     acknowledgement: request.get_acknowledgement(),

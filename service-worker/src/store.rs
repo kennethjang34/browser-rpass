@@ -57,7 +57,7 @@ pub enum SessionAction {
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SessionActionWrapper {
-    pub meta: Option<Value>,
+    pub detail: Option<Value>,
     pub action: SessionAction,
 }
 
@@ -125,7 +125,7 @@ lazy_static! {
         let dispatch = Dispatch::<SessionStore>::new();
         dispatch.apply(SessionActionWrapper {
             action: SessionAction::InitStarted(init_request),
-            meta: None,
+            detail: None,
         });
         ReentrantMutex::new(RefCell::new(Some(port)))
     };
@@ -235,9 +235,9 @@ impl SessionStore {
 
 impl Reducer<SessionStore> for SessionActionWrapper {
     fn apply(self, store: Rc<SessionStore>) -> Rc<SessionStore> {
-        let meta = self.meta;
+        let detail = self.detail;
         let mut extension_port_name: Option<String> = None;
-        let acknowledgement = meta
+        let acknowledgement = detail
             .as_ref()
             .and_then(|meta| meta.get("acknowledgement"))
             .and_then(|ack| ack.as_str())
@@ -248,7 +248,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
         let (session_store, session_event) = match session_action {
             SessionAction::Login => {
                 let store_id = {
-                    meta.as_ref()
+                    detail
+                        .as_ref()
                         .unwrap()
                         .get("store_id")
                         .unwrap()
@@ -257,7 +258,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         .to_owned()
                 };
                 let is_default = {
-                    meta.as_ref()
+                    detail
+                        .as_ref()
                         .unwrap()
                         .get("is_default")
                         .unwrap()
@@ -286,7 +288,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 if is_default {
                     store.default_store.borrow_mut().replace(store_id.clone());
                 }
-                if let Some(prev_store_id) = meta.as_ref().unwrap().get("prev_store_id") {
+                if let Some(prev_store_id) = detail.as_ref().unwrap().get("prev_store_id") {
                     if let Some(prev_store_id) = prev_store_id.as_str().to_owned() {
                         if prev_store_id != store_id {
                             let mut locked = LISTENER_PORT.lock().unwrap();
@@ -310,7 +312,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         event_type: SessionEventType::Login,
                         store_id: Some(store_id),
                         detail: Some(data),
-                        header: meta,
                         resource: Some(vec![Resource::Auth]),
                         is_global: true,
                         acknowledgement,
@@ -333,7 +334,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         store_id: request.store_id,
                         event_type: SessionEventType::LoginError,
                         detail: None,
-                        header: meta,
                         resource: Some(vec![Resource::Auth]),
                         is_global: false,
                         acknowledgement: request_acknowledgement,
@@ -364,7 +364,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                     store_id: Some(store_id),
                                     event_type: SessionEventType::Logout,
                                     detail: Some(data),
-                                    header: meta,
                                     resource: Some(vec![Resource::Auth]),
                                     is_global: true,
                                     acknowledgement,
@@ -377,7 +376,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                     store_id: Some(store_id),
                                     event_type: SessionEventType::LogoutError,
                                     detail: None,
-                                    header: meta,
                                     resource: Some(vec![Resource::Auth]),
                                     is_global: false,
                                     acknowledgement,
@@ -400,7 +398,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             store_id: None,
                             event_type: SessionEventType::Logout,
                             detail: None,
-                            header: meta,
                             resource: Some(vec![Resource::Auth]),
                             is_global: true,
                             acknowledgement,
@@ -433,7 +430,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             store_id,
                             event_type: SessionEventType::Delete,
                             detail: Some(data),
-                            header: meta,
                             resource: Some(vec![resource]),
                             is_global: true,
                             acknowledgement,
@@ -449,7 +445,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         store_id: None,
                         event_type: SessionEventType::Delete,
                         detail: None,
-                        header: meta,
                         resource: Some(vec![resource]),
                         is_global: true,
                         acknowledgement,
@@ -461,7 +456,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 match resource {
                     Resource::Account => {
                         let data_payload =
-                            create_response.data.remove(&DataFieldType::Data).unwrap();
+                            create_response.detail.remove(&DataFieldType::Data).unwrap();
                         let account: Rc<Account> =
                             Rc::new(serde_json::from_value(data_payload).unwrap());
                         let mut stores_ptr = store.stores.borrow_mut().clone();
@@ -483,7 +478,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 store_id: Some(create_response.store_id),
                                 event_type: SessionEventType::Create,
                                 detail: Some(data),
-                                header: meta,
                                 resource: Some(vec![resource]),
                                 is_global: true,
                                 acknowledgement,
@@ -499,7 +493,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             store_id: None,
                             event_type: SessionEventType::Create,
                             detail: None,
-                            header: meta,
                             resource: Some(vec![resource]),
                             is_global: true,
                             acknowledgement,
@@ -511,12 +504,11 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 let resource = edit_response.resource.clone();
                 match resource {
                     Resource::Account => {
-                        let data_payload = edit_response.data.clone();
+                        let data_payload = edit_response.detail.clone();
                         let updated_data = data_payload.get(&DataFieldType::UpdatedFields).unwrap();
                         let updated_data = updated_data.as_object().unwrap();
                         let mut stores_ptr = store.stores.borrow_mut().clone();
-                        let mut data = HashMap::new();
-                        let mut meta = meta.unwrap_or(json!({}));
+                        let mut detail = HashMap::new();
                         for store_ptr in stores_ptr.values_mut() {
                             if let Some(account) = store_ptr
                                 .accounts
@@ -524,8 +516,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 .iter_mut()
                                 .find(|ac| ac.id == edit_response.id)
                             {
-                                meta.as_object_mut().unwrap().insert(
-                                    "id".to_owned(),
+                                detail.insert(
+                                    DataFieldType::ResourceID,
                                     serde_json::to_value(account.id.clone()).unwrap(),
                                 );
                                 let new_account: &mut Account = Rc::make_mut(account);
@@ -557,7 +549,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                         }
                                     }
                                 }
-                                data.insert(
+                                detail.insert(
                                     DataFieldType::Data,
                                     serde_json::to_value(new_account).unwrap(),
                                 );
@@ -572,8 +564,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             Some(SessionEvent {
                                 store_id: Some(edit_response.store_id),
                                 event_type: SessionEventType::Update,
-                                detail: Some(data),
-                                header: Some(meta),
+                                detail: Some(detail),
                                 resource: Some(vec![resource]),
                                 is_global: true,
                                 acknowledgement,
@@ -589,7 +580,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             store_id: Some(edit_response.store_id),
                             event_type: SessionEventType::Create,
                             detail: None,
-                            header: meta,
                             resource: Some(vec![resource]),
                             is_global: true,
                             acknowledgement,
@@ -601,18 +591,10 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 let mut stores_ptr = store.stores.borrow_mut();
                 let session_data = stores_ptr.get_mut(&fetch_response.store_id);
                 if let Some(session_data) = session_data {
-                    let data = fetch_response.data;
-                    let mut meta = meta.unwrap_or(json!({}));
-                    let meta_obj = meta.as_object_mut().unwrap();
-                    let response_meta = fetch_response.meta.clone().unwrap_or(json!({}));
-                    let path = response_meta.get("path");
-                    let path = path.and_then(|v| v.as_str());
-                    if path.is_some() {
-                        meta_obj.insert("path".to_owned(), path.unwrap().into());
-                    }
+                    let detail = fetch_response.detail;
                     let resource = fetch_response.resource.clone();
                     if resource == Resource::Account {
-                        let data_payload: Vec<Rc<Account>> = data
+                        let data_payload: Vec<Rc<Account>> = detail
                             .get(&DataFieldType::Data)
                             .unwrap_or(&json!([]))
                             .as_array()
@@ -628,8 +610,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 _ => Some(SessionEvent {
                                     store_id: Some(fetch_response.store_id),
                                     event_type: SessionEventType::Refreshed,
-                                    detail: Some(data),
-                                    header: Some(meta),
+                                    detail: Some(detail),
                                     resource: Some(vec![resource]),
                                     is_global: true,
                                     acknowledgement,
@@ -667,7 +648,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
             SessionAction::Init(init_response) => {
                 let mut stores_ptr = store.stores.borrow_mut().clone();
                 let store_ids = init_response
-                    .data
+                    .detail
                     .get(&DataFieldType::StoreIDList)
                     .cloned()
                     .unwrap_or(json!([]))
@@ -675,7 +656,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     .cloned()
                     .unwrap_or(vec![]);
                 let raw_keys = init_response
-                    .data
+                    .detail
                     .get(&DataFieldType::Keys)
                     .cloned()
                     .unwrap_or(json!([]))
@@ -719,8 +700,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         store_id: None,
                         detail: Some(data.clone()),
                         event_type: SessionEventType::Init,
-                        // (data),
-                        header: meta,
                         resource: Some(vec![Resource::Store]),
                         is_global: true,
                         acknowledgement,
@@ -764,7 +743,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 store_id: request.get_store_id(),
                                 event_type: SessionEventType::CreationFailed,
                                 detail: Some(_data),
-                                header: meta,
                                 resource: Some(vec![resource]),
                                 is_global: false,
                                 acknowledgement,
@@ -811,7 +789,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         store_id: Some(store_id),
                         event_type: SessionEventType::StoreCreated,
                         detail: Some(data),
-                        header: meta,
                         resource: Some(vec![Resource::Store]),
                         is_global: true,
                         acknowledgement,
@@ -826,19 +803,17 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     .unwrap()
                     .remove(&response.acknowledgement.clone().unwrap());
                 stores_ptr.remove(&store_id);
-                let mut data = HashMap::new();
-                data.insert(DataFieldType::StoreID, json!(store_id.clone()));
+                let mut detail = HashMap::new();
+                detail.insert(DataFieldType::StoreID, json!(store_id.clone()));
                 (
                     SessionStore {
                         ..store.deref().clone()
                     }
                     .into(),
                     Some(SessionEvent {
-                        store_id: None,
-                        // event_type: SessionEventType::StoreDeleted(data, store_id),
+                        store_id: Some(store_id.clone()),
                         event_type: SessionEventType::StoreDeleted,
-                        detail: None,
-                        header: meta,
+                        detail: Some(detail),
                         resource: Some(vec![Resource::Store]),
                         is_global: true,
                         acknowledgement,
@@ -855,7 +830,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 let store_id = request.get_store_id().unwrap_or_default();
                 if let ResponseEnum::DeleteStoreResponse(response) = response {
                     data.insert(DataFieldType::StoreID, json!(store_id));
-                    data.insert(DataFieldType::Error, json!(response.data));
+                    data.insert(DataFieldType::Error, json!(response.detail));
                 }
                 (
                     SessionStore {
@@ -866,7 +841,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         store_id: Some(store_id.clone()),
                         event_type: SessionEventType::StoreDeletionFailed,
                         detail: None,
-                        header: meta,
                         resource: Some(vec![Resource::Store]),
                         is_global: false,
                         acknowledgement,
@@ -883,7 +857,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 let store_id = request.get_store_id().unwrap_or_default();
                 if let ResponseEnum::CreateResponse(response) = response {
                     data.insert(DataFieldType::StoreID, json!(store_id));
-                    data.insert(DataFieldType::Error, json!(response.data));
+                    data.insert(DataFieldType::Error, json!(response.detail));
                 }
                 (
                     SessionStore {
@@ -892,10 +866,8 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     .into(),
                     Some(SessionEvent {
                         store_id: Some(store_id.clone()),
-                        // event_type: SessionEventType::StoreCreationFailed(data, store_id),
                         event_type: SessionEventType::StoreCreationFailed,
                         detail: None,
-                        header: meta,
                         resource: Some(vec![Resource::Store]),
                         is_global: false,
                         acknowledgement,

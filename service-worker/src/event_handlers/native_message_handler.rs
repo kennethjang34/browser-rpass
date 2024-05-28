@@ -21,6 +21,7 @@ pub fn process_native_message(
     ctx: Option<Value>,
 ) -> Result<ResponseEnum, String> {
     let session_store_dispatch = Dispatch::<SessionStore>::new();
+    debug!("processing message: {:?}", json_msg);
     let response_wrapper = serde_json::from_value::<ResponseEnum>(json_msg.clone()).unwrap();
     let acknowledgement = response_wrapper.get_acknowledgement();
     let request = if let Some(ref acknowledgement) = acknowledgement {
@@ -47,12 +48,12 @@ pub fn process_native_message(
                         Status::Success => {
                             session_store_dispatch.apply(SessionActionWrapper {
                                 action: SessionAction::Login,
-                                meta: Some(ctx),
+                                detail: Some(ctx),
                             });
                         }
                         Status::Failure => session_store_dispatch.apply(SessionActionWrapper {
                             action: SessionAction::LoginError(login_request.clone()),
-                            meta: Some(ctx),
+                            detail: Some(ctx),
                         }),
                         _ => {}
                     };
@@ -76,12 +77,12 @@ pub fn process_native_message(
                                 logout_response.store_id,
                                 logout_response.acknowledgement,
                             ),
-                            meta: None,
+                            detail: None,
                         });
                     }
                     Status::Failure => session_store_dispatch.apply(SessionActionWrapper {
                         action: SessionAction::LogoutError(logout_response.clone()),
-                        meta: None,
+                        detail: None,
                     }),
                     _ => {}
                 };
@@ -100,9 +101,9 @@ pub fn process_native_message(
                         action: SessionAction::DataDeleted(
                             Resource::Account,
                             delete_response.deleted_resource_id.clone(),
-                            delete_response.data.clone(),
+                            delete_response.detail.clone(),
                         ),
-                        meta: ctx,
+                        detail: ctx,
                     });
                 }
                 _ => {}
@@ -117,15 +118,15 @@ pub fn process_native_message(
                 &Status::Success => {
                     session_store_dispatch.apply(SessionActionWrapper {
                         action: SessionAction::DataCreated(create_response),
-                        meta: ctx,
+                        detail: ctx,
                     });
                 }
                 _ => {
                     session_store_dispatch.apply(SessionActionWrapper {
-                        meta: ctx,
+                        detail: ctx,
                         action: SessionAction::DataCreationFailed(
                             create_response.resource.clone(),
-                            create_response.data.clone(),
+                            create_response.detail.clone(),
                             request,
                         ),
                     });
@@ -140,12 +141,12 @@ pub fn process_native_message(
                 &Status::Success => {
                     session_store_dispatch.apply(SessionActionWrapper {
                         action: SessionAction::StoreCreated(create_store_response),
-                        meta: ctx,
+                        detail: ctx,
                     });
                 }
                 _ => {
                     session_store_dispatch.apply(SessionActionWrapper {
-                        meta: ctx,
+                        detail: ctx,
                         action: SessionAction::StoreCreationFailed(
                             request.clone().unwrap(),
                             response.clone(),
@@ -156,18 +157,22 @@ pub fn process_native_message(
             return Ok(response);
         }
         ResponseEnum::DeleteStoreResponse(delete_store_response) => {
+            debug!("delete store response: {:?}", delete_store_response);
             let response = ResponseEnum::DeleteStoreResponse(delete_store_response.clone());
             let status = &delete_store_response.status;
             match status {
                 &Status::Success => {
+                    let mut detail = ctx.unwrap_or(json!({}));
+                    detail["store_id"] =
+                        json!(delete_store_response.detail.get(&DataFieldType::StoreID));
                     session_store_dispatch.apply(SessionActionWrapper {
                         action: SessionAction::StoreDeleted(delete_store_response),
-                        meta: ctx,
+                        detail: Some(detail),
                     });
                 }
                 _ => {
                     session_store_dispatch.apply(SessionActionWrapper {
-                        meta: ctx,
+                        detail: ctx,
                         action: SessionAction::StoreDeletionFailed(
                             request.clone().unwrap(),
                             response.clone(),
@@ -184,15 +189,15 @@ pub fn process_native_message(
                 &Status::Success => {
                     session_store_dispatch.apply(SessionActionWrapper {
                         action: SessionAction::DataEdited(edit_response),
-                        meta: ctx,
+                        detail: ctx,
                     });
                 }
                 _ => {
                     session_store_dispatch.apply(SessionActionWrapper {
-                        meta: ctx,
+                        detail: ctx,
                         action: SessionAction::DataEditFailed(
                             edit_response.resource.clone(),
-                            edit_response.data.clone(),
+                            edit_response.detail.clone(),
                             request,
                         ),
                     });
@@ -209,7 +214,7 @@ pub fn process_native_message(
             match fetch_response.status.clone() {
                 Status::Success => {
                     session_store_dispatch.apply(SessionActionWrapper {
-                        meta: ctx,
+                        detail: ctx,
                         action: SessionAction::DataFetched(fetch_response),
                     });
                     return Ok(response);
@@ -225,7 +230,7 @@ pub fn process_native_message(
                 Status::Success => {
                     let response = ResponseEnum::InitResponse(init_response.clone());
                     session_store_dispatch.apply(SessionActionWrapper {
-                        meta: ctx,
+                        detail: ctx,
                         action: SessionAction::Init(init_response),
                     });
                     return Ok(response);

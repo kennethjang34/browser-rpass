@@ -49,7 +49,7 @@ pub fn listen_to_native_messaging(
                 match request.clone() {
                     RequestEnum::Init(request) => {
                         let response = handle_init_request(request.clone());
-                        let mut data = HashMap::new();
+                        let mut detail = HashMap::new();
                         if response.is_ok() {
                             let keys = response?;
                             let mut store_ids = Vec::new();
@@ -58,7 +58,7 @@ pub fn listen_to_native_messaging(
                                     store_ids.push(store.lock().unwrap().get_name().clone());
                                 }
                             }
-                            data.insert(
+                            detail.insert(
                                 DataFieldType::StoreIDList,
                                 serde_json::to_value(store_ids)?,
                             );
@@ -72,23 +72,23 @@ pub fn listen_to_native_messaging(
                                     }
                                 })
                                 .collect::<Vec<_>>();
-                            data.insert(DataFieldType::Keys, serde_json::to_value(keys)?);
+                            detail.insert(DataFieldType::Keys, serde_json::to_value(keys)?);
                             let response = ResponseEnum::InitResponse(InitResponse {
                                 status: Status::Success,
                                 acknowledgement: request.acknowledgement.clone(),
-                                data,
+                                detail,
                             });
                             send_as_json(&response)?;
                             Ok(response)
                         } else {
-                            data.insert(
+                            detail.insert(
                                 DataFieldType::ErrorMessage,
                                 serde_json::to_value(response.unwrap_err()).unwrap(),
                             );
                             let response = ResponseEnum::InitResponse(InitResponse {
                                 status: Status::Failure,
                                 acknowledgement: request.acknowledgement.clone(),
-                                data,
+                                detail,
                             });
                             send_as_json(&response)?;
                             Err(response)
@@ -102,14 +102,14 @@ pub fn listen_to_native_messaging(
                             &home,
                             &config_file_location,
                         );
-                        let mut data = HashMap::new();
+                        let mut detail = HashMap::new();
                         if response.is_ok() {
                             let response = ResponseEnum::CreateStoreResponse(response?);
                             send_as_json(&response)?;
                             Ok(response)
                         } else {
                             error!("Failed to create store: {:?}", response);
-                            data.insert(
+                            detail.insert(
                                 DataFieldType::ErrorMessage,
                                 serde_json::to_value(response.unwrap_err()).unwrap(),
                             );
@@ -121,8 +121,7 @@ pub fn listen_to_native_messaging(
                                     .unwrap_or(PathBuf::new()),
                                 store_id: request.get_store_name(),
                                 acknowledgement: request.acknowledgement.clone(),
-                                data,
-                                meta: None,
+                                detail,
                             });
                             send_as_json(&response)?;
                             Err(response)
@@ -138,14 +137,14 @@ pub fn listen_to_native_messaging(
                             &config_file_location,
                             &store,
                         );
-                        let mut data = HashMap::new();
+                        let mut detail = HashMap::new();
                         if response.is_ok() {
                             let response = ResponseEnum::DeleteStoreResponse(response?);
                             send_as_json(&response)?;
                             Ok(response)
                         } else {
                             error!("Failed to create store: {:?}", response);
-                            data.insert(
+                            detail.insert(
                                 DataFieldType::ErrorMessage,
                                 serde_json::to_value(response.unwrap_err()).unwrap(),
                             );
@@ -153,8 +152,7 @@ pub fn listen_to_native_messaging(
                                 status: Status::Failure,
                                 store_id: request.store_id.clone(),
                                 acknowledgement: request.acknowledgement.clone(),
-                                data,
-                                meta: None,
+                                detail,
                             });
                             send_as_json(&response)?;
                             Err(response)
@@ -172,15 +170,15 @@ pub fn listen_to_native_messaging(
                             send_as_json(&response)?;
                             Ok(response)
                         } else {
-                            let mut data = HashMap::new();
-                            data.insert(DataFieldType::ErrorMessage, json!(response.unwrap_err()));
-                            data.insert(DataFieldType::Request, json!(request));
+                            let mut detail = HashMap::new();
+                            detail
+                                .insert(DataFieldType::ErrorMessage, json!(response.unwrap_err()));
+                            detail.insert(DataFieldType::Request, json!(request));
                             let response = ResponseEnum::GetResponse(GetResponse {
                                 status: Status::Failure,
                                 acknowledgement: request.acknowledgement.clone(),
-                                data,
+                                detail,
                                 resource: Resource::Password,
-                                meta: None,
                             });
                             send_as_json(&response)?;
                             Err(response)
@@ -205,9 +203,8 @@ pub fn listen_to_native_messaging(
                                 store_id: request.store_id.clone().unwrap(),
                                 status: Status::Failure,
                                 acknowledgement: request.acknowledgement.clone(),
-                                data,
+                                detail: data,
                                 resource: request.resource,
-                                meta: None,
                             });
                             send_as_json(&response)?;
                             Err(response)
@@ -233,9 +230,8 @@ pub fn listen_to_native_messaging(
                                 store_id: request.store_id.clone().unwrap(),
                                 status: Status::Failure,
                                 acknowledgement: request.acknowledgement.clone(),
-                                data,
+                                detail: data,
                                 resource: request.resource,
-                                meta: None,
                             });
                             send_as_json(&response)?;
                             Err(response)
@@ -254,7 +250,7 @@ pub fn listen_to_native_messaging(
                                 status: Status::Success,
                                 acknowledgement: request.acknowledgement.clone(),
                                 store_id: request.store_id.clone().unwrap(),
-                                data,
+                                detail: data,
                             });
                             send_as_json(&response)?;
                             Ok(response)
@@ -267,7 +263,7 @@ pub fn listen_to_native_messaging(
                                 status: Status::Failure,
                                 acknowledgement: request.acknowledgement.clone(),
                                 store_id: request.store_id.clone().unwrap(),
-                                data,
+                                detail: data,
                             });
                             send_as_json(&response)?;
                             Err(response)
@@ -285,7 +281,7 @@ pub fn listen_to_native_messaging(
                                 status: Status::Success,
                                 acknowledgement: request.acknowledgement.clone(),
                                 store_id: request.store_id,
-                                data,
+                                detail: data,
                             });
                             send_as_json(&response)?;
                             Ok(response)
@@ -298,7 +294,7 @@ pub fn listen_to_native_messaging(
                                 store_id: request.store_id,
                                 status: Status::Failure,
                                 acknowledgement: request.acknowledgement.clone(),
-                                data,
+                                detail: data,
                             };
                             send_as_json(&response)?;
                             Err(ResponseEnum::LogoutResponse(response))
@@ -325,9 +321,8 @@ pub fn listen_to_native_messaging(
                                 status: Status::Failure,
                                 store_id: request.store_id.clone().unwrap(),
                                 acknowledgement: request.acknowledgement.clone(),
-                                data,
+                                detail: data,
                                 resource: request.resource,
-                                meta: None,
                             });
                             send_as_json(&response)?;
                             Err(response)
@@ -355,7 +350,7 @@ pub fn listen_to_native_messaging(
                                 // store_id: request.store_id.clone(),
                                 deleted_resource_id: request.id,
                                 acknowledgement: request.acknowledgement.clone(),
-                                data,
+                                detail: data,
                             });
                             send_as_json(&response)?;
                             Err(response)
@@ -383,9 +378,8 @@ pub fn listen_to_native_messaging(
                                 id: request.id.clone(),
                                 status: Status::Failure,
                                 acknowledgement: request.acknowledgement.clone(),
-                                data,
+                                detail: data,
                                 resource: request.resource,
-                                meta: None,
                             });
                             send_as_json(&response)?;
                             Err(response)
@@ -399,7 +393,7 @@ pub fn listen_to_native_messaging(
                         Err(ResponseEnum::GenericError(GenericError {
                             status: Status::Failure,
                             acknowledgement: request.get_acknowledgement(),
-                            data,
+                            detail: data,
                         }))
                     }
                 }

@@ -15,39 +15,35 @@ pub use crate::{request::RequestEnum, types::Resource};
 pub struct GetResponse {
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
-    pub data: HashMap<DataFieldType, Value>,
+    pub detail: HashMap<DataFieldType, Value>,
     pub status: Status,
     pub resource: Resource,
-    pub meta: Option<Value>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CreateResponse {
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
-    pub data: HashMap<DataFieldType, Value>,
+    pub detail: HashMap<DataFieldType, Value>,
     pub store_id: String,
     pub status: Status,
     pub resource: Resource,
-    pub meta: Option<Value>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CreateStoreResponse {
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
-    pub data: HashMap<DataFieldType, Value>,
+    pub detail: HashMap<DataFieldType, Value>,
     pub store_path: PathBuf,
     pub store_id: String,
     pub status: Status,
-    pub meta: Option<HashMap<DataFieldType, Value>>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeleteStoreResponse {
     pub acknowledgement: Option<String>,
-    #[serde(flatten)]
-    pub data: HashMap<DataFieldType, Value>,
     pub store_id: String,
     pub status: Status,
-    pub meta: Option<HashMap<DataFieldType, Value>>,
+    #[serde(flatten)]
+    pub detail: HashMap<DataFieldType, Value>,
 }
 impl CreateStoreResponse {
     pub fn new(
@@ -55,16 +51,14 @@ impl CreateStoreResponse {
         store_path: PathBuf,
         status: Status,
         acknowledgement: Option<String>,
-        data: Option<HashMap<DataFieldType, Value>>,
-        meta: Option<HashMap<DataFieldType, Value>>,
+        detail: Option<HashMap<DataFieldType, Value>>,
     ) -> Self {
         Self {
             store_id,
             store_path,
             status,
-            data: data.unwrap_or_default(),
+            detail: detail.unwrap_or_default(),
             acknowledgement,
-            meta,
         }
     }
 }
@@ -72,21 +66,19 @@ impl CreateStoreResponse {
 pub struct EditResponse {
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
-    pub data: HashMap<DataFieldType, Value>,
+    pub detail: HashMap<DataFieldType, Value>,
     pub status: Status,
     pub resource: Resource,
     pub id: String,
-    pub meta: Option<Value>,
     pub store_id: String,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SearchResponse {
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
-    pub data: HashMap<DataFieldType, Value>,
+    pub detail: HashMap<DataFieldType, Value>,
     pub status: Status,
     pub resource: Resource,
-    pub meta: Option<Value>,
     pub store_id: String,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -96,22 +88,21 @@ pub struct FetchResponse {
     pub store_id: String,
     pub resource: Resource,
     #[serde(flatten)]
-    pub data: HashMap<DataFieldType, Value>,
-    pub meta: Option<Value>,
+    pub detail: HashMap<DataFieldType, Value>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LoginResponse {
     pub store_id: String,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
-    pub data: HashMap<DataFieldType, Value>,
+    pub detail: HashMap<DataFieldType, Value>,
     pub status: Status,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InitResponse {
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
-    pub data: HashMap<DataFieldType, Value>,
+    pub detail: HashMap<DataFieldType, Value>,
     pub status: Status,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -119,23 +110,22 @@ pub struct LogoutResponse {
     pub store_id: Option<String>,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
-    pub data: HashMap<DataFieldType, Value>,
+    pub detail: HashMap<DataFieldType, Value>,
     pub status: Status,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeleteResponse {
-    // pub store_id: String,
     pub deleted_resource_id: String,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
-    pub data: HashMap<DataFieldType, Value>,
+    pub detail: HashMap<DataFieldType, Value>,
     pub status: Status,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GenericError {
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
-    pub data: HashMap<DataFieldType, Value>,
+    pub detail: HashMap<DataFieldType, Value>,
     pub status: Status,
 }
 
@@ -151,13 +141,13 @@ pub enum Status {
 pub struct JSONData {
     pub payload: Value,
     #[serde(flatten)]
-    pub meta: Option<Value>,
+    pub detail: Option<Value>,
     pub resource: Resource,
 }
 pub struct JSONDataEntry {
     pub payload: Value,
     pub id: String,
-    pub meta: Option<Value>,
+    pub detail: Option<Value>,
     pub resource: Resource,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -228,21 +218,21 @@ impl ResponseEnumTrait for ErrorResponse {
     fn set_acknowledgement(&mut self, acknowledgement: Option<String>) {
         self.acknowledgement = acknowledgement;
     }
-    fn get_data(&self) -> HashMap<DataFieldType, Value> {
-        let mut data = HashMap::new();
+    fn get_detail(&self) -> HashMap<DataFieldType, Value> {
+        let mut detail = HashMap::new();
         if let Some(message) = &self.message {
-            data.insert(
+            detail.insert(
                 DataFieldType::ErrorMessage,
                 serde_json::to_value(message).unwrap(),
             );
         }
         if let Some(code) = &self.code {
-            data.insert(
+            detail.insert(
                 DataFieldType::ErrorCode,
                 serde_json::to_value(code).unwrap(),
             );
         }
-        data.into()
+        detail.into()
     }
     fn get_status(&self) -> Status {
         Status::Error
@@ -254,8 +244,8 @@ macro_rules! response_enum_trait_impl {
     fn get_acknowledgement(&self) -> Option<String> {
         self.acknowledgement.clone()
     }
-    fn get_data(&self) -> HashMap<DataFieldType, Value>{
-        self.data.clone()
+    fn get_detail(&self) -> HashMap<DataFieldType, Value>{
+        self.detail.clone()
     }
     fn set_acknowledgement(&mut self, acknowledgement: Option<String>){
         self.acknowledgement = acknowledgement;
@@ -321,7 +311,7 @@ pub enum MessageEnum {
 #[enum_dispatch]
 pub trait ResponseEnumTrait: Debug {
     fn get_acknowledgement(&self) -> Option<String>;
-    fn get_data(&self) -> HashMap<DataFieldType, Value>;
+    fn get_detail(&self) -> HashMap<DataFieldType, Value>;
     fn set_acknowledgement(&mut self, acknowledgement: Option<String>);
     fn get_status(&self) -> Status;
 }
@@ -336,7 +326,7 @@ pub enum Data {
 pub struct ResourceData {
     pub resource: Resource,
     pub data: Vec<Value>,
-    pub meta: Option<Value>,
+    pub detail: Option<Value>,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Clone)]
