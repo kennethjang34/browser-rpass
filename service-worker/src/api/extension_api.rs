@@ -1,7 +1,7 @@
 use browser_rpass::{
     js_binding::extension_api::*,
     request::{NotificationTarget, SessionEvent, SessionEventType},
-    response::{MessageEnum, RequestEnum},
+    response::RequestEnum,
 };
 use gloo_utils::format::JsValueSerdeExt;
 #[allow(unused_imports)]
@@ -74,14 +74,9 @@ pub fn broadcast_session_event(
         }
         NotificationTarget::None => {}
     }
-    debug!("target_ports: {:?}", target_ports);
     for port in target_ports {
-        let request = MessageEnum::Message(RequestEnum::create_session_event_request(
-            None,
-            session_event.clone(),
-            None,
-            None,
-        ));
+        let request =
+            RequestEnum::create_session_event_request(None, session_event.clone(), None, None);
         port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&request).unwrap());
     }
     if let Some(ports_to_disconnect) = ports_to_disconnect {
@@ -96,11 +91,6 @@ pub fn broadcast_session_event(
     }
 }
 pub fn whisper_session_event(session_event: SessionEvent, port: &Port) {
-    let msg = MessageEnum::Message(RequestEnum::create_session_event_request(
-        None,
-        session_event,
-        None,
-        None,
-    ));
+    let msg = RequestEnum::create_session_event_request(None, session_event, None, None);
     port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&msg).unwrap());
 }

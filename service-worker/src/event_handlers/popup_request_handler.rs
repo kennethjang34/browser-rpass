@@ -380,13 +380,11 @@ pub fn handle_request_from_popup(
                                             ),
                                         }
                                     };
-                                    let message = MessageEnum::Message(
-                                        RequestEnum::create_session_event_request(
-                                            None,
-                                            mock_session_event.clone(),
-                                            fetch_request.store_id.clone(),
-                                            None,
-                                        ),
+                                    let message = RequestEnum::create_session_event_request(
+                                        None,
+                                        mock_session_event.clone(),
+                                        fetch_request.store_id.clone(),
+                                        None,
                                     );
                                     extension_port.post_message(
                                         <JsValue as JsValueSerdeExt>::from_serde(&message).unwrap(),
