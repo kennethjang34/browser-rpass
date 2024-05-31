@@ -24,7 +24,7 @@ pub fn handle_edit_request(
     store: &Arc<Mutex<PasswordStore>>,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<EditResponse> {
-    let value = &request.value;
+    let value = &request.detail;
     let resource = &request.resource;
     match resource {
         Resource::Account => {
@@ -49,7 +49,7 @@ pub fn handle_edit_request(
                 .map(|v| v.as_object())
                 .flatten();
             let updated_data = store.lock()?.update_default_entry_fields(
-                &request.id,
+                &request.instance_id,
                 domain,
                 username,
                 password,
@@ -68,7 +68,7 @@ pub fn handle_edit_request(
                         detail,
                         status: Status::Success,
                         resource: Resource::Account,
-                        id: request.id,
+                        instance_id: request.instance_id,
                     };
                     Ok(edit_response)
                 }
@@ -93,7 +93,7 @@ pub fn handle_get_request(
 ) -> pass::Result<GetResponse> {
     let resource = request.resource;
     let acknowledgement = request.acknowledgement;
-    let id = request.id;
+    let id = request.instance_id;
     match resource {
         Resource::Account => {
             let locked_store = store.lock()?;
@@ -665,11 +665,13 @@ pub fn handle_delete_request(
     store: &Arc<Mutex<PasswordStore>>,
     passphrase_provider: Option<Handler>,
 ) -> pass::Result<DeleteResponse> {
-    let id = request.id;
+    let instance_id = request.instance_id;
     let acknowledgement = request.acknowledgement;
     let mut detail = HashMap::new();
     let status = {
-        let res = store.lock()?.delete_entry(&(id), passphrase_provider);
+        let res = store
+            .lock()?
+            .delete_entry(&(instance_id), passphrase_provider);
         match res {
             Ok(entry_data) => {
                 detail.insert(
@@ -686,7 +688,7 @@ pub fn handle_delete_request(
         }
     };
     let delete_response = DeleteResponse {
-        deleted_resource_id: id,
+        deleted_resource_id: instance_id,
         acknowledgement,
         detail,
         status,

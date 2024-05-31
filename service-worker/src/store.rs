@@ -6,7 +6,7 @@ use browser_rpass::request::{
 };
 use browser_rpass::response::{
     CreateResponse, CreateStoreResponse, DeleteStoreResponse, EditResponse, FetchResponse,
-    InitResponse, LogoutResponse, ResponseEnum,
+    InitResponse, LogoutResponse, ResponseEnum, UpdateLog,
 };
 use browser_rpass::store;
 use browser_rpass::types::*;
@@ -38,7 +38,11 @@ use yewdux::{
 };
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SessionAction {
-    Login,
+    Login {
+        store_id: String,
+        is_default: bool,
+        context: Option<HashMap<DataFieldType, Value>>,
+    },
     LoginError(LoginRequest),
     Logout(Option<String>, Option<String>),
     Init(InitResponse),
@@ -56,10 +60,11 @@ pub enum SessionAction {
     DataDeletionFailed(Resource, String),
     DataCreationFailed(Resource, HashMap<DataFieldType, Value>, Option<RequestEnum>),
     DataEditFailed(Resource, HashMap<DataFieldType, Value>, Option<RequestEnum>),
+    // DataEditFailed(Resource, HashMap<DataFieldType, Value>, Option<RequestEnum>),
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SessionActionWrapper {
-    pub detail: Option<Value>,
+    pub detail: Option<HashMap<DataFieldType, Value>>,
     pub action: SessionAction,
 }
 
@@ -241,19 +246,23 @@ impl Reducer<SessionStore> for SessionActionWrapper {
         let mut extension_port_name: Option<String> = None;
         let acknowledgement = detail
             .as_ref()
-            .and_then(|meta| meta.get("acknowledgement"))
+            .and_then(|meta| meta.get(&DataFieldType::Acknowledgement))
             .and_then(|ack| ack.as_str())
             .map(|ack| ack.to_owned());
         let session_action = self.action;
         #[allow(unused_mut)]
         let mut ports_to_disconnect = HashMap::<String, HashSet<String>>::new();
         let (session_store, session_event) = match session_action {
-            SessionAction::Login => {
+            SessionAction::Login {
+                store_id,
+                is_default,
+                context,
+            } => {
                 let store_id = {
                     detail
                         .as_ref()
                         .unwrap()
-                        .get("store_id")
+                        .get(&DataFieldType::StoreID)
                         .unwrap()
                         .as_str()
                         .unwrap()
@@ -263,7 +272,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     detail
                         .as_ref()
                         .unwrap()
-                        .get("is_default")
+                        .get(&DataFieldType::IsDefault)
                         .unwrap()
                         .as_bool()
                         .unwrap()
@@ -290,7 +299,9 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 if is_default {
                     store.default_store.borrow_mut().replace(store_id.clone());
                 }
-                if let Some(prev_store_id) = detail.as_ref().unwrap().get("prev_store_id") {
+                if let Some(prev_store_id) =
+                    detail.as_ref().unwrap().get(&DataFieldType::PrevStoreID)
+                {
                     if let Some(prev_store_id) = prev_store_id.as_str().to_owned() {
                         if prev_store_id != store_id {
                             let mut locked = LISTENER_PORT.lock().unwrap();
@@ -315,7 +326,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         store_id: Some(store_id.clone()),
                         detail: Some(data),
                         resource: Some(vec![Resource::Auth]),
-                        is_port_agnostic: true,
                         notification_target: NotificationTarget::Store { store_id },
                         acknowledgement,
                     }),
@@ -338,7 +348,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         event_type: SessionEventType::LoginError,
                         detail: None,
                         resource: Some(vec![Resource::Auth]),
-                        is_port_agnostic: false,
                         notification_target: {
                             if let Some(port_id) = extension_port_name.clone() {
                                 NotificationTarget::Port { port_id }
@@ -375,7 +384,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                     event_type: SessionEventType::Logout,
                                     detail: Some(data),
                                     resource: Some(vec![Resource::Auth]),
-                                    is_port_agnostic: true,
                                     notification_target: NotificationTarget::Store { store_id },
                                     acknowledgement,
                                 }),
@@ -388,7 +396,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                     event_type: SessionEventType::LogoutError,
                                     detail: None,
                                     resource: Some(vec![Resource::Auth]),
-                                    is_port_agnostic: false,
                                     notification_target: if let Some(port_id) =
                                         extension_port_name.clone()
                                     {
@@ -417,7 +424,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             event_type: SessionEventType::Logout,
                             detail: None,
                             resource: Some(vec![Resource::Auth]),
-                            is_port_agnostic: true,
                             notification_target: NotificationTarget::All,
                             acknowledgement,
                         }),
@@ -450,7 +456,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             event_type: SessionEventType::Delete,
                             detail: Some(data),
                             resource: Some(vec![resource]),
-                            is_port_agnostic: true,
                             notification_target: if let Some(store_id) = store_id.clone() {
                                 NotificationTarget::Store { store_id }
                             } else {
@@ -471,7 +476,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         event_type: SessionEventType::Delete,
                         detail: None,
                         resource: Some(vec![resource]),
-                        is_port_agnostic: true,
                         notification_target: NotificationTarget::All,
                         acknowledgement,
                     }),
@@ -505,7 +509,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 event_type: SessionEventType::Create,
                                 detail: Some(data),
                                 resource: Some(vec![resource]),
-                                is_port_agnostic: true,
                                 notification_target: NotificationTarget::Store {
                                     store_id: create_response.store_id,
                                 },
@@ -523,7 +526,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             event_type: SessionEventType::Create,
                             detail: None,
                             resource: Some(vec![resource]),
-                            is_port_agnostic: true,
                             notification_target: NotificationTarget::All,
                             acknowledgement,
                         }),
@@ -535,8 +537,15 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 match resource {
                     Resource::Account => {
                         let data_payload = edit_response.detail.clone();
+                        //TODO replace current update detail represented as hashmap with UpdateLog
+                        //struct
                         let updated_data = data_payload.get(&DataFieldType::UpdatedFields).unwrap();
-                        let updated_data = updated_data.as_object().unwrap();
+                        let updated_data = serde_json::from_value::<HashMap<DataFieldType, Value>>(
+                            updated_data.clone(),
+                        );
+                        // let updated_data =
+                        //     serde_json::from_value::<Vec<UpdateLog>>(updated_data.clone());
+                        let updated_data = updated_data.unwrap();
                         let mut stores_ptr = store.stores.borrow_mut().clone();
                         let mut detail = HashMap::new();
                         for store_ptr in stores_ptr.values_mut() {
@@ -544,35 +553,34 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 .accounts
                                 .borrow_mut()
                                 .iter_mut()
-                                .find(|ac| ac.id == edit_response.id)
+                                .find(|ac| ac.id == edit_response.instance_id)
                             {
                                 detail.insert(
                                     DataFieldType::ResourceID,
                                     serde_json::to_value(account.id.clone()).unwrap(),
                                 );
                                 let new_account: &mut Account = Rc::make_mut(account);
-                                for (key, value) in updated_data {
-                                    //TODO compare through each field's string value, rather than manually
-                                    //checking each field with string literal
+                                // for update_log in updated_data.iter() {
+                                for (key, value) in updated_data.iter() {
+                                    // let key = update_log.field.clone();
+                                    // let _old = update_log.old.clone();
+                                    // let new_value = update_log.new.clone();
+
                                     if let Some(new_value) = value.get("new") {
-                                        match key.as_str() {
-                                            "username" => {
+                                        match key {
+                                            DataFieldType::Username => {
                                                 new_account.username =
                                                     new_value.as_str().unwrap().to_owned();
                                             }
-                                            "password" => new_account.set_password(Some(
-                                                new_value.as_str().unwrap().to_owned(),
-                                            )),
-                                            "domain" => {
+                                            DataFieldType::Password => new_account.set_password(
+                                                Some(new_value.as_str().unwrap().to_owned()),
+                                            ),
+                                            DataFieldType::Domain => {
                                                 new_account.domain =
                                                     Some(new_value.as_str().unwrap().to_owned());
                                             }
-                                            "note" => {
+                                            DataFieldType::Note => {
                                                 new_account.note =
-                                                    Some(new_value.as_str().unwrap().to_owned());
-                                            }
-                                            "path" => {
-                                                new_account.path =
                                                     Some(new_value.as_str().unwrap().to_owned());
                                             }
                                             _ => {}
@@ -596,7 +604,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 event_type: SessionEventType::Update,
                                 detail: Some(detail),
                                 resource: Some(vec![resource]),
-                                is_port_agnostic: true,
                                 notification_target: NotificationTarget::Store {
                                     store_id: edit_response.store_id,
                                 },
@@ -614,7 +621,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                             event_type: SessionEventType::Create,
                             detail: None,
                             resource: Some(vec![resource]),
-                            is_port_agnostic: true,
                             notification_target: NotificationTarget::Store {
                                 store_id: edit_response.store_id,
                             },
@@ -648,7 +654,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                     event_type: SessionEventType::Refreshed,
                                     detail: Some(detail),
                                     resource: Some(vec![resource]),
-                                    is_port_agnostic: true,
                                     notification_target: NotificationTarget::Store {
                                         store_id: fetch_response.store_id,
                                     },
@@ -740,7 +745,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         detail: Some(data.clone()),
                         event_type: SessionEventType::Init,
                         resource: Some(vec![Resource::Store]),
-                        is_port_agnostic: true,
                         notification_target: NotificationTarget::All,
                         acknowledgement,
                     }),
@@ -784,7 +788,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                 event_type: SessionEventType::CreationFailed,
                                 detail: Some(_data),
                                 resource: Some(vec![resource]),
-                                is_port_agnostic: false,
                                 notification_target: if let Some(port_id) =
                                     extension_port_name.clone()
                                 {
@@ -837,7 +840,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         event_type: SessionEventType::StoreCreated,
                         detail: Some(data),
                         resource: Some(vec![Resource::Store]),
-                        is_port_agnostic: true,
                         notification_target: NotificationTarget::All,
                         acknowledgement,
                     }),
@@ -863,7 +865,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         event_type: SessionEventType::StoreDeleted,
                         detail: Some(detail),
                         resource: Some(vec![Resource::Store]),
-                        is_port_agnostic: true,
                         notification_target: NotificationTarget::All,
                         acknowledgement,
                     }),
@@ -891,7 +892,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         event_type: SessionEventType::StoreDeletionFailed,
                         detail: None,
                         resource: Some(vec![Resource::Store]),
-                        is_port_agnostic: false,
                         notification_target: if let Some(port_id) = extension_port_name.clone() {
                             NotificationTarget::Port { port_id }
                         } else {
@@ -923,7 +923,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                         event_type: SessionEventType::StoreCreationFailed,
                         detail: None,
                         resource: Some(vec![Resource::Store]),
-                        is_port_agnostic: false,
                         notification_target: if let Some(port_id) = extension_port_name.clone() {
                             NotificationTarget::Port { port_id }
                         } else {
@@ -942,20 +941,10 @@ impl Reducer<SessionStore> for SessionActionWrapper {
             ),
         };
         if let Some(session_event) = session_event {
-            if session_event.is_port_agnostic {
-                api::extension_api::broadcast_session_event(
-                    session_event.clone(),
-                    Some(ports_to_disconnect.clone()),
-                );
-            } else {
-                if let Some(extension_port_name) = extension_port_name.as_ref() {
-                    if let Some(extension_port) =
-                        EXTENSION_PORT.lock().unwrap().get(extension_port_name)
-                    {
-                        api::extension_api::whisper_session_event(session_event, extension_port);
-                    }
-                }
-            }
+            api::extension_api::broadcast_session_event(
+                session_event.clone(),
+                Some(ports_to_disconnect.clone()),
+            );
         }
         session_store
     }

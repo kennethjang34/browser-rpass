@@ -142,7 +142,7 @@ pub fn App(_props: &Props) -> Html {
         let accounts = accounts.clone();
         move |verified: &Rc<bool>| {
             if **verified && store_id.is_some() {
-                fetch_accounts((*store_id).clone(), None);
+                fetch_accounts((*store_id).clone());
             } else {
                 accounts.set(Rc::new(Vec::<Rc<Account>>::new()));
             }

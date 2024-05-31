@@ -62,6 +62,7 @@ pub enum DataFieldType {
     SigningKey,
     StoreDir,
     StoreID,
+    PrevStoreID,
     StorePath,
     ResourceID,
     UserID,
@@ -105,6 +106,12 @@ impl fmt::Display for DataFieldType {
     }
 }
 
+impl From<Value> for DataFieldType {
+    fn from(value: Value) -> Self {
+        let s = value.as_str().unwrap();
+        serde_json::from_str(s).unwrap()
+    }
+}
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum NotificationTarget {
     Store {
@@ -129,7 +136,6 @@ pub struct SessionEvent {
     pub detail: Option<HashMap<DataFieldType, Value>>,
     pub event_type: SessionEventType,
     pub resource: Option<Vec<Resource>>,
-    pub is_port_agnostic: bool,
     pub acknowledgement: Option<String>,
     pub store_id: Option<String>,
     pub notification_target: NotificationTarget,
@@ -139,9 +145,23 @@ use crate::{types::Resource, util::create_request_acknowledgement};
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", rename = "get")]
 pub struct GetRequest {
-    pub id: String,
+    pub instance_id: String,
     pub store_id: Option<String>,
     pub resource: Resource,
+    pub acknowledgement: Option<String>,
+    #[serde(flatten)]
+    pub header: Option<HashMap<String, String>>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(tag = "type", rename = "create")]
+pub struct CreateRequest {
+    pub username: Option<String>,
+    pub resource: Resource,
+    pub store_id: Option<String>,
+    pub note: Option<String>,
+    pub custom_fields: Option<HashMap<String, Value>>,
+    pub domain: Option<String>,
+    pub password: Option<String>,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
     pub header: Option<HashMap<String, String>>,
@@ -149,20 +169,20 @@ pub struct GetRequest {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", rename = "edit")]
 pub struct EditRequest {
-    pub id: String,
+    pub instance_id: String,
     pub store_id: Option<String>,
     pub resource: Resource,
     pub domain: Option<String>,
-    pub value: HashMap<DataFieldType, Value>,
-    pub acknowledgement: Option<String>,
     #[serde(flatten)]
+    pub detail: HashMap<DataFieldType, Value>,
+    pub acknowledgement: Option<String>,
     pub header: Option<HashMap<String, String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", rename = "delete")]
 pub struct DeleteRequest {
-    pub id: String,
+    pub instance_id: String,
     pub store_id: Option<String>,
     pub resource: Resource,
     pub acknowledgement: Option<String>,
@@ -183,7 +203,6 @@ pub struct SearchRequest {
 #[serde(tag = "type", rename = "fetch")]
 pub struct FetchRequest {
     pub store_id: Option<String>,
-    pub path: Option<String>,
     pub resource: Resource,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
@@ -220,20 +239,6 @@ pub struct InitRequest {
     #[serde(flatten)]
     pub header: Option<HashMap<String, String>>,
     store_id: Option<String>,
-}
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(tag = "type", rename = "create")]
-pub struct CreateRequest {
-    pub username: Option<String>,
-    pub resource: Resource,
-    pub store_id: Option<String>,
-    pub note: Option<String>,
-    pub custom_fields: Option<HashMap<String, Value>>,
-    pub domain: Option<String>,
-    pub password: Option<String>,
-    pub acknowledgement: Option<String>,
-    #[serde(flatten)]
-    pub header: Option<HashMap<String, String>>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", rename = "create_store")]
@@ -399,7 +404,7 @@ impl RequestEnum {
         store_id: Option<String>,
     ) -> RequestEnum {
         RequestEnum::Get(GetRequest {
-            id,
+            instance_id: id,
             resource,
             acknowledgement: {
                 if acknowledgement.is_some() {
@@ -420,7 +425,7 @@ impl RequestEnum {
         store_id: Option<String>,
     ) -> RequestEnum {
         RequestEnum::Delete(DeleteRequest {
-            id,
+            instance_id: id,
             resource,
             acknowledgement: {
                 if acknowledgement.is_some() {
@@ -485,13 +490,11 @@ impl RequestEnum {
     }
     pub fn create_fetch_request(
         store_id: Option<String>,
-        path: Option<String>,
         resource: Resource,
         acknowledgement: Option<String>,
         header: Option<HashMap<String, String>>,
     ) -> RequestEnum {
         RequestEnum::Fetch(FetchRequest {
-            path,
             resource,
             store_id,
             acknowledgement: {
@@ -544,7 +547,7 @@ impl RequestEnum {
         })
     }
     pub fn create_edit_request(
-        id: String,
+        instance_id: String,
         resource: Resource,
         domain: Option<String>,
         value: HashMap<DataFieldType, Value>,
@@ -553,11 +556,11 @@ impl RequestEnum {
         store_id: Option<String>,
     ) -> RequestEnum {
         RequestEnum::Edit(EditRequest {
-            id,
+            instance_id,
             resource,
             domain,
             store_id,
-            value,
+            detail: value,
             acknowledgement: {
                 if acknowledgement.is_some() {
                     acknowledgement
@@ -568,12 +571,7 @@ impl RequestEnum {
             header,
         })
     }
-    pub fn create_session_event_request(
-        acknowledgement: Option<String>,
-        session_event: SessionEvent,
-        store_id: Option<String>,
-        header: Option<HashMap<String, String>>,
-    ) -> RequestEnum {
+    pub fn create_session_event_request(session_event: SessionEvent) -> RequestEnum {
         RequestEnum::SessionEvent(session_event)
     }
     pub fn create_init_request(

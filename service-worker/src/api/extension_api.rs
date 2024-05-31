@@ -75,8 +75,7 @@ pub fn broadcast_session_event(
         NotificationTarget::None => {}
     }
     for port in target_ports {
-        let request =
-            RequestEnum::create_session_event_request(None, session_event.clone(), None, None);
+        let request = RequestEnum::create_session_event_request(session_event.clone());
         port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&request).unwrap());
     }
     if let Some(ports_to_disconnect) = ports_to_disconnect {
@@ -91,6 +90,6 @@ pub fn broadcast_session_event(
     }
 }
 pub fn whisper_session_event(session_event: SessionEvent, port: &Port) {
-    let msg = RequestEnum::create_session_event_request(None, session_event, None, None);
+    let msg = RequestEnum::create_session_event_request(session_event);
     port.post_message(<JsValue as JsValueSerdeExt>::from_serde(&msg).unwrap());
 }

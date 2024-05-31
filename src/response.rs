@@ -64,22 +64,29 @@ impl CreateStoreResponse {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EditResponse {
-    pub acknowledgement: Option<String>,
-    #[serde(flatten)]
-    pub detail: HashMap<DataFieldType, Value>,
+    pub instance_id: String,
+    pub store_id: String,
     pub status: Status,
     pub resource: Resource,
-    pub id: String,
-    pub store_id: String,
+    #[serde(flatten)]
+    pub detail: HashMap<DataFieldType, Value>,
+    pub acknowledgement: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UpdateLog {
+    pub field: DataFieldType,
+    pub old: Value,
+    pub new: Value,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SearchResponse {
+    pub store_id: String,
     pub acknowledgement: Option<String>,
     #[serde(flatten)]
     pub detail: HashMap<DataFieldType, Value>,
     pub status: Status,
     pub resource: Resource,
-    pub store_id: String,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FetchResponse {

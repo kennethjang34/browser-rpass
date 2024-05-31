@@ -38,7 +38,7 @@ pub fn create_message_listener(_port: &Port) -> Closure<dyn Fn(JsValue)> {
                             {
                                 if current_store_id == store_id {
                                     dispatch.apply(LoginAction::LoginSucceeded(data));
-                                    fetch_accounts(Some(store_id.clone()), None);
+                                    fetch_accounts(Some(store_id.clone()));
                                 }
                             } else {
                                 dispatch.apply(LoginAction::Login(store_id.clone(), data));
@@ -156,7 +156,7 @@ pub fn create_message_listener(_port: &Port) -> Closure<dyn Fn(JsValue)> {
                             dispatch.apply(DataAction::Init(data.clone()));
                             if let Some(store_id) = store.persistent_data.store_id.as_ref() {
                                 if store.persistent_data.store_activated {
-                                    fetch_accounts(Some(store_id.to_string()), None);
+                                    fetch_accounts(Some(store_id.to_string()));
                                 }
                             }
                         }

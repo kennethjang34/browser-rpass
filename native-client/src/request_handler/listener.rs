@@ -43,7 +43,8 @@ pub fn listen_to_native_messaging(
             continue;
         }
         let received_message = received_message_res?;
-        if let Ok(request) = serde_json::from_value::<RequestEnum>(received_message.clone()) {
+        let deserde = serde_json::from_value::<RequestEnum>(received_message.clone());
+        if let Ok(request) = deserde {
             let request_result = {
                 let target_store = get_store(&request, &stores);
                 match request.clone() {
@@ -347,8 +348,7 @@ pub fn listen_to_native_messaging(
                             );
                             let response = ResponseEnum::DeleteResponse(DeleteResponse {
                                 status: Status::Failure,
-                                // store_id: request.store_id.clone(),
-                                deleted_resource_id: request.id,
+                                deleted_resource_id: request.instance_id,
                                 acknowledgement: request.acknowledgement.clone(),
                                 detail: data,
                             });
@@ -363,22 +363,22 @@ pub fn listen_to_native_messaging(
                             &store,
                             passphrase_provider.clone(),
                         );
-                        let mut data = HashMap::new();
+                        let mut detail = HashMap::new();
                         if response.is_ok() {
                             let response = ResponseEnum::EditResponse(response?);
                             send_as_json(&response)?;
                             Ok(response)
                         } else {
-                            data.insert(
+                            detail.insert(
                                 DataFieldType::ErrorMessage,
                                 serde_json::to_value(response.unwrap_err()).unwrap(),
                             );
                             let response = ResponseEnum::EditResponse(EditResponse {
-                                store_id: request.store_id.clone().unwrap(),
-                                id: request.id.clone(),
+                                store_id: request.store_id.unwrap(),
+                                instance_id: request.instance_id,
                                 status: Status::Failure,
                                 acknowledgement: request.acknowledgement.clone(),
-                                detail: data,
+                                detail,
                                 resource: request.resource,
                             });
                             send_as_json(&response)?;

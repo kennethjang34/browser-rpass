@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::store::SessionAction;
 use crate::store::SessionActionWrapper;
 use crate::store::SessionStore;
@@ -18,7 +20,7 @@ use serde_json::Value;
 pub fn process_native_message(
     json_msg: Value,
     _native_port: Option<&Port>,
-    ctx: Option<Value>,
+    ctx: Option<HashMap<DataFieldType, Value>>,
 ) -> Result<ResponseEnum, String> {
     let session_store_dispatch = Dispatch::<SessionStore>::new();
     debug!("processing message: {:?}", json_msg);
@@ -37,17 +39,27 @@ pub fn process_native_message(
         ResponseEnum::LoginResponse(login_response) => {
             if let RequestEnum::Login(login_request) = request.clone().unwrap() {
                 let login_response2 = login_response.clone();
-                let mut ctx = ctx.unwrap_or(json!({}));
-                ctx["store_id"] = json!(login_request.store_id);
-                ctx["prev_store_id"] = json!(login_request.prev_store_id);
-                ctx["is_default"] = json!(login_request.is_default);
-                ctx["acknowledgement"] = json!(login_request.acknowledgement);
+                let mut ctx = HashMap::new();
+                ctx.insert(DataFieldType::StoreID, json!(login_request.store_id));
+                ctx.insert(
+                    DataFieldType::PrevStoreID,
+                    json!(login_request.prev_store_id),
+                );
+                ctx.insert(DataFieldType::IsDefault, json!(login_request.is_default));
+                ctx.insert(
+                    DataFieldType::Acknowledgement,
+                    json!(login_request.acknowledgement),
+                );
                 wasm_bindgen_futures::spawn_local(async move {
                     let login_response = login_response2;
                     match login_response.status {
                         Status::Success => {
                             session_store_dispatch.apply(SessionActionWrapper {
-                                action: SessionAction::Login,
+                                action: SessionAction::Login {
+                                    store_id: login_request.store_id.clone().unwrap(),
+                                    is_default: login_request.is_default,
+                                    context: Some(ctx.clone()),
+                                },
                                 detail: Some(ctx),
                             });
                         }
@@ -157,14 +169,15 @@ pub fn process_native_message(
             return Ok(response);
         }
         ResponseEnum::DeleteStoreResponse(delete_store_response) => {
-            debug!("delete store response: {:?}", delete_store_response);
             let response = ResponseEnum::DeleteStoreResponse(delete_store_response.clone());
             let status = &delete_store_response.status;
             match status {
                 &Status::Success => {
-                    let mut detail = ctx.unwrap_or(json!({}));
-                    detail["store_id"] =
-                        json!(delete_store_response.detail.get(&DataFieldType::StoreID));
+                    let mut detail = ctx.unwrap_or_default();
+                    detail.insert(
+                        DataFieldType::StoreID,
+                        json!(delete_store_response.detail.get(&DataFieldType::StoreID)),
+                    );
                     session_store_dispatch.apply(SessionActionWrapper {
                         action: SessionAction::StoreDeleted(delete_store_response),
                         detail: Some(detail),

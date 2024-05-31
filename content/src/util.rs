@@ -150,12 +150,11 @@ impl HtmlDataListElementExt for HtmlDataListElement {
         option
     }
 }
-pub fn fetch_accounts(store_id: Option<String>, path: Option<String>) -> String {
+pub fn fetch_accounts(store_id: Option<String>) -> String {
     let dispatch = Dispatch::<ContentScriptStore>::new();
     let acknowledgement = create_request_acknowledgement();
     let fetch_request = RequestEnum::create_fetch_request(
         store_id,
-        path,
         Resource::Account,
         Some(acknowledgement.clone()),
         None,

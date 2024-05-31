@@ -22,7 +22,6 @@ use browser_rpass::request::*;
 use browser_rpass::response::*;
 use gloo_utils::format::JsValueSerdeExt;
 use serde_json;
-use serde_json::json;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ops::Deref;
@@ -119,7 +118,6 @@ pub fn handle_request_from_popup(
                             event_type: SessionEventType::Init,
                             detail: Some(payload),
                             resource: None,
-                            is_port_agnostic: false,
                             notification_target: NotificationTarget::Port {
                                 port_id: extension_port.name(),
                             },
@@ -172,7 +170,6 @@ pub fn handle_request_from_popup(
                                     event_type: SessionEventType::Init,
                                     detail: Some(payload),
                                     resource: None,
-                                    is_port_agnostic: false,
                                     notification_target: NotificationTarget::Port {
                                         port_id: extension_port.name(),
                                     },
@@ -259,6 +256,7 @@ pub fn handle_request_from_popup(
                             );
                         }
                         RequestEnum::Edit(edit_request) => {
+                            debug!("edit request: {:?}", edit_request);
                             REQUEST_MAP
                                 .lock()
                                 .unwrap()
@@ -285,7 +283,9 @@ pub fn handle_request_from_popup(
                             );
                         }
                         RequestEnum::Fetch(fetch_request) => {
-                            let detail = Some(json!({"requester_port_id":extension_port.name()}));
+                            // let detail = Some(json!({"requester_port_id":extension_port.name()}));
+                            let mut detail = HashMap::new();
+                            detail.insert(DataFieldType::PortID, extension_port.name().into());
                             let store_state = dispatch.get().stores.clone();
                             let current_status = store_state
                                 .borrow_mut()
@@ -316,7 +316,7 @@ pub fn handle_request_from_popup(
                             match current_status {
                                 StorageStatus::Uninitialized => {
                                     dispatch.apply(SessionActionWrapper {
-                                        detail,
+                                        detail: Some(detail),
                                         action: SessionAction::DataLoading(
                                             fetch_request.store_id.clone().unwrap(),
                                             request.get_acknowledgement(),
@@ -367,7 +367,6 @@ pub fn handle_request_from_popup(
                                             event_type: SessionEventType::Refreshed,
                                             detail: Some(data),
                                             resource: Some(vec![resource]),
-                                            is_port_agnostic: true,
                                             notification_target: if let Some(store_id) =
                                                 fetch_request.store_id.clone()
                                             {
@@ -381,10 +380,7 @@ pub fn handle_request_from_popup(
                                         }
                                     };
                                     let message = RequestEnum::create_session_event_request(
-                                        None,
                                         mock_session_event.clone(),
-                                        fetch_request.store_id.clone(),
-                                        None,
                                     );
                                     extension_port.post_message(
                                         <JsValue as JsValueSerdeExt>::from_serde(&message).unwrap(),
@@ -447,7 +443,6 @@ pub fn handle_request_from_popup(
                     event_type: SessionEventType::NativeAppConnectionError,
                     detail: None,
                     resource: None,
-                    is_port_agnostic: false,
                     notification_target: NotificationTarget::Port {
                         port_id: extension_port.name(),
                     },

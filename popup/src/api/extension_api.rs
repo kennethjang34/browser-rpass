@@ -16,12 +16,11 @@ use yewdux::prelude::Dispatch;
 use crate::store::{DataAction, PopupStore, EXTENSION_PORT};
 
 //send fetch request to native app for the given path, return acknowledgement of the request
-pub fn fetch_accounts(store_id: Option<String>, path: Option<String>) -> String {
+pub fn fetch_accounts(store_id: Option<String>) -> String {
     let dispatch = Dispatch::<PopupStore>::new();
     let acknowledgement = create_request_acknowledgement();
     let fetch_request = RequestEnum::create_fetch_request(
         store_id,
-        path,
         Resource::Account,
         Some(acknowledgement.clone()),
         None,
@@ -127,7 +126,7 @@ pub fn create_account(
 }
 
 pub fn edit_account(
-    id: String,
+    instance_id: String,
     domain: Option<String>,
     username: Option<String>,
     password: Option<String>,
@@ -136,64 +135,53 @@ pub fn edit_account(
 ) -> String {
     let dispatch = Dispatch::<PopupStore>::new();
     let mut payload = HashMap::new();
-    payload.insert(DataFieldType::ResourceID, Value::String(id.clone()));
-    // json!({"id": id});
+    payload.insert(
+        DataFieldType::ResourceID,
+        Value::String(instance_id.clone()),
+    );
     if let Some(username) = username.as_ref() {
-        payload
-            // .as_object_mut()
-            // .unwrap()
-            .insert(DataFieldType::Username, Value::String(username.clone()));
+        payload.insert(DataFieldType::Username, Value::String(username.clone()));
     }
     if let Some(note) = note.as_ref() {
-        payload
-            // .as_object_mut()
-            // .unwrap()
-            // .insert("note".into(), Value::String(note.clone()));
-            .insert(DataFieldType::Note, Value::String(note.clone()));
+        payload.insert(DataFieldType::Note, Value::String(note.clone()));
     }
     if let Some(domain) = domain.as_ref() {
-        payload
-            // .as_object_mut()
-            // .unwrap()
-            .insert(DataFieldType::Domain, Value::String(domain.clone()));
+        payload.insert(DataFieldType::Domain, Value::String(domain.clone()));
     }
     if let Some(password) = password.as_ref() {
-        payload
-            // .as_object_mut()
-            // .unwrap()
-            .insert(DataFieldType::Password, Value::String(password.clone()));
+        payload.insert(DataFieldType::Password, Value::String(password.clone()));
     }
     dispatch.apply(DataAction::ResourceEditionStarted(
         Resource::Account,
         payload,
     ));
     let acknowledgement = create_request_acknowledgement();
-    let mut data = HashMap::new();
-    data.insert(
+    let mut detail = HashMap::new();
+    detail.insert(
         DataFieldType::Username,
         serde_json::to_value(username.clone()).unwrap_or_default(),
     );
-    data.insert(
+    detail.insert(
         DataFieldType::Password,
         serde_json::to_value(password.clone()).unwrap_or_default(),
     );
-    data.insert(
+    detail.insert(
         DataFieldType::Domain,
         serde_json::to_value(domain.clone()).unwrap_or_default(),
     );
-    data.insert(
+    detail.insert(
         DataFieldType::Note,
         serde_json::to_value(note.clone()).unwrap_or_default(),
     );
-    data.insert(
+    detail.insert(
         DataFieldType::ResourceID,
-        serde_json::to_value(id.clone()).unwrap_or_default(),
+        serde_json::to_value(instance_id.clone()).unwrap_or_default(),
     );
     let edit_request = RequestEnum::create_edit_request(
-        id,
+        instance_id,
         Resource::Account,
         domain.clone(),
-        data,
+        detail,
         Some(acknowledgement.clone()),
         None,
         store_id,
