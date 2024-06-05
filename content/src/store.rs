@@ -1,6 +1,6 @@
+use crate::DataFieldType;
 use browser_rpass::dbg;
 use browser_rpass::js_binding::extension_api::*;
-use browser_rpass::request::DataFieldType;
 use browser_rpass::request::SessionEvent;
 use browser_rpass::types::Account;
 use browser_rpass::types::Resource;

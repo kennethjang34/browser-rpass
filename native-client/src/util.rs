@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::SystemTime};
 
-use browser_rpass::request::DataFieldType;
+use crate::DataFieldType;
 use fern::colors::{Color, ColoredLevelConfig};
 use log::LevelFilter;
 use rpass::{

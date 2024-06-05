@@ -1,12 +1,13 @@
 use crate::event_handlers::native_message_handler::process_native_message;
+use crate::DataFieldType;
 pub use crate::Resource;
 use crate::{api, StorageStatus};
 use browser_rpass::request::{
-    DataFieldType, LoginRequest, NotificationTarget, RequestEnumTrait, SessionEventType,
+    LoginRequest, NotificationTarget, RequestEnumTrait, SessionEventType,
 };
 use browser_rpass::response::{
     CreateResponse, CreateStoreResponse, DeleteStoreResponse, EditResponse, FetchResponse,
-    InitResponse, LogoutResponse, ResponseEnum, UpdateLog,
+    InitResponse, LogoutResponse, ResponseEnum,
 };
 use browser_rpass::store;
 use browser_rpass::types::*;
@@ -560,12 +561,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                     serde_json::to_value(account.id.clone()).unwrap(),
                                 );
                                 let new_account: &mut Account = Rc::make_mut(account);
-                                // for update_log in updated_data.iter() {
                                 for (key, value) in updated_data.iter() {
-                                    // let key = update_log.field.clone();
-                                    // let _old = update_log.old.clone();
-                                    // let new_value = update_log.new.clone();
-
                                     if let Some(new_value) = value.get("new") {
                                         match key {
                                             DataFieldType::Username => {

@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{store::LoginAction, Resource};
+use crate::{store::LoginAction, DataFieldType, Resource};
 
 use browser_rpass::{
-    request::{DataFieldType, RequestEnum},
-    store::MESSAGE_CONTEXT_POPUP,
-    util::create_request_acknowledgement,
+    request::RequestEnum, store::MESSAGE_CONTEXT_POPUP, util::create_request_acknowledgement,
 };
 use gloo_utils::format::JsValueSerdeExt;
 use serde_json::{json, Value};

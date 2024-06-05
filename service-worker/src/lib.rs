@@ -3,6 +3,7 @@ pub use browser_rpass::js_binding::extension_api::chrome;
 pub use browser_rpass::request;
 pub use browser_rpass::request::RequestEnum;
 pub use browser_rpass::util::*;
+pub use browser_rpass::DataFieldType;
 use event_handlers::native_message_handler::*;
 use event_handlers::popup_request_handler::*;
 pub use gloo_utils::format::JsValueSerdeExt;

@@ -4,6 +4,7 @@ pub use browser_rpass::dbg;
 use browser_rpass::js_binding::extension_api::chrome;
 use browser_rpass::js_binding::extension_api::Tab;
 pub use browser_rpass::types::*;
+pub use browser_rpass::DataFieldType;
 use components::DropdownOption;
 use gloo_utils::document;
 use serde_json::json;

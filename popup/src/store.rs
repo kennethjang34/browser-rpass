@@ -1,5 +1,4 @@
 use browser_rpass::js_binding::extension_api::*;
-use browser_rpass::request::DataFieldType;
 use browser_rpass::request::SessionEvent;
 use browser_rpass::types::*;
 use gloo::storage::errors::StorageError;
@@ -18,6 +17,7 @@ use yewdux::mrc::Mrc;
 use browser_rpass::store;
 
 use crate::event_handlers::extension_message_listener::create_message_listener;
+use crate::DataFieldType;
 use crate::Resource;
 use browser_rpass::response::RequestEnum;
 pub use browser_rpass::util::*;
@@ -180,14 +180,14 @@ pub enum DataAction {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum PopupAction {
     WindowIdSet(String),
-    PathSet(Option<String>),
+    DomainSet(Option<String>),
     DarkModeToggle,
 }
 impl Reducer<PopupStore> for PopupAction {
     fn apply(self, state: Rc<PopupStore>) -> Rc<PopupStore> {
         match self {
-            PopupAction::PathSet(path) => PopupStore {
-                path,
+            PopupAction::DomainSet(domain) => PopupStore {
+                path: domain,
                 ..state.deref().clone()
             }
             .into(),

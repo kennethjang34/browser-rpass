@@ -38,7 +38,7 @@ pub fn App() -> Html {
                         .host_str()
                         .unwrap_or_default()
                         .to_owned();
-                    dispatch.apply(PopupAction::PathSet(Some(host_name)));
+                    dispatch.apply(PopupAction::DomainSet(Some(host_name)));
                 });
                 let _ = chrome
                     .tabs()

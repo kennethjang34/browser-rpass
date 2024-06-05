@@ -1,3 +1,4 @@
+use crate::DataFieldType;
 use core::fmt;
 use enum_dispatch::enum_dispatch;
 use gloo_utils::format::JsValueSerdeExt;
@@ -7,8 +8,7 @@ use serde_repr::*;
 use serde_variant::to_variant_name;
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 use wasm_bindgen::JsValue;
-
-use crate::request::DataFieldType;
+// use crate::request::DataFieldType;
 pub use crate::{request::RequestEnum, types::Resource};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -70,13 +70,8 @@ pub struct EditResponse {
     pub resource: Resource,
     #[serde(flatten)]
     pub detail: HashMap<DataFieldType, Value>,
+    // pub update_logs: Vec<UpdateLog>,
     pub acknowledgement: Option<String>,
-}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UpdateLog {
-    pub field: DataFieldType,
-    pub old: Value,
-    pub new: Value,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

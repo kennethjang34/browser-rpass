@@ -17,7 +17,7 @@ use log::*;
 use rpass::pass::{self, Error, PasswordEntry, PasswordStore};
 use serde_json::json;
 
-use crate::{store_api::*, util::*, StoreListType};
+use crate::{store_api::*, util::*, DataFieldType, StoreListType};
 
 pub fn handle_edit_request(
     request: EditRequest,

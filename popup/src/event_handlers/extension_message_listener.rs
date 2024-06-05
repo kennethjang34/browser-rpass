@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 
 use browser_rpass::{
-    js_binding::extension_api::Port,
-    request::{DataFieldType, SessionEventType},
-    response::RequestEnum,
-    store::MESSAGE_CONTEXT_POPUP,
-    types::Resource,
+    js_binding::extension_api::Port, request::SessionEventType, response::RequestEnum,
+    store::MESSAGE_CONTEXT_POPUP, types::Resource,
 };
 use gloo_utils::format::JsValueSerdeExt;
 use log::*;
@@ -15,6 +12,7 @@ use yewdux::prelude::Dispatch;
 use crate::{
     api::extension_api::fetch_accounts,
     store::{DataAction, LoginAction, LoginStatus, PopupStore},
+    DataFieldType,
 };
 pub fn create_message_listener(_port: &Port) -> Closure<dyn Fn(JsValue)> {
     Closure::<dyn Fn(JsValue)>::new(move |msg: JsValue| {

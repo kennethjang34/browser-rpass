@@ -14,7 +14,7 @@ use rpass::{
 };
 use serde_json::json;
 
-use crate::{request_handler::*, util::ToJson, StoreListType};
+use crate::{request_handler::*, util::ToJson, DataFieldType, StoreListType};
 fn get_store(request: &RequestEnum, stores: &StoreListType) -> Option<Arc<Mutex<PasswordStore>>> {
     let store_id = request.get_store_id();
     if store_id.is_none() {

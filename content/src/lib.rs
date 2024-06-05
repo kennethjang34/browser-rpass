@@ -8,7 +8,7 @@ use wasm_bindgen::prelude::*;
 mod util;
 mod app;
 mod components;
-pub use browser_rpass::dbg;
+pub use browser_rpass::{dbg, DataFieldType};
 use cfg_if::cfg_if;
 pub use log::*;
 
