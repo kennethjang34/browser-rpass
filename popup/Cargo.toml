@@ -28,7 +28,7 @@ cfg-if = {workspace=true}
 log={workspace=true}
 console_log = {workspace=true,optional = true}
 parking_lot = {workspace=true}
-fern={workspace=true}
+fern={workspace=true,features=["colored"]}
 serde={workspace=true}
 secrecy={workspace=true}
 

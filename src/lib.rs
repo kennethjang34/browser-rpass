@@ -12,7 +12,7 @@ pub enum StringOrCallback {
 pub use console_error_panic_hook;
 pub use getrandom;
 pub use rand;
-pub use rpass::api::*;
+pub use rpass::interface::*;
 pub use typetag;
 pub use url;
 pub use util::*;

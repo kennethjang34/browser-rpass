@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-pub use rpass::api::*;
+pub use rpass::interface::*;
 use rpass::pass::PasswordStore;
 
 pub type PasswordStoreType = Arc<Mutex<Arc<Mutex<PasswordStore>>>>;

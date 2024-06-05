@@ -31,7 +31,7 @@ strum = {workspace=true}
 strum_macros = {workspace=true}
 once_cell = {workspace=true}
 log={workspace=true}
-fern={workspace=true}
+fern={workspace=true,features=["colored"]}
 rand = {workspace=true}
 web-sys = {workspace=true}
 console_log = {workspace=true,optional = true}

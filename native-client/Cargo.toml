@@ -27,7 +27,7 @@ getrandom={workspace=true}
 typetag = {workspace=true}
 lazy_static = {workspace=true}
 url = {workspace=true}
-fern={workspace=true}
+fern={workspace=true,features=["colored"]}
 
 git2 = "0.17.1"
 locale_config = "0.3.0"
