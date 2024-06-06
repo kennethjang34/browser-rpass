@@ -2018,6 +2018,8 @@ dependencies = [
  "serde_variant",
  "sha1",
  "sha2",
+ "strum",
+ "strum_macros",
  "toml 0.7.8",
  "totp-rs",
  "uuid",

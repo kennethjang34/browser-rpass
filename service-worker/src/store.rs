@@ -556,16 +556,24 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                     let new = update_log.new.clone();
                                     match field {
                                         DataFieldType::Username => {
-                                            new_account.username = new.to_string()
+                                            let new = serde_json::from_value(new.clone())
+                                                .unwrap_or_default();
+                                            new_account.username = new;
                                         }
                                         DataFieldType::Password => {
-                                            new_account.set_password(Some(new.to_string()))
+                                            let new = serde_json::from_value(new.clone())
+                                                .unwrap_or_default();
+                                            new_account.set_password(Some(new))
                                         }
                                         DataFieldType::Domain => {
-                                            new_account.domain = Some(new.to_string())
+                                            let new = serde_json::from_value(new.clone())
+                                                .unwrap_or_default();
+                                            new_account.domain = Some(new)
                                         }
                                         DataFieldType::Note => {
-                                            new_account.note = Some(new.to_string())
+                                            let new = serde_json::from_value(new.clone())
+                                                .unwrap_or_default();
+                                            new_account.note = Some(new)
                                         }
                                         _ => {}
                                     }
