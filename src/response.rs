@@ -2,6 +2,7 @@ use crate::DataFieldType;
 use core::fmt;
 use enum_dispatch::enum_dispatch;
 use gloo_utils::format::JsValueSerdeExt;
+use rpass::interface::UpdateLog;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use serde_repr::*;
@@ -69,8 +70,8 @@ pub struct EditResponse {
     pub status: Status,
     pub resource: Resource,
     #[serde(flatten)]
-    pub detail: HashMap<DataFieldType, Value>,
-    // pub update_logs: Vec<UpdateLog>,
+    pub metadata: Option<HashMap<DataFieldType, Value>>,
+    pub update_logs: Vec<UpdateLog>,
     pub acknowledgement: Option<String>,
 }
 
@@ -270,8 +271,31 @@ response_enum_trait_impl!(CreateResponse);
 response_enum_trait_impl!(LogoutResponse);
 response_enum_trait_impl!(InitResponse);
 response_enum_trait_impl!(DeleteResponse);
-response_enum_trait_impl!(EditResponse);
 response_enum_trait_impl!(DeleteStoreResponse);
+
+impl ResponseEnumTrait for EditResponse {
+    fn get_acknowledgement(&self) -> Option<String> {
+        self.acknowledgement.clone()
+    }
+    fn get_detail(&self) -> HashMap<DataFieldType, Value> {
+        let mut detail = HashMap::new();
+        detail.insert(
+            DataFieldType::UpdateLog,
+            serde_json::to_value(&self.update_logs).unwrap(),
+        );
+        detail.insert(
+            DataFieldType::Meta,
+            serde_json::to_value(&self.metadata).unwrap(),
+        );
+        detail.into()
+    }
+    fn set_acknowledgement(&mut self, acknowledgement: Option<String>) {
+        self.acknowledgement = acknowledgement;
+    }
+    fn get_status(&self) -> Status {
+        self.status.clone().into()
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[enum_dispatch(ResponseEnumTrait,Into<JsValue>)]

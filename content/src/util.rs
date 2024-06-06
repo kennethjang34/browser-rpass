@@ -122,6 +122,7 @@ pub fn _create_autocomplete_suggestion_element(
     suggestion_element.unchecked_into()
 }
 
+#[allow(dead_code)]
 pub trait HtmlInputElementExt {
     fn set_autocomplete_suggestion_list(&self, list: &str);
     fn set_autocomplete_suggestion_list_element(&self, list: &HtmlDataListElement);
@@ -135,6 +136,7 @@ impl HtmlInputElementExt for HtmlInputElement {
     }
 }
 
+#[allow(dead_code)]
 pub trait HtmlDataListElementExt {
     fn add_option(&self, child: &str) -> HtmlOptionElement;
 }

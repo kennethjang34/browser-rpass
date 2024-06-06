@@ -48,7 +48,7 @@ pub fn handle_edit_request(
                 .get(&DataFieldType::CustomField)
                 .map(|v| v.as_object())
                 .flatten();
-            let updated_data = store.lock()?.update_default_entry_fields(
+            let update_logs = store.lock()?.update_default_entry_fields(
                 &request.instance_id,
                 domain,
                 username,
@@ -58,14 +58,13 @@ pub fn handle_edit_request(
                 passphrase_provider,
             );
 
-            let mut detail = HashMap::new();
-            match updated_data {
-                Ok(updated_data) => {
-                    detail.insert(DataFieldType::UpdatedFields, updated_data.clone());
+            match update_logs {
+                Ok(update_logs) => {
                     let edit_response = EditResponse {
                         store_id: store.lock()?.get_name().clone(),
                         acknowledgement: request.acknowledgement,
-                        detail,
+                        metadata: None,
+                        update_logs,
                         status: Status::Success,
                         resource: Resource::Account,
                         instance_id: request.instance_id,

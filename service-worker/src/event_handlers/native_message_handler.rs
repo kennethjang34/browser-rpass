@@ -211,7 +211,7 @@ pub fn process_native_message(
                         detail: ctx,
                         action: SessionAction::DataEditFailed(
                             edit_response.resource.clone(),
-                            edit_response.detail.clone(),
+                            edit_response.metadata.clone().unwrap_or_default(),
                             request,
                         ),
                     });

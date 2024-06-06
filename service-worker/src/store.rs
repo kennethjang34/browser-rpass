@@ -61,7 +61,6 @@ pub enum SessionAction {
     DataDeletionFailed(Resource, String),
     DataCreationFailed(Resource, HashMap<DataFieldType, Value>, Option<RequestEnum>),
     DataEditFailed(Resource, HashMap<DataFieldType, Value>, Option<RequestEnum>),
-    // DataEditFailed(Resource, HashMap<DataFieldType, Value>, Option<RequestEnum>),
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SessionActionWrapper {
@@ -537,16 +536,7 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                 let resource = edit_response.resource.clone();
                 match resource {
                     Resource::Account => {
-                        let data_payload = edit_response.detail.clone();
-                        //TODO replace current update detail represented as hashmap with UpdateLog
-                        //struct
-                        let updated_data = data_payload.get(&DataFieldType::UpdatedFields).unwrap();
-                        let updated_data = serde_json::from_value::<HashMap<DataFieldType, Value>>(
-                            updated_data.clone(),
-                        );
-                        // let updated_data =
-                        //     serde_json::from_value::<Vec<UpdateLog>>(updated_data.clone());
-                        let updated_data = updated_data.unwrap();
+                        let update_logs = edit_response.update_logs;
                         let mut stores_ptr = store.stores.borrow_mut().clone();
                         let mut detail = HashMap::new();
                         for store_ptr in stores_ptr.values_mut() {
@@ -561,26 +551,23 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                                     serde_json::to_value(account.id.clone()).unwrap(),
                                 );
                                 let new_account: &mut Account = Rc::make_mut(account);
-                                for (key, value) in updated_data.iter() {
-                                    if let Some(new_value) = value.get("new") {
-                                        match key {
-                                            DataFieldType::Username => {
-                                                new_account.username =
-                                                    new_value.as_str().unwrap().to_owned();
-                                            }
-                                            DataFieldType::Password => new_account.set_password(
-                                                Some(new_value.as_str().unwrap().to_owned()),
-                                            ),
-                                            DataFieldType::Domain => {
-                                                new_account.domain =
-                                                    Some(new_value.as_str().unwrap().to_owned());
-                                            }
-                                            DataFieldType::Note => {
-                                                new_account.note =
-                                                    Some(new_value.as_str().unwrap().to_owned());
-                                            }
-                                            _ => {}
+                                for update_log in update_logs.iter() {
+                                    let field = update_log.field.clone();
+                                    let new = update_log.new.clone();
+                                    match field {
+                                        DataFieldType::Username => {
+                                            new_account.username = new.to_string()
                                         }
+                                        DataFieldType::Password => {
+                                            new_account.set_password(Some(new.to_string()))
+                                        }
+                                        DataFieldType::Domain => {
+                                            new_account.domain = Some(new.to_string())
+                                        }
+                                        DataFieldType::Note => {
+                                            new_account.note = Some(new.to_string())
+                                        }
+                                        _ => {}
                                     }
                                 }
                                 detail.insert(
@@ -831,7 +818,6 @@ impl Reducer<SessionStore> for SessionActionWrapper {
                     }
                     .into(),
                     Some(SessionEvent {
-                        //TODO: adding store id here causes error (only those subscribed to store id will receive the event, but the store just got created!)
                         store_id: Some(store_id.clone()),
                         event_type: SessionEventType::StoreCreated,
                         detail: Some(data),

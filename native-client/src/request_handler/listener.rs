@@ -363,13 +363,13 @@ pub fn listen_to_native_messaging(
                             &store,
                             passphrase_provider.clone(),
                         );
-                        let mut detail = HashMap::new();
                         if response.is_ok() {
                             let response = ResponseEnum::EditResponse(response?);
                             send_as_json(&response)?;
                             Ok(response)
                         } else {
-                            detail.insert(
+                            let mut metadata = HashMap::new();
+                            metadata.insert(
                                 DataFieldType::ErrorMessage,
                                 serde_json::to_value(response.unwrap_err()).unwrap(),
                             );
@@ -378,7 +378,8 @@ pub fn listen_to_native_messaging(
                                 instance_id: request.instance_id,
                                 status: Status::Failure,
                                 acknowledgement: request.acknowledgement.clone(),
-                                detail,
+                                update_logs: vec![],
+                                metadata: Some(metadata),
                                 resource: request.resource,
                             });
                             send_as_json(&response)?;
